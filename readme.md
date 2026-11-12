@@ -215,3 +215,9 @@ A user can create a board, add and edit architecture component cards, move them,
 4. Add spatial AI context and an MCP bridge, followed by optional desktop, sync, and publishing features.
 
 The detailed development plan and agent handoff live in [context/PLAN.md](context/PLAN.md) and [context/STATUS.md](context/STATUS.md). Agents work in turns on the shared branch, inspect the latest state before editing, and update the handoff with changes, actual checks, blockers, and next steps. The handoff is not a locking mechanism.
+
+## 8. Early Prototype
+
+The repository now includes an early Vite/React canvas prototype. To try it with Node.js 22 installed, run `npm install` followed by `npm run dev`; use `npm run build` for a production build. These commands and the browser workflow have not yet been verified for this initial commit.
+
+Add components, select one to edit its name, drag cards, and connect their handles. Use **Save board** after editing; reloading without saving loses unsaved changes. The prototype stores one board in browser localStorage for the current origin. Clearing browser data removes it; there is no sync, export, automatic backup, or repository import yet. Relationship labels and multi-board support remain to be built. See [context/STATUS.md](context/STATUS.md) for current checks and the agent handoff.
