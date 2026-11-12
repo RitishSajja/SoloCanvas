@@ -192,3 +192,26 @@ solocanvas/
 2. **Phase 2 — Daily Desk & Niche Widgets (Weeks 4–6):** Build the specialized card types for your chosen wedge (such as Markdown notes with bidirectional links, executable code/prompt nodes, or PDF highlight cards) and the default "Daily Desk" home board ([Fabric Heptabase vs. Obsidian Comparison](https://fabric.so/comparison/heptabase-vs-obsidian)).
 3. **Phase 3 — Spatial AI & MCP Bridge (Weeks 7–9):** Implement the Spatial Context Compiler so selecting a frame or connected node graph passes structured context to an LLM pipeline, and expose local **MCP** tool definitions so external agents can populate the canvas ([Miro Pricing](https://miro.com/pricing/), [tldraw Creative Design Use Cases](https://tldraw.dev/use-cases/creative-design)).
 4. **Phase 4 — Cloud Sync, Publishing & Launch (Weeks 10–12):** Add encrypted multi-device sync, one-click read-only board publishing for sharing outputs with clients or teammates, and Stripe billing for the Solo Pro tier ([Carly AI Miro Pricing Breakdown](https://www.usecarly.com/blog/miro-pricing/)).
+
+## 7. Selected Direction & First Milestone
+
+**Selected initial niche: System Architecture & Code Map (Option D).** SoloCanvas will first help individual developers create and explore visual maps of software systems. The existing sections describe the broader product vision; they are not a list of implemented features.
+
+### Initial implementation decisions
+
+- Begin with a Vite, React, and TypeScript web application. React Flow is the provisional canvas engine, subject to verifying its current licensing and suitability.
+- Design local persistence and its limitations explicitly before implementation. The intended experience is local-first; cloud sync and publishing are later milestones.
+- Native repository access, AI workflows, MCP, and desktop packaging will follow the basic canvas rather than being assumed available in a browser.
+
+### First usable milestone
+
+A user can create a board, add and edit architecture component cards, move them, connect them with labeled relationships, close or reload the application, and recover the saved board. The implementation must document how to run the app, the storage behavior and limitations, and the checks performed. Reload persistence and the core editing workflow must be verified before this milestone is called complete.
+
+### Priorities after the first milestone
+
+1. Support multiple boards and reusable atomic cards, search, and backlinks.
+2. Add a reviewable codebase import and architecture map, within the chosen runtime's file access limits.
+3. Add Mermaid interoperability with documented limitations.
+4. Add spatial AI context and an MCP bridge, followed by optional desktop, sync, and publishing features.
+
+The detailed development plan and agent handoff live in [context/PLAN.md](context/PLAN.md) and [context/STATUS.md](context/STATUS.md). Agents work in turns on the shared branch, inspect the latest state before editing, and update the handoff with changes, actual checks, blockers, and next steps. The handoff is not a locking mechanism.
