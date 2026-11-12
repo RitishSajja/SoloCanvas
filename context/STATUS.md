@@ -1,15 +1,17 @@
 # Agent handoff
 
 ## Goal
-Build SoloCanvas as a local-first System Architecture & Code Map. Read readme.md and context/PLAN.md before starting.
+Build SoloCanvas as a local-first System Architecture & Code Map. Read readme.md and context/PLAN.md.
 
 ## Latest run — 2026-11-12, Codex
-- Branch: main. Updated readme.md in commit 77deb68a48f84aa2aa7545f71bcbf71c45bc8ec1 to record the chosen niche, provisional stack, first milestone, and priorities.
-- Planning only: no application code has been implemented. The README update was checked by the GitHub API; no application tests were run.
-- Next: decide and document the initial persistence architecture, then scaffold Vite, React, TypeScript and the canvas. Build and verify the first milestone described in readme.md.
+Branch: main. Added an initial Vite/React/TypeScript and React Flow canvas, explicit browser-local save and restore, and a GitHub Actions build workflow. This is a first increment, not completion of the first milestone: relationship labels, board creation, robust storage handling, and full validation remain. The browser localStorage value is the sole current source of truth, scoped to the browser origin; clearing browser data removes it, and there is no sync, export, or backup. The editor uses explicit Save, not autosave. The original raw value is not overwritten on load failure unless the user explicitly saves.
+
+Checks: source created through GitHub API. Build, browser behavior, and reload persistence have not yet been verified; inspect the GitHub Actions build for the commit and fix any failures. No local working tree was used, so uncommitted work in other agents' environments is unknown.
+
+Next: check CI; test add/edit/move/connect/delete/save/reload in a browser, including storage failure; add meaningful automated tests and fix defects. Add labeled connections, explicit board creation and accessible editing. Update readme.md with actual run instructions and limitations. Evaluate a durable storage approach aligned with the blueprint before expanding to multiple boards.
 
 ## Coordination
-Codex and the other agent take turns on the same branch. Before starting, check whether the other agent has finished, inspect the branch and working tree where available, and read the latest handoff. Do not overwrite uncommitted work. If ownership or current state is unclear, stop and record the blocker; this document is not a lock. GitHub-only access cannot reveal another agent's uncommitted local changes, so coordinate explicitly.
+Agents take turns on the same branch. Inspect the latest branch and handoff, coordinate explicitly, and preserve other agents' changes. GitHub cannot reveal another agent's uncommitted work; this handoff is not a lock.
 
-## Handoff after each run
-Record date, agent, branch and commit; work completed and changed files; tests and actual results; uncommitted work; blockers and decisions; and concrete next steps. Update periodically during a run as well as at its end. Never include secrets.
+## Handoff
+Record agent, date, branch, commit, work, actual checks, known problems and concrete next steps. Never include secrets.
