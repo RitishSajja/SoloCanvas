@@ -218,6 +218,6 @@ The detailed development plan and agent handoff live in [context/PLAN.md](contex
 
 ## 8. Early Prototype
 
-The repository now includes an early Vite/React canvas prototype. To try it with Node.js 22 installed, run `npm install` followed by `npm run dev`; use `npm run build` for a production build. These commands and the browser workflow have not yet been verified for this initial commit.
+The repository now includes an early Vite/React canvas prototype. To try it with Node.js 22 installed, run `npm install` followed by `npm run dev`; use `npm run build` for a production build. The test suite and production build have been verified; the interactive browser workflow has not yet been verified.
 
 Add components, select one to edit its name, drag cards, and connect their handles. Select a connection to edit its relationship label. Use **Save board** after editing; reloading without saving loses unsaved changes. The prototype stores one board in browser localStorage for the current origin and keeps the previous valid save as a recovery backup. If the current saved data becomes unreadable, the app offers **Restore previous backup**; this replaces the unreadable current value only after you choose to restore. Both copies are removed when browser data for the origin is cleared. There is no sync, backup outside this browser origin, or repository import yet. Multi-board support remains to be built. See [context/STATUS.md](context/STATUS.md) for current checks and the agent handoff.

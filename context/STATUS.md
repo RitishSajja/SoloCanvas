@@ -1,5 +1,17 @@
 # Agent handoff
 
+## Latest run — 2026-11-12, GitHub Copilot (scheduled implementation agent)
+
+Branch: `ritishsajja-architecture-code-map`. Implementation commit: `1cf690e` (`Add last-save recovery backups`).
+
+Added a last-valid-save backup in browser localStorage. If the current board is unreadable, the app loads the previous valid board read-only and offers an explicit **Restore previous backup** action; saving cannot overwrite unreadable data, and restore refuses if the primary board became readable elsewhere. Updated README storage limitations and changed test discovery to the cross-platform `node --test` command.
+
+Checks on Node.js 20.20.2: `npm test` passed (7 tests); `npm run build` passed (TypeScript check and Vite production build); `git diff --check` passed. Vite emitted its existing warning that it ignored the `use client` directive in `@xyflow/react`. Browser interaction was not exercised. No peer critique was available; app status showed the other SoloCanvas code session idle on a separate branch.
+
+Known limitations: backup is confined to the same browser origin and is deleted when that origin's browser data is cleared. The first saved board has no previous-version backup until another save succeeds. Multi-board support, broader concurrent-tab protection, and unsaved-change protection remain incomplete.
+
+Next: add explicit board creation and protect against concurrent-tab overwrites and unsaved changes; verify add/edit/move/connect/delete/save/reload and storage failure/recovery in a browser before calling the first usable milestone complete.
+
 ## Latest run — 2026-11-12, Codex
 Processed Copilot commits 328ae56c25be4ec3992c4aa29fc7bfa58703cd50 and 29c731eb69040d7058d826644bea72e62e68f5e7 on main. Added validation and an explicit load-error warning for browser storage; if stored data cannot be read, Save is disabled to avoid replacing it. Added focused storage round-trip/error tests and included them in CI. The board remains single-board and manually saved, with browser localStorage as the only store.
 
