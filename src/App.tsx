@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ReactFlow, Background, Controls, addEdge, applyNodeChanges, applyEdgeChanges, type Node, type Edge, type Connection, type NodeChange, type EdgeChange } from '@xyflow/react';
 
 import { loadBoard, restoreBackup, saveBoard } from './storage.mjs';
 export default function App() {
   const [initial] = useState(() => loadBoard());
+  const savedRaw = useRef<string | null>(initial.raw);
   const [nodes, setNodes] = useState<Node[]>(initial.board.nodes);
   const [edges, setEdges] = useState<Edge[]>(initial.board.edges);
   const [canSave, setCanSave] = useState(initial.canSave);
@@ -15,12 +16,16 @@ export default function App() {
   const onEdgesChange = useCallback((changes: EdgeChange[]) => setEdges((old) => applyEdgeChanges(changes, old)), []);
   const onConnect = useCallback((connection: Connection) => setEdges((old) => addEdge({ ...connection, label: '' }, old)), []);
   const save = () => {
-    setSaveMessage(saveBoard({ nodes, edges }));
+    const board = { nodes, edges };
+    const result = saveBoard(board, undefined, savedRaw.current);
+    setSaveMessage(result);
+    if (result === 'Saved on this device') savedRaw.current = JSON.stringify(board);
   };
   const restore = () => {
     const result = restoreBackup();
     setSaveMessage(result.message);
     if (result.success) {
+      savedRaw.current = result.raw ?? null;
       setCanSave(true);
       setCanRestoreBackup(false);
     }

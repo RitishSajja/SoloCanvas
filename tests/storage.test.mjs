@@ -64,3 +64,29 @@ test('reports unavailable storage and failed writes', () => {
  assert.match(saveBoard({ nodes: [], edges: [] }, store), /Could not save/);
  assert.equal(restoreBackup(store).success, false);
 });
+
+test('rejects an overwrite when another tab changed the saved board', () => {
+ const store = memory();
+ const initial = loadBoard(store);
+ const newer = { nodes: [{ id: 'new', position: { x: 1, y: 2 }, data: {} }], edges: [] };
+ assert.equal(saveBoard(newer, store), 'Saved on this device');
+ const newerRaw = store.getItem(BOARD_KEY);
+ assert.match(saveBoard({ nodes: [], edges: [] }, store, initial.raw), /changed in another tab/);
+ assert.equal(store.getItem(BOARD_KEY), newerRaw);
+});
+test('allows repeat saves with a refreshed expected version', () => {
+ const store = memory();
+ const first = { nodes: [], edges: [] };
+ const initial = loadBoard(store);
+ assert.equal(saveBoard(first, store, initial.raw), 'Saved on this device');
+ const snapshot = store.getItem(BOARD_KEY);
+ assert.equal(saveBoard(first, store, snapshot), 'Saved on this device');
+});
+test('restoring a backup supplies the saved version for the next save', () => {
+ const store = memory('{broken');
+ const backup = '{"nodes":[],"edges":[]}';
+ store.setItem(BACKUP_KEY, backup);
+ const restored = restoreBackup(store);
+ assert.equal(restored.raw, backup);
+ assert.equal(saveBoard({ nodes: [], edges: [] }, store, restored.raw), 'Saved on this device');
+});

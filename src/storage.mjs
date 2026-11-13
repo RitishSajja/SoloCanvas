@@ -21,13 +21,14 @@ export function loadBoard(storage) {
   try {
     const source = storage ?? globalThis.localStorage;
     const raw = source.getItem(BOARD_KEY);
-    if (raw === null) return { board: blank(), canSave: true, canRestoreBackup: false, message: 'Not saved yet' };
+    if (raw === null) return { board: blank(), raw: null, canSave: true, canRestoreBackup: false, message: 'Not saved yet' };
     const board = parseBoard(raw);
-    if (board) return { board, canSave: true, canRestoreBackup: false, message: 'Loaded saved board' };
+    if (board) return { board, raw, canSave: true, canRestoreBackup: false, message: 'Loaded saved board' };
     const backup = parseBoard(source.getItem(BACKUP_KEY) ?? '');
     if (backup) {
       return {
         board: backup,
+        raw: null,
         canSave: false,
         canRestoreBackup: true,
         message: 'The saved board is unreadable. A previous backup is available; restore it to replace the unreadable data.',
@@ -37,17 +38,21 @@ export function loadBoard(storage) {
   } catch {
     return {
       board: blank(),
+      raw: null,
       canSave: false,
       canRestoreBackup: false,
       message: 'The saved board could not be read. Saving is disabled to protect existing data. Check browser storage or recover the saved data before reloading.',
     };
   }
 }
-export function saveBoard(board, storage) {
+export function saveBoard(board, storage, expectedRaw) {
   try {
     const target = storage ?? globalThis.localStorage;
     if (!validBoard(board)) return 'Could not save an invalid board.';
     const current = target.getItem(BOARD_KEY);
+    if (expectedRaw !== undefined && current !== expectedRaw) {
+      return 'The saved board changed in another tab. Your changes were not saved; copy them before reloading.';
+    }
     if (current !== null && !parseBoard(current)) {
       return 'Could not save because the saved board is unreadable. Restore a backup first.';
     }
@@ -70,7 +75,7 @@ export function restoreBackup(storage) {
       return { success: false, message: 'No valid saved backup is available.' };
     }
     target.setItem(BOARD_KEY, backup);
-    return { success: true, message: 'Restored the previous backup on this device.' };
+    return { success: true, raw: backup, message: 'Restored the previous backup on this device.' };
   } catch {
     return { success: false, message: 'Could not restore the backup. Check browser storage permissions.' };
   }
