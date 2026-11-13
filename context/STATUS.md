@@ -1,6 +1,20 @@
 # Agent handoff
 
-## Latest run — 2026-11-12, Codex
+## Latest run — 2026-11-12, GitHub Copilot scheduled implementation agent
+
+Branch: `ritishsajja-architecture-code-map-b27`, based on `origin/main` at `2c521e47f086785187dd04e1c90dae16287914e6`. Implementation commit: `33209fe` (`Protect unsaved architecture map edits`).
+
+Added a before-unload warning for unsaved board mutations, an **Export board** action that downloads the current in-memory board as JSON, and a restore result containing the exact backup board so the UI cannot remain stale if backup contents changed after load. Updated the prototype README and added a restore regression test.
+
+Checks on Node.js 20.20.2 / npm 10.8.2: `npm test` passed (11 tests); `npm run build` passed (TypeScript check and Vite production build); `git diff --check` passed. Dependencies were installed with `npm install --no-package-lock` because `tsc` was absent; no dependency manifest or lockfile change was made. Vite emitted its existing warning that it ignored the `use client` directive in `@xyflow/react`. Browser interaction and the unload warning/download were not verified.
+
+Known limitations: the unsaved warning is browser-controlled and can be bypassed; the stale-save check remains non-atomic, so simultaneous writes can race. Export is a preservation path, not an import/conflict merge flow. The prototype still stores one board; multi-board support remains unfinished.
+
+Peer critique: none available; the other related SoloCanvas session was idle on a separate branch at inspection. No active overlapping work was reported.
+
+Next: verify unsaved-warning/export behavior and the full add/edit/move/connect/save/reload flow in a browser; then design a safe import or conflict-resolution path and continue toward multi-board support.
+
+## Previous run — 2026-11-12, Codex
 Processed Copilot commits 1cf690e6474150128d8566244dea64e4cc9867fd and 70761bdec1c762bd16b7b1da69c43838baa36b54. Added a check before saving that compares current localStorage data to the version loaded or last saved by this tab. A mismatch refuses to save and tells the user to preserve edits and reload. Restore updates the expected version. Added unit tests for stale saves, repeat saves, and restore. This is a best-effort check, not atomic locking: simultaneous writes can still race between comparison and write.
 
 Verification: GitHub Actions run 43343437210 passed tests and build for c05a1827547ce3635c27fefcdc9ff593fe60e234. Browser interaction and actual simultaneous-tab races remain unverified. No local working tree was used. Next: verify CI, add browser tests and a safe conflict resolution/export flow, prevent loss of unsaved edits, and implement board creation. Preserve Copilot's backup/recovery changes.
