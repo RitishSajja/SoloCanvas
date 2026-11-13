@@ -5,8 +5,8 @@ import { loadBoard, parseBoard, restoreBackup, saveBoard } from './storage.mjs';
 export default function App() {
   const [initial] = useState(() => loadBoard());
   const savedRaw = useRef<string | null>(initial.raw);
-  const [nodes, setNodes] = useState<Node[]>(initial.board.nodes);
-  const [edges, setEdges] = useState<Edge[]>(initial.board.edges);
+  const [nodes, setNodes] = useState<Node[]>(() => initial.board.nodes.map((node) => ({ ...node, selected: false })));
+  const [edges, setEdges] = useState<Edge[]>(() => initial.board.edges.map((edge) => ({ ...edge, selected: false })));
   const [canSave, setCanSave] = useState(initial.canSave);
   const [canRestoreBackup, setCanRestoreBackup] = useState(initial.canRestoreBackup);
   const [selected, setSelected] = useState<string | null>(null);
@@ -39,8 +39,8 @@ export default function App() {
     setSaveMessage(result.message);
     if (result.success) {
       savedRaw.current = result.raw ?? null;
-      setNodes(result.board.nodes);
-      setEdges(result.board.edges);
+      setNodes(result.board.nodes.map((node) => ({ ...node, selected: false })));
+      setEdges(result.board.edges.map((edge) => ({ ...edge, selected: false })));
       setHasUnsavedChanges(false);
       setCanSave(true);
       setCanRestoreBackup(false);
