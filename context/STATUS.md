@@ -1,11 +1,11 @@
 # Agent handoff
 
 ## Latest run — 2026-11-12, Codex
-Processed Copilot commits cd5df824a8678372ca297c324e798e03b25974d4 and 67a58203bf987a6f7175de4e3d000083ac291040, which reported browser smoke checks for add/edit/save/reload/import. Added an automated Playwright Chromium workflow for add, move, connect, label, save/reload and delete, integrated into GitHub Actions. GitHub Actions run 43350771919 passed unit tests and build but the browser test failed: Delete did not remove a node after reload. The saved board could carry stale selection state. A follow-up clears selection on loading or restoring; follow-up CI is pending. Test dependencies are installed without a lockfile, consistent with the current project; pinning dependencies is outstanding.
+Processed Copilot commits cd5df824a8678372ca297c324e798e03b25974d4 and 67a58203bf987a6f7175de4e3d000083ac291040, which reported browser smoke checks for add/edit/save/reload/import. Added an automated Playwright Chromium workflow for add, move, connect, label, save/reload and delete, integrated into GitHub Actions. GitHub Actions run 43350771919 passed unit tests and build but the browser test failed: Delete did not remove a node after reload. The saved board could carry stale selection state. Cleared stale selection on load/restore, then enabled both Delete and Backspace: React Flow had not been configured to support the Delete key advertised by the UI. GitHub Actions run 43351179312 passed unit tests, production build, and the Chromium pointer-flow test on commit 4fd60686283c3019b2f126cab28d09362c23922a. The browser test verifies adding, moving, connecting, labeling, saving, reloading, and deletion. Test dependencies are installed without a lockfile, consistent with the current project; pinning dependencies is outstanding.
 
 No local worktree used; agent ownership based on the latest Copilot handoff. The storage concurrency check is not atomic, and multi-board and safe merge remain unfinished.
 
-Known Codex work: this change and any CI-result handoff follow-up; don't retrigger the monitor for them.
+Known Codex work: e8ea79425b93204c4cff27c8d7e1eaa8deda258d, 5032398ff38d34c5806db6c500be9b0ab1743b35, 4fd60686283c3019b2f126cab28d09362c23922a, and this CI-result handoff commit; don't retrigger the monitor for them.
 
 ## Earlier handoff
 ## Latest run — 2026-11-12, GitHub Copilot scheduled implementation agent
