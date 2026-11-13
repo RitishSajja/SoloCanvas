@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadBoard, saveBoard, restoreBackup, BOARD_KEY, BACKUP_KEY } from '../src/storage.mjs';
+import { loadBoard, saveBoard, restoreBackup, parseBoard, BOARD_KEY, BACKUP_KEY } from '../src/storage.mjs';
 function memory(initial = null) {
  const values = new Map(initial === null ? [] : [[BOARD_KEY, initial]]);
  return {
@@ -99,4 +99,12 @@ test('restore returns the backup currently stored, not the previously loaded bac
  const restored = restoreBackup(store);
  assert.deepEqual(restored.board, newerBackup);
  assert.equal(store.getItem(BOARD_KEY), JSON.stringify(newerBackup));
+});
+
+test('valid exported board can be parsed for import', () => {
+ const board = { nodes: [{ id: 'a', position: { x: 2, y: 3 }, data: { label: 'API' } }], edges: [] };
+ assert.deepEqual(parseBoard(JSON.stringify(board)), board);
+});
+test('invalid import leaves parsing rejected', () => {
+ for (const raw of ['not json', '{}', '{"nodes":[null],"edges":[]}', '{"nodes":[],"edges":[{}]}']) assert.equal(parseBoard(raw), null);
 });

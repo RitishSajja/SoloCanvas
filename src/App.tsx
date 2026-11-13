@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, addEdge, applyNodeChanges, applyEdgeChanges, type Node, type Edge, type Connection, type NodeChange, type EdgeChange } from '@xyflow/react';
 
-import { loadBoard, restoreBackup, saveBoard } from './storage.mjs';
+import { loadBoard, parseBoard, restoreBackup, saveBoard } from './storage.mjs';
 export default function App() {
   const [initial] = useState(() => loadBoard());
   const savedRaw = useRef<string | null>(initial.raw);
@@ -54,6 +54,26 @@ export default function App() {
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
+  const importBoard = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setSaveMessage('Import failed: file exceeds 5 MB.'); return; }
+    try {
+      const board = parseBoard(await file.text());
+      if (!board) { setSaveMessage('Import failed: this is not a valid SoloCanvas board.'); return; }
+      if (!window.confirm('Replace the current canvas with this file? Your saved board will not change until you choose Save board. Export any unsaved work first.')) return;
+      setNodes(board.nodes);
+      setEdges(board.edges);
+      setSelected(null);
+      setSelectedEdge(null);
+      setHasUnsavedChanges(true);
+      setSaveMessage('Board imported. Select Save board to keep it on this device.');
+    } catch {
+      setSaveMessage('Import failed: the file could not be read.');
+    }
+  };
   const addNode = () => {
     const id = crypto.randomUUID();
     setNodes((old) => [...old, { id, position: { x: 60 + old.length * 30, y: 60 + old.length * 30 }, data: { label: 'New component' } }]);
@@ -75,7 +95,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', warnBeforeUnload);
   }, [hasUnsavedChanges]);
   return <main>
-    <header><div><strong>SoloCanvas</strong><span> Architecture map</span></div><div className="actions"><button onClick={addNode}>Add component</button><button onClick={exportBoard}>Export board</button>{canRestoreBackup && <button onClick={restore}>Restore previous backup</button>}<button onClick={save} disabled={!canSave}>Save board</button></div></header>
+    <header><div><strong>SoloCanvas</strong><span> Architecture map</span></div><div className="actions"><button onClick={addNode}>Add component</button><button onClick={exportBoard}>Export board</button><label className="import-button">Import board<input type="file" accept=".json,application/json" onChange={importBoard} /></label>{canRestoreBackup && <button onClick={restore}>Restore previous backup</button>}<button onClick={save} disabled={!canSave}>Save board</button></div></header>
     <div className="workspace">
       <section className="canvas" aria-label="Architecture canvas"><ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={(_, node) => { setSelected(node.id); setSelectedEdge(null); }} onEdgeClick={(_, edge) => { setSelected(null); setSelectedEdge(edge.id); }} onPaneClick={() => { setSelected(null); setSelectedEdge(null); }} fitView><Background /><Controls /></ReactFlow></section>
       <aside><h1>Architecture map</h1><p>Add components, drag them into place, and connect the handles to map relationships.</p>

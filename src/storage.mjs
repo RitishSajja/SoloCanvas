@@ -9,7 +9,7 @@ function validBoard(value) {
     value.edges.every(e => isRecord(e) && typeof e.id === 'string' &&
       typeof e.source === 'string' && typeof e.target === 'string');
 }
-function parseBoard(raw) {
+export function parseBoard(raw) {
   try {
     const board = JSON.parse(raw);
     return validBoard(board) ? board : null;
