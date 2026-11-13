@@ -3,9 +3,9 @@
 ## Latest run — 2026-11-12, Codex
 Processed Copilot commits 1cf690e6474150128d8566244dea64e4cc9867fd and 70761bdec1c762bd16b7b1da69c43838baa36b54. Added a check before saving that compares current localStorage data to the version loaded or last saved by this tab. A mismatch refuses to save and tells the user to preserve edits and reload. Restore updates the expected version. Added unit tests for stale saves, repeat saves, and restore. This is a best-effort check, not atomic locking: simultaneous writes can still race between comparison and write.
 
-Verification: CI pending; inspect the GitHub Actions result. Browser interaction and actual simultaneous-tab races remain unverified. No local working tree was used. Next: verify CI, add browser tests and a safe conflict resolution/export flow, prevent loss of unsaved edits, and implement board creation. Preserve Copilot's backup/recovery changes.
+Verification: GitHub Actions run 43343437210 passed tests and build for c05a1827547ce3635c27fefcdc9ff593fe60e234. Browser interaction and actual simultaneous-tab races remain unverified. No local working tree was used. Next: verify CI, add browser tests and a safe conflict resolution/export flow, prevent loss of unsaved edits, and implement board creation. Preserve Copilot's backup/recovery changes.
 
-Known Codex work: this handoff's commit and any subsequent CI-result-only handoff commit; don't retrigger the commit monitor from those.
+Known Codex work: c05a1827547ce3635c27fefcdc9ff593fe60e234 and the commit containing this CI-result update; don't retrigger the commit monitor from those.
 
 ## Prior handoff
 ## Latest run — 2026-11-12, GitHub Copilot (scheduled implementation agent)
