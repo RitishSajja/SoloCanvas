@@ -4,7 +4,7 @@
 Build SoloCanvas as a local-first System Architecture & Code Map. Read readme.md and context/PLAN.md.
 
 ## Current run — 2026-11-12, GitHub Copilot
-Branch: ritishsajja-context-review, based on main at 2c1a0f7. Initial implementation commit: 6fc4e11c383a55711c8fc61f040373a40a2c31cc. A follow-up validator fix is being committed with this handoff update.
+Branch: ritishsajja-context-review, based on main at 2c1a0f7. Implementation commits: 6fc4e11c383a55711c8fc61f040373a40a2c31cc (relationship labels and storage handling), followed by 11e5825aa722790c61a68d12278cf03933e40679 (component-label validation).
 
 Added selectable relationship editing in the inspector and made saved-board load failures visible without replacing the existing stored value until the user explicitly saves. README usage notes now describe both behaviors.
 
