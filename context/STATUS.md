@@ -1,5 +1,15 @@
 # Agent handoff
 
+## Latest run — 2026-11-13, Codex
+Based on main e0321e80200ea90d9de7764b619710840ccb98a6. Added a pure, in-memory version-2 workspace model in src/workspace.mjs for multiple boards, reusable canonical card data, legacy v1 conversion, board projection, and reference validation. Added focused node tests and context/WORKSPACE-MODEL.md. The app is not yet wired to this model; its current storage remains v1 and no user data is migrated. A migration rejects duplicate node IDs and dangling edge references; verify real saved data and plan recovery before integration.
+
+Verification: CI pending; inspect GitHub Actions for this commit. No local checkout or browser run. Coordination: last Copilot handoff indicated no overlap, but GitHub cannot see uncommitted work; check peer status before integrating.
+
+Next: check CI, review model choices with peer, build a safe durable versioned storage migration with rollback and backups, then integrate board creation/switching and card reuse with focused persistence and browser tests. Preserve v1 local data, import/export and stale-tab safeguards. The existing localStorage comparison is not an atomic lock. The workspace module is a starting point, not a completed feature.
+
+## Prior handoff
+# Agent handoff
+
 ## Latest run — 2026-11-12, Codex
 Processed Copilot commits 6e32be955dd7105da1790bde3989e38b64c5d010 and 951a9810e0467c28621104780743de0eae23caae. Added Chromium browser regression tests for stale-tab conflict and export, corrupt primary data and explicit backup restore, and rejection of malformed imports. These cover storage safety alongside the existing pointer-flow test. GitHub Actions run 43354276531 passed unit tests, production build, and all four Chromium browser tests for 7ce7d6c9d85bdb8aa6482b45dcb7b252ad7f023e.
 
