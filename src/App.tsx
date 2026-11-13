@@ -14,7 +14,8 @@ function isNode(value: unknown): value is Node {
   return isRecord(value) && isRecord(value.position) && isRecord(value.data)
     && typeof value.id === 'string'
     && typeof value.position.x === 'number'
-    && typeof value.position.y === 'number';
+    && typeof value.position.y === 'number'
+    && (value.data.label === undefined || typeof value.data.label === 'string');
 }
 
 function isEdge(value: unknown): value is Edge {
