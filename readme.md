@@ -225,3 +225,5 @@ Add components, select one to edit its name, drag cards, and connect their handl
 The app checks whether the saved board changed since this tab loaded or last saved before saving again. If it detects a change, it refuses to overwrite; export the current board before reloading. This check is not an atomic lock, so simultaneous writes can still race.
 
 **Import board** opens a previously exported SoloCanvas JSON file (up to 5 MB). Import replaces the current in-memory canvas only after confirmation; choose Save board to persist it. Export unsaved work before importing. This is SoloCanvas JSON, not JSON Canvas interoperability. If the saved board changed in another tab, export your edits, reload the newer board, then import your export; importing replaces the canvas rather than merging changes.
+
+Browser regression checks can be run with `npx playwright install chromium` and `npm run test:browser`. The GitHub build workflow installs Chromium and runs these checks alongside the unit tests and build.
