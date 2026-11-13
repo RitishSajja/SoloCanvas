@@ -29,6 +29,8 @@ export function migrateLegacyBoard(raw, { boardId = 'board-1', title = 'My board
   const legacy = parseBoard(raw);
   if (!legacy || !idString(boardId) || typeof title !== 'string') throw new Error('Invalid legacy board');
   const { nodes, edges, ...extra } = legacy;
+  // cardId is reserved by v2; refusing migration avoids overwriting legacy data.
+  if (nodes.some(node => Object.hasOwn(node, 'cardId'))) throw new Error('Legacy node contains reserved cardId');
   const cards = nodes.map(node => ({ id: 'card:' + node.id, data: copy(node.data) }));
   const workspace = {
     version: 2,

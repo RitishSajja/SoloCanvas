@@ -33,6 +33,7 @@ test('shared card updates appear on every board while positions stay independent
 
 test('invalid legacy boards do not silently migrate', () => {
   assert.throws(() => migrateLegacyBoard('{bad'));
+  assert.throws(() => migrateLegacyBoard(JSON.stringify({ nodes: [{ ...fixture.nodes[0], cardId: 'legacy value' }], edges: [] })));
   assert.throws(() => migrateLegacyBoard(JSON.stringify({ nodes: [fixture.nodes[0], fixture.nodes[0]], edges: [] })));
   assert.throws(() => migrateLegacyBoard(JSON.stringify({ nodes: [fixture.nodes[0]], edges: fixture.edges })));
 });
