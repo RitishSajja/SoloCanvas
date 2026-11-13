@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BOARD_KEY } from '../src/storage.mjs';
 import { addBoard } from '../src/workspace.mjs';
-import { WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, openWorkspace, writeWorkspace, parseWorkspace } from '../src/workspace-storage.mjs';
+import { WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, openWorkspace, writeWorkspace, writeWorkspaceLocked, WORKSPACE_LOCK, parseWorkspace } from '../src/workspace-storage.mjs';
 
 function memory(initial = {}) {
  const values = new Map(Object.entries(initial));
@@ -92,4 +92,29 @@ test('rejects sparse arrays, hidden properties, symbols, and circular data', () 
  workspace.boards[0].extra = cyclic;
  assert.equal(writeWorkspace(workspace, opened.snapshot, store).ok, false);
  assert.equal(store.getItem(WORKSPACE_KEY), null);
+});
+
+test('locked writes fail closed if browser locking is missing or fails', async () => {
+ const store = memory(); const opened = openWorkspace(store);
+ assert.match((await writeWorkspaceLocked(opened.workspace, opened.snapshot, store, null)).error, /lock support/);
+ const rejected = { request() { return Promise.reject(new Error('denied')); } };
+ assert.match((await writeWorkspaceLocked(opened.workspace, opened.snapshot, store, rejected)).error, /lock/);
+ assert.equal(store.getItem(WORKSPACE_KEY), null);
+});
+
+test('serialized writers with the same snapshot do not both succeed', async () => {
+ const store = memory(); const first = openWorkspace(store); const second = openWorkspace(store);
+ let tail = Promise.resolve();
+ const locks = {
+   request(name, options, callback) {
+     assert.equal(name, WORKSPACE_LOCK); assert.equal(options.mode, 'exclusive');
+     const result = tail.then(callback); tail = result.then(() => undefined, () => undefined); return result;
+   },
+ };
+ const outcomes = await Promise.all([
+   writeWorkspaceLocked(addBoard(first.workspace, 'a', 'A'), first.snapshot, store, locks),
+   writeWorkspaceLocked(addBoard(second.workspace, 'b', 'B'), second.snapshot, store, locks),
+ ]);
+ assert.equal(outcomes.filter(result => result.ok).length, 1);
+ assert.match(outcomes.find(result => !result.ok).error, /changed/);
 });

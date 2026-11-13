@@ -1,6 +1,16 @@
 # Agent handoff
 
 ## Latest run — 2026-11-13, Codex
+Based on main 39b2e856a03f240df137063700e819e971d2667d. Added an opt-in Web Locks wrapper around the v2 snapshot check and write; it fails closed when Web Locks are unavailable. Added unit coverage for unsupported/failed locks and a browser test with two concurrent v2 writers. CI pending: inspect the run before claiming success.
+
+Scope and limits: only cooperating writers using the shared lock are serialized. The existing v1 UI and direct writeWorkspace are unlocked; arbitrary localStorage writes and v1 writers can race. No app UI is connected to v2. Browser API availability, legacy coexistence, backup restore/export and a version rollback policy must be addressed before enabling migration. Local data is not touched by this change.
+
+Next: check CI; implement explicit v2 backup inspection and restore with raw-data preservation, testing stale snapshots and unsupported future versions. Then choose a safe cross-version strategy and integrate multi-board UI with browser tests. Verify other agent ownership before editing.
+
+## Prior handoff
+# Agent handoff
+
+## Latest run — 2026-11-13, Codex
 Based on main 997847f2cf1f9429e10edaba83fb0ba239d7b4bd. Added an isolated v2 persistence adapter (src/workspace-storage.mjs) and focused tests. Opening a legacy board builds a v2 model in memory without modifying storage; explicit writes compare the last-read v1 and v2 values, preserve v1, and back up an existing v2 before replacement. Unknown/corrupt v2 and unsafe legacy migration are rejected rather than overwritten. Unit cases cover legacy preservation, stale snapshots, backup, quota/read failures, future versions, JSON loss, and reopen. No application UI is connected to this adapter; existing v1 behavior remains unchanged.
 
 Verification: GitHub Actions run 43486333039 passed tests, build and Chromium checks for bce2de7cadd23e85639370da76a697e5bcbcdef6. Follow-up 1270c2bb0c2b5e5e9e649e64cf167ce5276286db strengthens serialization checks for sparse arrays, hidden properties, symbols and cycles; GitHub Actions run 43486577362 passed unit tests, production build and browser tests. The read/compare/write process is not atomic between tabs; v2 backup restore and rollback UI are not implemented, and the preserved v1 board becomes stale once v2 editing starts. Do not enable UI migration until those tradeoffs are addressed. No local working tree was used.

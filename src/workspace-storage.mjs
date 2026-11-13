@@ -91,3 +91,19 @@ export function writeWorkspace(workspace, snapshot, storage) {
     return { ok: false, error: 'Workspace could not be saved. Check browser storage permissions.' };
   }
 }
+
+export const WORKSPACE_LOCK = 'solocanvas.workspace.v2.write';
+
+// All cooperating v2 writers must use this wrapper. Unlocked or older v1 writers
+// do not participate. Fail closed where Web Locks is unavailable.
+export async function writeWorkspaceLocked(workspace, snapshot, storage, locks = globalThis.navigator?.locks) {
+  if (!locks || typeof locks.request !== 'function') {
+    return { ok: false, error: 'Safe workspace saving requires browser lock support. Export your changes.' };
+  }
+  try {
+    return await locks.request(WORKSPACE_LOCK, { mode: 'exclusive' },
+      () => writeWorkspace(workspace, snapshot, storage));
+  } catch {
+    return { ok: false, error: 'Could not obtain the workspace save lock. Export your changes.' };
+  }
+}
