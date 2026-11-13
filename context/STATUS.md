@@ -3,9 +3,11 @@
 ## Latest run — 2026-11-13, Codex
 Based on main e0321e80200ea90d9de7764b619710840ccb98a6. Added a pure, in-memory version-2 workspace model in src/workspace.mjs for multiple boards, reusable canonical card data, legacy v1 conversion, board projection, and reference validation. Added focused node tests and context/WORKSPACE-MODEL.md. The app is not yet wired to this model; its current storage remains v1 and no user data is migrated. A migration rejects duplicate node IDs and dangling edge references; verify real saved data and plan recovery before integration.
 
-Verification: GitHub Actions run 43437426209 passed unit tests, production build, and Chromium browser tests for 484c9325da5a8a2883f3399b0af1ecf12a8d125f. A follow-up guards reserved cardId fields during conversion; its CI result is pending. No local checkout or browser run. Coordination: last Copilot handoff indicated no overlap, but GitHub cannot see uncommitted work; check peer status before integrating.
+Verification: GitHub Actions run 43437426209 passed unit tests, production build, and Chromium browser tests for 484c9325da5a8a2883f3399b0af1ecf12a8d125f. Follow-up 823ce459f678814d6d5793376d9f38392498a68c guards reserved cardId fields during conversion; GitHub Actions run 43437642003 passed unit tests, production build and Chromium browser tests. No local checkout or browser run. Coordination: last Copilot handoff indicated no overlap, but GitHub cannot see uncommitted work; check peer status before integrating.
 
 Next: check CI, review model choices with peer, build a safe durable versioned storage migration with rollback and backups, then integrate board creation/switching and card reuse with focused persistence and browser tests. Preserve v1 local data, import/export and stale-tab safeguards. The existing localStorage comparison is not an atomic lock. The workspace module is a starting point, not a completed feature.
+
+Known Codex commits for monitor loop prevention: 484c9325da5a8a2883f3399b0af1ecf12a8d125f, 823ce459f678814d6d5793376d9f38392498a68c, and the commit containing this handoff update.
 
 ## Prior handoff
 # Agent handoff
