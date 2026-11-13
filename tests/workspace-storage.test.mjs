@@ -76,3 +76,20 @@ test('rejects non-JSON and invalid workspaces without writing', () => {
  assert.equal(parseWorkspace('{"version":99}'), null);
  assert.equal(store.getItem(WORKSPACE_KEY), null);
 });
+
+test('rejects sparse arrays, hidden properties, symbols, and circular data', () => {
+ const store = memory(); const opened = openWorkspace(store);
+ const workspace = opened.workspace;
+ const sparse = Array(1); sparse.extra = 'would hide the hole';
+ workspace.boards[0].extra = { sparse };
+ assert.equal(writeWorkspace(workspace, opened.snapshot, store).ok, false);
+ const hidden = {}; Object.defineProperty(hidden, 'secret', { value: 'not serialized' });
+ workspace.boards[0].extra = hidden;
+ assert.equal(writeWorkspace(workspace, opened.snapshot, store).ok, false);
+ workspace.boards[0].extra = { [Symbol('lost')]: 'value' };
+ assert.equal(writeWorkspace(workspace, opened.snapshot, store).ok, false);
+ const cyclic = {}; cyclic.self = cyclic;
+ workspace.boards[0].extra = cyclic;
+ assert.equal(writeWorkspace(workspace, opened.snapshot, store).ok, false);
+ assert.equal(store.getItem(WORKSPACE_KEY), null);
+});

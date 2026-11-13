@@ -17,9 +17,11 @@ function jsonSafe(value, ancestors = new Set()) {
   ancestors.add(value);
   let ok;
   if (array) {
-    ok = Object.keys(value).length === value.length && value.every(item => jsonSafe(item, ancestors));
+    ok = Reflect.ownKeys(value).length === value.length + 1 &&
+      Array.from({ length: value.length }, (_, index) => Object.hasOwn(value, index) && jsonSafe(value[index], ancestors)).every(Boolean);
   } else {
-    ok = Object.keys(value).every(key => jsonSafe(value[key], ancestors));
+    const keys = Object.keys(value);
+    ok = Reflect.ownKeys(value).length === keys.length && keys.every(key => jsonSafe(value[key], ancestors));
   }
   ancestors.delete(value);
   return ok;
