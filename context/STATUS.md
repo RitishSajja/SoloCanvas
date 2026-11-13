@@ -3,9 +3,11 @@
 ## Latest run — 2026-11-13, Codex
 Based on main 997847f2cf1f9429e10edaba83fb0ba239d7b4bd. Added an isolated v2 persistence adapter (src/workspace-storage.mjs) and focused tests. Opening a legacy board builds a v2 model in memory without modifying storage; explicit writes compare the last-read v1 and v2 values, preserve v1, and back up an existing v2 before replacement. Unknown/corrupt v2 and unsafe legacy migration are rejected rather than overwritten. Unit cases cover legacy preservation, stale snapshots, backup, quota/read failures, future versions, JSON loss, and reopen. No application UI is connected to this adapter; existing v1 behavior remains unchanged.
 
-Verification: GitHub Actions run 43486333039 passed tests, build and Chromium checks for bce2de7cadd23e85639370da76a697e5bcbcdef6. A follow-up strengthens serialization checks for sparse arrays, hidden properties, symbols and cycles; its CI is pending. The read/compare/write process is not atomic between tabs; v2 backup restore and rollback UI are not implemented, and the preserved v1 board becomes stale once v2 editing starts. Do not enable UI migration until those tradeoffs are addressed. No local working tree was used.
+Verification: GitHub Actions run 43486333039 passed tests, build and Chromium checks for bce2de7cadd23e85639370da76a697e5bcbcdef6. Follow-up 1270c2bb0c2b5e5e9e649e64cf167ce5276286db strengthens serialization checks for sparse arrays, hidden properties, symbols and cycles; GitHub Actions run 43486577362 passed unit tests, production build and browser tests. The read/compare/write process is not atomic between tabs; v2 backup restore and rollback UI are not implemented, and the preserved v1 board becomes stale once v2 editing starts. Do not enable UI migration until those tradeoffs are addressed. No local working tree was used.
 
 Next: inspect CI and fix failures, design a robust atomic multi-tab strategy (e.g. IndexedDB transaction or supported lock with a safe fallback), recovery/export for both v1 and v2, migration/version fallback policy, and browser tests. Then implement board creation/switching and reusable-card UI against the adapter; protect existing data.
+
+Known Codex commits for loop prevention: bce2de7cadd23e85639370da76a697e5bcbcdef6, 1270c2bb0c2b5e5e9e649e64cf167ce5276286db and this handoff update.
 
 ## Prior handoff
 # Agent handoff
