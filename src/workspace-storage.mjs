@@ -107,3 +107,58 @@ export async function writeWorkspaceLocked(workspace, snapshot, storage, locks =
     return { ok: false, error: 'Could not obtain the workspace save lock. Export your changes.' };
   }
 }
+
+export const WORKSPACE_DAMAGED_KEY = 'solocanvas.workspace.damaged.v2';
+
+function isUnknownVersion(raw) {
+  try {
+    const value = JSON.parse(raw);
+    return value && typeof value === 'object' && !Array.isArray(value) &&
+      Object.hasOwn(value, 'version') && value.version !== 2;
+  } catch { return false; }
+}
+
+// Inspect only: callers can offer the raw primary and backup for export before
+// asking a user to restore. Unknown versions are never treated as corruption.
+export function inspectWorkspaceRecovery(storage) {
+  try {
+    const target = storage ?? globalThis.localStorage;
+    const primary = target.getItem(WORKSPACE_KEY);
+    const backup = target.getItem(WORKSPACE_BACKUP_KEY);
+    const legacy = target.getItem(BOARD_KEY);
+    const damaged = target.getItem(WORKSPACE_DAMAGED_KEY);
+    if (primary === null || parseWorkspace(primary)) return { ok: false, error: 'The current workspace is not damaged.' };
+    if (isUnknownVersion(primary)) return { ok: false, error: 'The workspace has an unsupported version. Do not restore over it.' };
+    if (!backup || !parseWorkspace(backup)) return { ok: false, error: 'No valid workspace backup is available.' };
+    if (damaged !== null && damaged !== primary) return { ok: false, error: 'A previous damaged workspace is already preserved. Export it before recovery.' };
+    return { ok: true, snapshot: { primary, backup, legacy, damaged } };
+  } catch {
+    return { ok: false, error: 'Workspace recovery data could not be read.' };
+  }
+}
+
+// Restore is serialized with cooperating v2 writers. The corrupt primary is
+// archived before replacement. The legacy board and backup are never removed.
+export async function restoreWorkspaceBackup(snapshot, storage, locks = globalThis.navigator?.locks) {
+  if (!locks || typeof locks.request !== 'function') return { ok: false, error: 'Safe recovery requires browser lock support.' };
+  try {
+    return await locks.request(WORKSPACE_LOCK, { mode: 'exclusive' }, () => {
+      try {
+        const target = storage ?? globalThis.localStorage;
+        const inspected = inspectWorkspaceRecovery(target);
+        if (!inspected.ok) return inspected;
+        const current = inspected.snapshot;
+        if (!snapshot || ['primary', 'backup', 'legacy', 'damaged'].some(key => snapshot[key] !== current[key])) {
+          return { ok: false, error: 'Recovery data changed since inspection. Inspect again.' };
+        }
+        target.setItem(WORKSPACE_DAMAGED_KEY, current.primary);
+        target.setItem(WORKSPACE_KEY, current.backup);
+        return { ok: true, workspace: parseWorkspace(current.backup), snapshot: { workspaceRaw: current.backup, legacyRaw: current.legacy } };
+      } catch {
+        return { ok: false, error: 'Recovery could not be completed. The original data may still be present.' };
+      }
+    });
+  } catch {
+    return { ok: false, error: 'Could not obtain the workspace recovery lock.' };
+  }
+}

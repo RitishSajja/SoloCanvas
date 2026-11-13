@@ -1,11 +1,11 @@
 # Agent handoff
 
 ## Latest run — 2026-11-13, Codex
-Based on main 39b2e856a03f240df137063700e819e971d2667d. Added an opt-in Web Locks wrapper around the v2 snapshot check and write; it fails closed when Web Locks are unavailable. Added unit coverage for unsupported/failed locks and a browser test with two concurrent v2 writers. CI pending: inspect the run before claiming success.
+Based on main 39b2e856a03f240df137063700e819e971d2667d. Added an opt-in Web Locks wrapper around the v2 snapshot check and write; it fails closed when Web Locks are unavailable. Added unit coverage for unsupported/failed locks and a browser test with two concurrent v2 writers. GitHub Actions run 43530216399 passed unit tests, build and browser tests for commit 3f11401aefbbce7b31b486e02e5bddb992ba283f. A follow-up adds opt-in inspected backup recovery, archives the damaged raw primary, preserves the legacy data, and refuses unknown versions or stale snapshots; its CI is pending.
 
 Scope and limits: only cooperating writers using the shared lock are serialized. The existing v1 UI and direct writeWorkspace are unlocked; arbitrary localStorage writes and v1 writers can race. No app UI is connected to v2. Browser API availability, legacy coexistence, backup restore/export and a version rollback policy must be addressed before enabling migration. Local data is not touched by this change.
 
-Next: check CI; implement explicit v2 backup inspection and restore with raw-data preservation, testing stale snapshots and unsupported future versions. Then choose a safe cross-version strategy and integrate multi-board UI with browser tests. Verify other agent ownership before editing.
+Next: check CI; implement user-facing v2 recovery/export, and test partial-write and storage quota scenarios. Then choose a safe cross-version strategy and integrate multi-board UI with browser tests. Verify other agent ownership before editing.
 
 ## Prior handoff
 # Agent handoff

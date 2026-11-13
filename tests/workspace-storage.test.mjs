@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BOARD_KEY } from '../src/storage.mjs';
 import { addBoard } from '../src/workspace.mjs';
-import { WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, openWorkspace, writeWorkspace, writeWorkspaceLocked, WORKSPACE_LOCK, parseWorkspace } from '../src/workspace-storage.mjs';
+import { WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, openWorkspace, writeWorkspace, writeWorkspaceLocked, WORKSPACE_LOCK, inspectWorkspaceRecovery, restoreWorkspaceBackup, WORKSPACE_DAMAGED_KEY, parseWorkspace } from '../src/workspace-storage.mjs';
 
 function memory(initial = {}) {
  const values = new Map(Object.entries(initial));
@@ -117,4 +117,40 @@ test('serialized writers with the same snapshot do not both succeed', async () =
  ]);
  assert.equal(outcomes.filter(result => result.ok).length, 1);
  assert.match(outcomes.find(result => !result.ok).error, /changed/);
+});
+
+const directLock = { request(_name, _options, callback) { return Promise.resolve(callback()); } };
+test('explicit recovery preserves the damaged workspace and legacy board', async () => {
+ const store = memory({ [BOARD_KEY]: legacy }); const opened = openWorkspace(store);
+ const valid = JSON.stringify(opened.workspace);
+ store.setItem(WORKSPACE_KEY, '{bad'); store.setItem(WORKSPACE_BACKUP_KEY, valid);
+ const inspection = inspectWorkspaceRecovery(store);
+ assert.equal(inspection.ok, true);
+ const result = await restoreWorkspaceBackup(inspection.snapshot, store, directLock);
+ assert.equal(result.ok, true); assert.equal(store.getItem(WORKSPACE_KEY), valid);
+ assert.equal(store.getItem(WORKSPACE_DAMAGED_KEY), '{bad');
+ assert.equal(store.getItem(BOARD_KEY), legacy); assert.equal(store.getItem(WORKSPACE_BACKUP_KEY), valid);
+});
+
+test('recovery refuses stale data, unknown versions, or existing different archive', async () => {
+ const store = memory(); const valid = JSON.stringify(openWorkspace(store).workspace);
+ store.setItem(WORKSPACE_KEY, '{bad'); store.setItem(WORKSPACE_BACKUP_KEY, valid);
+ const inspection = inspectWorkspaceRecovery(store);
+ store.setItem(WORKSPACE_BACKUP_KEY, JSON.stringify(addBoard(openWorkspace(memory()).workspace, 'b', 'B')));
+ assert.match((await restoreWorkspaceBackup(inspection.snapshot, store, directLock)).error, /changed/);
+ assert.equal(store.getItem(WORKSPACE_KEY), '{bad');
+ store.setItem(WORKSPACE_KEY, '{"version":3,"boards":[],"cards":[]}');
+ assert.match(inspectWorkspaceRecovery(store).error, /unsupported/);
+ store.setItem(WORKSPACE_KEY, '{bad'); store.setItem(WORKSPACE_DAMAGED_KEY, '{older');
+ assert.match(inspectWorkspaceRecovery(store).error, /already preserved/);
+});
+
+test('recovery fails safely without locks or when archive write fails', async () => {
+ const store = memory(); const valid = JSON.stringify(openWorkspace(store).workspace);
+ store.setItem(WORKSPACE_KEY, '{bad'); store.setItem(WORKSPACE_BACKUP_KEY, valid);
+ const snapshot = inspectWorkspaceRecovery(store).snapshot;
+ assert.equal((await restoreWorkspaceBackup(snapshot, store, null)).ok, false);
+ const blocked = { getItem: store.getItem, setItem() { throw new Error('quota'); } };
+ assert.equal((await restoreWorkspaceBackup(snapshot, blocked, directLock)).ok, false);
+ assert.equal(store.getItem(WORKSPACE_KEY), '{bad');
 });
