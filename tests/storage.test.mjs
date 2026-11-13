@@ -88,5 +88,15 @@ test('restoring a backup supplies the saved version for the next save', () => {
  store.setItem(BACKUP_KEY, backup);
  const restored = restoreBackup(store);
  assert.equal(restored.raw, backup);
+ assert.deepEqual(restored.board, { nodes: [], edges: [] });
  assert.equal(saveBoard({ nodes: [], edges: [] }, store, restored.raw), 'Saved on this device');
+});
+test('restore returns the backup currently stored, not the previously loaded backup', () => {
+ const store = memory('{broken');
+ store.setItem(BACKUP_KEY, '{"nodes":[{"id":"old","position":{"x":0,"y":0},"data":{}}],"edges":[]}');
+ const newerBackup = { nodes: [{ id: 'new', position: { x: 1, y: 2 }, data: {} }], edges: [] };
+ store.setItem(BACKUP_KEY, JSON.stringify(newerBackup));
+ const restored = restoreBackup(store);
+ assert.deepEqual(restored.board, newerBackup);
+ assert.equal(store.getItem(BOARD_KEY), JSON.stringify(newerBackup));
 });

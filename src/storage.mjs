@@ -71,11 +71,12 @@ export function restoreBackup(storage) {
       return { success: false, message: 'The saved board is no longer unreadable. Reload before restoring.' };
     }
     const backup = target.getItem(BACKUP_KEY);
-    if (!backup || !parseBoard(backup)) {
+    const board = backup ? parseBoard(backup) : null;
+    if (!board) {
       return { success: false, message: 'No valid saved backup is available.' };
     }
     target.setItem(BOARD_KEY, backup);
-    return { success: true, raw: backup, message: 'Restored the previous backup on this device.' };
+    return { success: true, board, raw: backup, message: 'Restored the previous backup on this device.' };
   } catch {
     return { success: false, message: 'Could not restore the backup. Check browser storage permissions.' };
   }
