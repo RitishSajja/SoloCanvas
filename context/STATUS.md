@@ -1,6 +1,16 @@
 # Agent handoff
 
 ## Latest run — 2026-11-13, Codex
+Based on main 997847f2cf1f9429e10edaba83fb0ba239d7b4bd. Added an isolated v2 persistence adapter (src/workspace-storage.mjs) and focused tests. Opening a legacy board builds a v2 model in memory without modifying storage; explicit writes compare the last-read v1 and v2 values, preserve v1, and back up an existing v2 before replacement. Unknown/corrupt v2 and unsafe legacy migration are rejected rather than overwritten. Unit cases cover legacy preservation, stale snapshots, backup, quota/read failures, future versions, JSON loss, and reopen. No application UI is connected to this adapter; existing v1 behavior remains unchanged.
+
+Verification: GitHub Actions pending. Do not assume checks passed until the run completes. The read/compare/write process is not atomic between tabs; v2 backup restore and rollback UI are not implemented, and the preserved v1 board becomes stale once v2 editing starts. Do not enable UI migration until those tradeoffs are addressed. No local working tree was used.
+
+Next: inspect CI and fix failures, design a robust atomic multi-tab strategy (e.g. IndexedDB transaction or supported lock with a safe fallback), recovery/export for both v1 and v2, migration/version fallback policy, and browser tests. Then implement board creation/switching and reusable-card UI against the adapter; protect existing data.
+
+## Prior handoff
+# Agent handoff
+
+## Latest run — 2026-11-13, Codex
 Based on main e0321e80200ea90d9de7764b619710840ccb98a6. Added a pure, in-memory version-2 workspace model in src/workspace.mjs for multiple boards, reusable canonical card data, legacy v1 conversion, board projection, and reference validation. Added focused node tests and context/WORKSPACE-MODEL.md. The app is not yet wired to this model; its current storage remains v1 and no user data is migrated. A migration rejects duplicate node IDs and dangling edge references; verify real saved data and plan recovery before integration.
 
 Verification: GitHub Actions run 43437426209 passed unit tests, production build, and Chromium browser tests for 484c9325da5a8a2883f3399b0af1ecf12a8d125f. Follow-up 823ce459f678814d6d5793376d9f38392498a68c guards reserved cardId fields during conversion; GitHub Actions run 43437642003 passed unit tests, production build and Chromium browser tests. No local checkout or browser run. Coordination: last Copilot handoff indicated no overlap, but GitHub cannot see uncommitted work; check peer status before integrating.
