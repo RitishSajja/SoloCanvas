@@ -1,11 +1,13 @@
 # Agent handoff
 
 ## Latest run — 2026-11-13, Codex
-Based on main 39b2e856a03f240df137063700e819e971d2667d. Added an opt-in Web Locks wrapper around the v2 snapshot check and write; it fails closed when Web Locks are unavailable. Added unit coverage for unsupported/failed locks and a browser test with two concurrent v2 writers. GitHub Actions run 43530216399 passed unit tests, build and browser tests for commit 3f11401aefbbce7b31b486e02e5bddb992ba283f. A follow-up adds opt-in inspected backup recovery, archives the damaged raw primary, preserves the legacy data, and refuses unknown versions or stale snapshots; its CI is pending.
+Based on main 39b2e856a03f240df137063700e819e971d2667d. Added an opt-in Web Locks wrapper around the v2 snapshot check and write; it fails closed when Web Locks are unavailable. Added unit coverage for unsupported/failed locks and a browser test with two concurrent v2 writers. GitHub Actions run 43530216399 passed unit tests, build and browser tests for commit 3f11401aefbbce7b31b486e02e5bddb992ba283f. A follow-up adds opt-in inspected backup recovery, archives the damaged raw primary, preserves the legacy data, and refuses unknown versions or stale snapshots; GitHub Actions run 43530423772 passed unit tests, production build, and Chromium browser tests for c0f8c2bd9abc8e061b71af3acf1652abf89ae25f.
 
-Scope and limits: only cooperating writers using the shared lock are serialized. The existing v1 UI and direct writeWorkspace are unlocked; arbitrary localStorage writes and v1 writers can race. No app UI is connected to v2. Browser API availability, legacy coexistence, backup restore/export and a version rollback policy must be addressed before enabling migration. Local data is not touched by this change.
+Scope and limits: only cooperating writers using the shared lock are serialized. The existing v1 UI and direct writeWorkspace are unlocked; arbitrary localStorage writes and v1 writers can race. No app UI is connected to v2. Browser API availability, legacy coexistence, recovery/export UI and a version rollback policy must be addressed before enabling migration. Local data is not touched by this change.
 
 Next: check CI; implement user-facing v2 recovery/export, and test partial-write and storage quota scenarios. Then choose a safe cross-version strategy and integrate multi-board UI with browser tests. Verify other agent ownership before editing.
+
+Known Codex work for loop prevention: 3f11401aefbbce7b31b486e02e5bddb992ba283f, c0f8c2bd9abc8e061b71af3acf1652abf89ae25f and this handoff commit.
 
 ## Prior handoff
 # Agent handoff
