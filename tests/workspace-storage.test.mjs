@@ -154,3 +154,39 @@ test('recovery fails safely without locks or when archive write fails', async ()
  assert.equal((await restoreWorkspaceBackup(snapshot, blocked, directLock)).ok, false);
  assert.equal(store.getItem(WORKSPACE_KEY), '{bad');
 });
+
+test('quota failure after backing up a valid workspace leaves the primary intact', () => {
+ const store = memory({ [BOARD_KEY]: legacy });
+ let opened = openWorkspace(store);
+ assert.equal(writeWorkspace(opened.workspace, opened.snapshot, store).ok, true);
+ opened = openWorkspace(store);
+ const previous = store.getItem(WORKSPACE_KEY);
+ const partial = { getItem: store.getItem, setItem(key, value) {
+   if (key === WORKSPACE_KEY) throw new Error('quota');
+   store.setItem(key, value);
+ } };
+ const result = writeWorkspace(addBoard(opened.workspace, 'next', 'Next'), opened.snapshot, partial);
+ assert.equal(result.ok, false);
+ assert.equal(store.getItem(WORKSPACE_KEY), previous);
+ assert.equal(store.getItem(WORKSPACE_BACKUP_KEY), previous);
+ assert.equal(store.getItem(BOARD_KEY), legacy);
+});
+
+test('recovery interrupted after archiving can be inspected and retried', async () => {
+ const store = memory({ [BOARD_KEY]: legacy });
+ const valid = JSON.stringify(openWorkspace(store).workspace);
+ store.setItem(WORKSPACE_KEY, '{broken'); store.setItem(WORKSPACE_BACKUP_KEY, valid);
+ const inspected = inspectWorkspaceRecovery(store);
+ const partial = { getItem: store.getItem, setItem(key, value) {
+   if (key === WORKSPACE_KEY) throw new Error('quota');
+   store.setItem(key, value);
+ } };
+ assert.equal((await restoreWorkspaceBackup(inspected.snapshot, partial, directLock)).ok, false);
+ assert.equal(store.getItem(WORKSPACE_KEY), '{broken');
+ assert.equal(store.getItem(WORKSPACE_DAMAGED_KEY), '{broken');
+ const rechecked = inspectWorkspaceRecovery(store);
+ assert.equal(rechecked.ok, true);
+ assert.equal((await restoreWorkspaceBackup(rechecked.snapshot, store, directLock)).ok, true);
+ assert.equal(store.getItem(WORKSPACE_KEY), valid);
+ assert.equal(store.getItem(BOARD_KEY), legacy);
+});

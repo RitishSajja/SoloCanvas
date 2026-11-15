@@ -3,9 +3,9 @@
 ## Latest run — 2026-11-14, Codex
 Based on main b0d09c9c616f3a88abbdaa98dc71013a0b3c78f4. Added a cross-version safety guard: the current v1 editor opens an existing v1 board read-only if a v2 workspace key exists, and v1 save/restore checks again before writing. It preserves both values and allows in-memory board export. The v2 key constant is shared between modules. Added unit and Chromium tests for a newer workspace present at load and appearing while a v1 tab is open.
 
-Verification: CI pending for this commit. This is a best-effort guard, not atomic across v1/v2 writers: previously deployed versions do not know this rule and an unlocked v1 write can still race between checks. The v2 UI remains disconnected. Do not claim multi-board support is complete.
+Verification: GitHub Actions run 43661611558 passed unit tests, build, and Chromium tests for cea45f9b253a9b45eba8152d75062d628a9fc84b. A follow-up adds partial-write and recovery retry tests; its CI is pending. This is a best-effort guard, not atomic across v1/v2 writers: previously deployed versions do not know this rule and an unlocked v1 write can still race between checks. The v2 UI remains disconnected. Do not claim multi-board support is complete.
 
-Next: inspect CI; design cross-version write coordination and upgrade/fallback behavior, with an explicit v2 recovery/export UI and tests for partial writes and storage quota. Only then integrate multi-board UI. The latest Copilot handoff reported no overlapping work; GitHub cannot reveal uncommitted peer work.
+Next: inspect CI; design cross-version write coordination and upgrade/fallback behavior, with an explicit v2 recovery/export UI and broader tests for storage quota. Only then integrate multi-board UI. The latest Copilot handoff reported no overlapping work; GitHub cannot reveal uncommitted peer work.
 
 ## Prior handoff
 # Agent handoff
