@@ -1,5 +1,6 @@
 export const BOARD_KEY = 'solocanvas.board.v1';
 export const BACKUP_KEY = 'solocanvas.board.backup.v1';
+export const WORKSPACE_KEY = 'solocanvas.workspace.v2';
 const blank = () => ({ nodes: [], edges: [] });
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 function validBoard(value) {
@@ -21,6 +22,10 @@ export function loadBoard(storage) {
   try {
     const source = storage ?? globalThis.localStorage;
     const raw = source.getItem(BOARD_KEY);
+    // A newer-format workspace may contain edits that the v1 editor cannot see.
+    if (source.getItem(WORKSPACE_KEY) !== null) {
+      return { board: (raw === null ? null : parseBoard(raw)) ?? blank(), raw, canSave: false, canRestoreBackup: false, message: 'A newer workspace exists. This older board is read-only; export it if needed.' };
+    }
     if (raw === null) return { board: blank(), raw: null, canSave: true, canRestoreBackup: false, message: 'Not saved yet' };
     const board = parseBoard(raw);
     if (board) return { board, raw, canSave: true, canRestoreBackup: false, message: 'Loaded saved board' };
@@ -49,6 +54,7 @@ export function saveBoard(board, storage, expectedRaw) {
   try {
     const target = storage ?? globalThis.localStorage;
     if (!validBoard(board)) return 'Could not save an invalid board.';
+    if (target.getItem(WORKSPACE_KEY) !== null) return 'A newer workspace exists. This older board cannot be saved; export your changes.';
     const current = target.getItem(BOARD_KEY);
     if (expectedRaw !== undefined && current !== expectedRaw) {
       return 'The saved board changed in another tab. Your changes were not saved; copy them before reloading.';
@@ -66,6 +72,7 @@ export function saveBoard(board, storage, expectedRaw) {
 export function restoreBackup(storage) {
   try {
     const target = storage ?? globalThis.localStorage;
+    if (target.getItem(WORKSPACE_KEY) !== null) return { success: false, message: 'A newer workspace exists. The older board cannot be restored here.' };
     const current = target.getItem(BOARD_KEY);
     if (current === null || parseBoard(current)) {
       return { success: false, message: 'The saved board is no longer unreadable. Reload before restoring.' };

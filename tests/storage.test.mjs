@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadBoard, saveBoard, restoreBackup, parseBoard, BOARD_KEY, BACKUP_KEY } from '../src/storage.mjs';
+import { loadBoard, saveBoard, restoreBackup, parseBoard, BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY } from '../src/storage.mjs';
 function memory(initial = null) {
  const values = new Map(initial === null ? [] : [[BOARD_KEY, initial]]);
  return {
@@ -107,4 +107,24 @@ test('valid exported board can be parsed for import', () => {
 });
 test('invalid import leaves parsing rejected', () => {
  for (const raw of ['not json', '{}', '{"nodes":[null],"edges":[]}', '{"nodes":[],"edges":[{}]}']) assert.equal(parseBoard(raw), null);
+});
+
+test('v1 opens read-only when a newer workspace exists', () => {
+ const raw = JSON.stringify({ nodes: [{ id: 'n', position: { x: 1, y: 2 }, data: { label: 'legacy' } }], edges: [] });
+ const store = memory(raw); store.setItem(WORKSPACE_KEY, '{unsupported or damaged');
+ const result = loadBoard(store);
+ assert.equal(result.canSave, false); assert.equal(result.canRestoreBackup, false);
+ assert.equal(result.board.nodes[0].data.label, 'legacy');
+ assert.match(result.message, /read-only/);
+ assert.equal(store.getItem(BOARD_KEY), raw);
+});
+test('v1 save and restore refuse to overwrite after a newer workspace appears', () => {
+ const store = memory(); const opened = loadBoard(store);
+ store.setItem(WORKSPACE_KEY, '{"version":2}');
+ assert.match(saveBoard({ nodes: [], edges: [] }, store, opened.raw), /newer workspace/);
+ assert.equal(store.getItem(BOARD_KEY), null);
+ store.setItem(BOARD_KEY, '{broken');
+ store.setItem(BACKUP_KEY, '{"nodes":[],"edges":[]}');
+ assert.equal(restoreBackup(store).success, false);
+ assert.equal(store.getItem(BOARD_KEY), '{broken');
 });

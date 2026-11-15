@@ -52,3 +52,26 @@ test('invalid import does not replace the displayed or saved board', async ({ pa
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Original' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.board.v1'))).toBe(before);
 });
+
+test('older editor refuses to save when a newer workspace appears', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Add component' }).click();
+  await page.getByLabel('Component name').fill('Unsaved legacy changes');
+  await page.evaluate(() => localStorage.setItem('solocanvas.workspace.v2', '{"version":2}'));
+  await page.getByRole('button', { name: 'Save board' }).click();
+  await expect(page.getByRole('status')).toContainText('newer workspace');
+  expect(await page.evaluate(() => localStorage.getItem('solocanvas.board.v1'))).toBeNull();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export board' }).click();
+  expect((await downloadPromise).suggestedFilename()).toBe('solocanvas-board.json');
+});
+test('older editor opens a prior board read-only when v2 data exists', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('solocanvas.board.v1', JSON.stringify({ nodes: [{ id: 'a', position: { x: 2, y: 3 }, data: { label: 'Old board' } }], edges: [] }));
+    localStorage.setItem('solocanvas.workspace.v2', '{"version":999}');
+  });
+  await page.goto('/');
+  await expect(page.getByText('Old board')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('read-only');
+  await expect(page.getByRole('button', { name: 'Save board' })).toBeDisabled();
+});
