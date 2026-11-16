@@ -1,5 +1,15 @@
 # Agent handoff
 
+## Latest run — 2026-11-15, Codex
+Based on main 1c4d8a130e29f25949b5ae0dd34320401e26ca27. Added a workspace recovery panel to the existing editor. It can download the raw newer workspace, backup, and archived damaged copy without parsing them, and offers the existing guarded backup restore only after confirmation. Unsupported versions remain exportable but cannot be restored over. Added Chromium coverage for export, cancelled and accepted restore, legacy preservation, and unsupported versions; CI pending.
+
+The panel does not open or edit v2 workspaces. Cross-version writes remain non-atomic against old/non-cooperating clients; recovery may require Web Locks and does not remove the v1 board. The multi-board UI and safe migration remain unfinished. No local worktree was used.
+
+Next: inspect CI; implement user-visible version migration and a multi-board editor only after addressing cross-version locking and downgrade behavior. Add browser tests for interrupted restore, storage denial, and export races.
+
+## Prior handoff
+# Agent handoff
+
 ## Latest run — 2026-11-14, Codex
 Based on main b0d09c9c616f3a88abbdaa98dc71013a0b3c78f4. Added a cross-version safety guard: the current v1 editor opens an existing v1 board read-only if a v2 workspace key exists, and v1 save/restore checks again before writing. It preserves both values and allows in-memory board export. The v2 key constant is shared between modules. Added unit and Chromium tests for a newer workspace present at load and appearing while a v1 tab is open.
 

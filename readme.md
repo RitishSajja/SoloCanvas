@@ -229,3 +229,5 @@ The app checks whether the saved board changed since this tab loaded or last sav
 Browser regression checks can be run with `npx playwright install chromium` and `npm run test:browser`. The GitHub build workflow installs Chromium and runs these checks alongside the unit tests and build.
 
 If this version detects newer workspace data from the same browser origin, it opens the older board read-only and blocks v1 saves and restores. Export the old board if needed. Previously deployed versions and simultaneous writes that do not cooperate can still race; this is not a complete cross-version lock.
+
+The **Workspace recovery** section can download raw newer-workspace, backup, or preserved damaged copies. If the current newer workspace is damaged and a valid backup exists, it offers an explicit, confirmed restore; unsupported versions are never overwritten. This editor cannot open or edit the newer workspace yet. Browser storage and locking limitations still apply.

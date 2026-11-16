@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, addEdge, applyNodeChanges, applyEdgeChanges, type Node, type Edge, type Connection, type NodeChange, type EdgeChange } from '@xyflow/react';
 
+import WorkspaceRecovery from './WorkspaceRecovery';
 import { loadBoard, parseBoard, restoreBackup, saveBoard } from './storage.mjs';
 export default function App() {
   const [initial] = useState(() => loadBoard());
@@ -100,7 +101,7 @@ export default function App() {
       <section className="canvas" aria-label="Architecture canvas"><ReactFlow deleteKeyCode={['Backspace', 'Delete']} nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={(_, node) => { setSelected(node.id); setSelectedEdge(null); }} onEdgeClick={(_, edge) => { setSelected(null); setSelectedEdge(edge.id); }} onPaneClick={() => { setSelected(null); setSelectedEdge(null); }} fitView><Background /><Controls /></ReactFlow></section>
       <aside><h1>Architecture map</h1><p>Add components, drag them into place, and connect the handles to map relationships.</p>
         {activeEdge ? <label>Relationship label<input aria-label="Relationship label" placeholder="e.g. calls, depends on" value={String(activeEdge.label ?? '')} onChange={(event) => { const label = event.target.value; setEdges((old) => old.map((edge) => edge.id === activeEdge.id ? { ...edge, label } : edge)); setHasUnsavedChanges(true); }} /></label> : active ? <label>Component name<input value={String(active.data.label ?? '')} onChange={(event) => { const label = event.target.value; setNodes((old) => old.map((node) => node.id === active.id ? { ...node, data: { ...node.data, label } } : node)); setHasUnsavedChanges(true); }} /></label> : <p>Select a component or relationship to edit it.</p>}
-        <p className="hint">Select a node or connection and press Delete to remove it. Save after making changes.</p><p role="status">{saveMessage}</p>
+        <p className="hint">Select a node or connection and press Delete to remove it. Save after making changes.</p><p role="status">{saveMessage}</p><WorkspaceRecovery />
       </aside>
     </div>
   </main>;
