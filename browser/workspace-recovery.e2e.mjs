@@ -42,3 +42,31 @@ test('unsupported workspace versions are exportable but never offered restore', 
   await expect(page.getByText(/unsupported version/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Restore workspace backup' })).toHaveCount(0);
 });
+
+test('restore rejects a backup changed after inspection', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('solocanvas.workspace.v2', '{damaged');
+    localStorage.setItem('solocanvas.workspace.backup.v2', JSON.stringify({ version: 2, cards: [], boards: [{ id: 'one', title: 'Old', extra: {}, nodes: [], edges: [] }] }));
+  });
+  await page.goto('/');
+  await page.getByText('Workspace recovery', { exact: true }).click();
+  await page.evaluate(() => localStorage.setItem('solocanvas.workspace.backup.v2', JSON.stringify({ version: 2, cards: [], boards: [{ id: 'two', title: 'New', extra: {}, nodes: [], edges: [] }] })));
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Restore workspace backup' }).click();
+  await expect(page.getByText(/Recovery data changed since inspection/)).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBe('{damaged');
+});
+
+test('recovery fails closed without browser locks', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true });
+    localStorage.setItem('solocanvas.workspace.v2', '{damaged');
+    localStorage.setItem('solocanvas.workspace.backup.v2', JSON.stringify({ version: 2, cards: [], boards: [] }));
+  });
+  await page.goto('/');
+  await page.getByText('Workspace recovery', { exact: true }).click();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Restore workspace backup' }).click();
+  await expect(page.getByText(/requires browser lock support/)).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBe('{damaged');
+});

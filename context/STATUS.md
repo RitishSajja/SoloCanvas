@@ -1,7 +1,7 @@
 # Agent handoff
 
 ## Latest run — 2026-11-15, Codex
-Based on main 1c4d8a130e29f25949b5ae0dd34320401e26ca27. Added a workspace recovery panel to the existing editor. It can download the raw newer workspace, backup, and archived damaged copy without parsing them, and offers the existing guarded backup restore only after confirmation. Unsupported versions remain exportable but cannot be restored over. Added Chromium coverage for export, cancelled and accepted restore, legacy preservation, and unsupported versions; CI pending.
+Based on main 1c4d8a130e29f25949b5ae0dd34320401e26ca27. Added a workspace recovery panel to the existing editor. It can download the raw newer workspace, backup, and archived damaged copy without parsing them, and offers the existing guarded backup restore only after confirmation. Unsupported versions remain exportable but cannot be restored over. Added Chromium coverage for export, cancelled and accepted restore, legacy preservation, and unsupported versions; GitHub Actions run 43783779796 passed unit tests, production build and browser tests for commit 53035b23d7316179bbd42b904171618ad58d7864. A follow-up adds browser tests for stale recovery data and unavailable locks; its CI is pending.
 
 The panel does not open or edit v2 workspaces. Cross-version writes remain non-atomic against old/non-cooperating clients; recovery may require Web Locks and does not remove the v1 board. The multi-board UI and safe migration remain unfinished. No local worktree was used.
 
