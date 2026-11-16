@@ -1,6 +1,6 @@
 // Isolated v2 persistence adapter. The current application still uses v1.
 // A read never modifies data. A write never removes or rewrites the v1 board.
-import { BOARD_KEY, WORKSPACE_KEY } from './storage.mjs';
+import { BOARD_KEY, WORKSPACE_KEY, WORKSPACE_LOCK } from './storage.mjs';
 import { migrateLegacyBoard, validateWorkspace } from './workspace.mjs';
 
 export { WORKSPACE_KEY };
@@ -92,7 +92,7 @@ export function writeWorkspace(workspace, snapshot, storage) {
   }
 }
 
-export const WORKSPACE_LOCK = 'solocanvas.workspace.v2.write';
+export { WORKSPACE_LOCK };
 
 // All cooperating v2 writers must use this wrapper. Unlocked or older v1 writers
 // do not participate. Fail closed where Web Locks is unavailable.

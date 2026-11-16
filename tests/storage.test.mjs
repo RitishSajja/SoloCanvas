@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadBoard, saveBoard, restoreBackup, parseBoard, BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY } from '../src/storage.mjs';
+import { loadBoard, saveBoard, saveBoardSafely, restoreBackup, restoreBackupSafely, parseBoard, BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_LOCK } from '../src/storage.mjs';
 function memory(initial = null) {
  const values = new Map(initial === null ? [] : [[BOARD_KEY, initial]]);
  return {
@@ -126,5 +126,22 @@ test('v1 save and restore refuse to overwrite after a newer workspace appears', 
  store.setItem(BOARD_KEY, '{broken');
  store.setItem(BACKUP_KEY, '{"nodes":[],"edges":[]}');
  assert.equal(restoreBackup(store).success, false);
+ assert.equal(store.getItem(BOARD_KEY), '{broken');
+});
+
+test('v1 saves use the same lock as v2, with a safe legacy fallback', async () => {
+ const store = memory(); const opened = loadBoard(store);
+ const locks = { request(name, options, callback) {
+   assert.equal(name, WORKSPACE_LOCK); assert.equal(options.mode, 'exclusive'); return Promise.resolve(callback());
+ } };
+ assert.equal(await saveBoardSafely({ nodes: [], edges: [] }, store, opened.raw, locks), 'Saved on this device');
+ const next = loadBoard(store);
+ assert.equal(await saveBoardSafely({ nodes: [], edges: [] }, store, next.raw, null), 'Saved on this device');
+});
+test('failed locks cannot write or restore the board', async () => {
+ const store = memory('{broken'); store.setItem(BACKUP_KEY, '{"nodes":[],"edges":[]}');
+ const locks = { request() { return Promise.reject(new Error('denied')); } };
+ assert.match(await saveBoardSafely({ nodes: [], edges: [] }, store, '{broken', locks), /lock/);
+ assert.equal((await restoreBackupSafely(store, locks)).success, false);
  assert.equal(store.getItem(BOARD_KEY), '{broken');
 });

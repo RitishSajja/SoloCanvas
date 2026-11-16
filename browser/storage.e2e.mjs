@@ -75,3 +75,30 @@ test('older editor opens a prior board read-only when v2 data exists', async ({ 
   await expect(page.getByRole('status')).toContainText('read-only');
   await expect(page.getByRole('button', { name: 'Save board' })).toBeDisabled();
 });
+
+test('edits made while a save waits for the lock remain unsaved', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Add component' }).click();
+  await page.getByLabel('Component name').fill('First version');
+  await page.evaluate(() => {
+    window.testLockReady = new Promise(resolve => {
+      navigator.locks.request('solocanvas.workspace.v2.write', async () => {
+        resolve(); await new Promise(done => { window.testReleaseLock = done; });
+      });
+    });
+  });
+  await page.evaluate(() => window.testLockReady);
+  await page.getByRole('button', { name: 'Save board' }).click();
+  await expect(page.getByRole('button', { name: 'Save board' })).toBeDisabled();
+  await page.getByLabel('Component name').fill('Newer edit');
+  await page.evaluate(() => window.testReleaseLock());
+  await expect(page.getByRole('status')).toContainText('Newer edits are not saved');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.board.v1')));
+  expect(saved.nodes[0].data.label).toBe('First version');
+  const warned = await page.evaluate(() => {
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(warned).toBe(true);
+});

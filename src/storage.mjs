@@ -1,6 +1,7 @@
 export const BOARD_KEY = 'solocanvas.board.v1';
 export const BACKUP_KEY = 'solocanvas.board.backup.v1';
 export const WORKSPACE_KEY = 'solocanvas.workspace.v2';
+export const WORKSPACE_LOCK = 'solocanvas.workspace.v2.write';
 const blank = () => ({ nodes: [], edges: [] });
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 function validBoard(value) {
@@ -87,4 +88,18 @@ export function restoreBackup(storage) {
   } catch {
     return { success: false, message: 'Could not restore the backup. Check browser storage permissions.' };
   }
+}
+
+async function withBoardLock(action, locks) {
+  // Legacy fallback remains available where Web Locks are absent; it is not atomic.
+  if (!locks || typeof locks.request !== 'function') return action();
+  return locks.request(WORKSPACE_LOCK, { mode: 'exclusive' }, action);
+}
+export async function saveBoardSafely(board, storage, expectedRaw, locks = globalThis.navigator?.locks) {
+  try { return await withBoardLock(() => saveBoard(board, storage, expectedRaw), locks); }
+  catch { return 'Could not obtain the board save lock. Export your changes.'; }
+}
+export async function restoreBackupSafely(storage, locks = globalThis.navigator?.locks) {
+  try { return await withBoardLock(() => restoreBackup(storage), locks); }
+  catch { return { success: false, message: 'Could not obtain the board restore lock.' }; }
 }

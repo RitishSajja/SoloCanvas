@@ -1,6 +1,16 @@
 # Agent handoff
 
 ## Latest run — 2026-11-15, Codex
+Based on main 7ada953e062a98d92905c693a1568a0cd8090928. The v1 editor now uses the same Web Lock as v2 for saves and restores where available, while preserving the previous non-atomic fallback where locks are unavailable. The UI tracks edits made while a save is waiting, so saving an older snapshot does not clear the unsaved-changes warning. A restore asks before discarding unsaved edits and preserves edits made while waiting. Added unit and Chromium regression coverage; CI pending.
+
+This coordinates only updated clients using the shared lock. Older deployments, arbitrary storage writes, and browsers without Web Locks remain non-atomic. v2 editing and multi-board UI are not yet enabled; no existing data was migrated. No local worktree was used.
+
+Next: check CI, then design explicit migration and multi-board UI with backups, cross-version warnings, and browser tests. Test lock contention, unsupported browsers, recovery, and old-client behavior; never claim universal atomicity.
+
+## Prior handoff
+# Agent handoff
+
+## Latest run — 2026-11-15, Codex
 Based on main 1c4d8a130e29f25949b5ae0dd34320401e26ca27. Added a workspace recovery panel to the existing editor. It can download the raw newer workspace, backup, and archived damaged copy without parsing them, and offers the existing guarded backup restore only after confirmation. Unsupported versions remain exportable but cannot be restored over. Added Chromium coverage for export, cancelled and accepted restore, legacy preservation, and unsupported versions; GitHub Actions run 43783779796 passed unit tests, production build and browser tests for commit 53035b23d7316179bbd42b904171618ad58d7864. Follow-up 7558d82951e665807386356d76788f2c6d8bc1ba adds browser tests for stale recovery data and unavailable locks; GitHub Actions run 43783937144 passed unit tests, build and Chromium tests.
 
 The panel does not open or edit v2 workspaces. Cross-version writes remain non-atomic against old/non-cooperating clients; recovery may require Web Locks and does not remove the v1 board. The multi-board UI and safe migration remain unfinished. No local worktree was used.

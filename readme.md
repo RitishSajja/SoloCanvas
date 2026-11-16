@@ -231,3 +231,5 @@ Browser regression checks can be run with `npx playwright install chromium` and 
 If this version detects newer workspace data from the same browser origin, it opens the older board read-only and blocks v1 saves and restores. Export the old board if needed. Previously deployed versions and simultaneous writes that do not cooperate can still race; this is not a complete cross-version lock.
 
 The **Workspace recovery** section can download raw newer-workspace, backup, or preserved damaged copies. If the current newer workspace is damaged and a valid backup exists, it offers an explicit, confirmed restore; unsupported versions are never overwritten. This editor cannot open or edit the newer workspace yet. Browser storage and locking limitations still apply.
+
+When Web Locks are available, this editor coordinates board saves and restores with newer workspace writers using the same lock. Older clients and other tools that ignore this lock can still race. Browsers without Web Locks use the earlier non-atomic save behavior.
