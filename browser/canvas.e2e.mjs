@@ -39,6 +39,7 @@ test('create, move, connect, label, save, reload and delete', async ({ page }) =
   await page.keyboard.press('Delete');
   await expect(page.locator('.react-flow__node')).toHaveCount(1);
   await page.getByRole('button', { name: 'Save board' }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.board.v1') ?? '{}').nodes?.length)).toBe(1);
   await page.reload();
   await expect(page.locator('.react-flow__node')).toHaveCount(1);
   await expect(page.locator('.react-flow__edge')).toHaveCount(0);
