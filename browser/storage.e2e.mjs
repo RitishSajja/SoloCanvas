@@ -46,6 +46,7 @@ test('invalid import does not replace the displayed or saved board', async ({ pa
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.getByLabel('Component name').fill('Original');
   await page.getByRole('button', { name: 'Save board' }).click();
+  await expect(page.getByRole('status')).toContainText('Saved on this device');
   const before = await page.evaluate(() => localStorage.getItem('solocanvas.board.v1'));
   await page.locator('input[type=file]').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"nodes":[null],"edges":[]}') });
   await expect(page.getByRole('status')).toContainText('not a valid SoloCanvas board');
