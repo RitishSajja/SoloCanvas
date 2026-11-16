@@ -1,6 +1,14 @@
 # Agent handoff
 
 ## Latest run — 2026-11-16, Codex
+Based on main 1303053f32404ffbf1bd312e53166f59fa51830d. Extended the multi-board workspace with draggable placements, node connections, relationship labels, and explicit removal of placements/relationships. Removing a placement removes its incident edges on that board but retains the canonical card, so other boards are unaffected. Added a Chromium flow for movement, connection, save/reload and removal. CI pending.
+
+The v2 editor still requires explicit save and Web Locks; non-cooperating old clients can race. Workspace import/merge, board deletion/rename, accessibility and additional recovery paths remain unfinished. V1 data remains retained but becomes stale after v2 editing. No local checkout used. Next: inspect CI, test cross-board shared-card deletion and multiple placements, concurrent edits, storage recovery, and keyboard accessibility; add layout/relationship editing improvements.
+
+## Prior handoff
+# Agent handoff
+
+## Latest run — 2026-11-16, Codex
 Based on main b73610bbf859ffcac44facbf99f4edb9ff270bf6. Added an opt-in multi-board workspace preview using the existing v2 model and locked storage. Users can create boards, add components, place existing cards on another board, edit shared names and save/export the workspace. The v1 board is retained and migration occurs only after explicit save and confirmation. The preview intentionally does not support moving, connecting or deleting nodes. Unsaved v1 edits remain in the original editor and are not imported into preview.
 
 GitHub Actions run 43882074838 passed unit tests, build and Chromium tests for 05e2915bdfdd7c507b17299ca116e3073533c5db. Follow-up 4ac89d405e353f25b43d01cab5559efd5635ec92 adds cancellation, stale migration, unavailable lock, and unsaved original-editor browser checks; GitHub Actions run 43882341770 passed unit tests, build and Chromium tests. Web Locks are required for v2 save; older/non-cooperating clients may still race and v1 is stale after upgrade. No local worktree was used. Next: resolve CI and test migration/rollback, unsupported locks, concurrent edits, recovery and shared-card browser cases. Then implement movement, edges and deletion against v2 with transaction-safe state; preserve both old data and unsaved edits.
