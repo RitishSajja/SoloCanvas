@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, type NodeChange, type Connection } from '@xyflow/react';
 import { addBoard, placeCard, projectBoard, updateCard, type Workspace } from './workspace.mjs';
-import { openWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
+import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 
 export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) => void }) {
   const [initial] = useState(() => openWorkspace());
@@ -108,6 +108,24 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
       else setMessage('Saved an earlier version. Newer changes remain unsaved.');
     } finally { inFlight.current = false; setBusy(false); }
   };
+
+  const importWorkspace = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || !snapshot || inFlight.current) return;
+    if (file.size > 5 * 1024 * 1024) { setMessage('Import failed: file exceeds 5 MB.'); return; }
+    inFlight.current = true; setBusy(true);
+    try {
+      const imported = parseWorkspace(await file.text());
+      if (!imported) { setMessage('Import failed: this is not a valid SoloCanvas workspace.'); return; }
+      if (!window.confirm('Replace the workspace currently shown with this file? Export unsaved changes first. Saved data changes only when you select Save workspace.')) return;
+      changed(imported); setBoardId(imported.boards[0]?.id ?? ''); setCardId(''); setSelectedNode(''); setSelectedEdge('');
+      setMessage('Workspace imported. Select Save workspace to keep it on this device.');
+    } catch {
+      setMessage('Import failed: the file could not be read.');
+    } finally { inFlight.current = false; setBusy(false); }
+  };
   const exportWorkspace = () => {
     if (!workspace) return;
     const url = URL.createObjectURL(new Blob([JSON.stringify(workspace, null, 2)], { type: 'application/json' }));
@@ -118,7 +136,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   return <main>
     <header><strong>Workspace preview</strong><div className="actions">
       <button onClick={close} disabled={busy}>Back to board</button>
-      <button onClick={exportWorkspace} disabled={!workspace}>Export workspace</button>
+      <button onClick={exportWorkspace} disabled={!workspace}>Export workspace</button><label className="import-button">Import workspace<input type="file" accept=".json,application/json" aria-label="Import workspace" onChange={importWorkspace} disabled={!snapshot || busy} /></label>
       <button onClick={save} disabled={!workspace || busy}>Save workspace</button>
     </div></header>
     <div className="workspace">

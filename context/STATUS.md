@@ -1,6 +1,16 @@
 # Agent handoff
 
 ## Latest run — 2026-11-16, Codex
+Based on main fcc1c31efb534d2c8dc3f6752869d805d7f6011c. Added import of exported v2 workspaces, using schema validation and a 5 MB limit. The user must confirm replacement of in-memory state and explicitly save; the current snapshot remains in force to reject stale saves. Invalid imports or cancellation leave the workspace unchanged. Added Chromium coverage for cancellation, explicit save/reload, invalid references and stale snapshots. CI pending.
+
+Import replaces rather than merges. It is unavailable when workspace storage could not be opened; use the existing recovery panel for corrupted or newer-version data. v1 exports use the separate board import. Old/non-cooperating clients can still race; workspace saves require Web Locks.
+
+Next: inspect CI, add workspace import/export round-trip, quota, lock contention and browser compatibility checks, then implement board rename/delete and cross-board search/backlinks. Preserve data and unsaved edits. No local checkout was used; confirm peer ownership before further changes.
+
+## Prior handoff
+# Agent handoff
+
+## Latest run — 2026-11-16, Codex
 Based on main 1303053f32404ffbf1bd312e53166f59fa51830d. Extended the multi-board workspace with draggable placements, node connections, relationship labels, and explicit removal of placements/relationships. Removing a placement removes its incident edges on that board but retains the canonical card, so other boards are unaffected. Added a Chromium flow for movement, connection, save/reload and removal. GitHub Actions run 43935049762 passed unit tests, build and Chromium tests for 9d08fffc812601a7db778036f57798c47e9b0810. Follow-up 74132fbe49fce516b73c49573b7f52aa742f2585 adds a cross-board placement-removal test; GitHub Actions run 43935315030 passed unit tests, build and Chromium browser tests.
 
 The v2 editor still requires explicit save and Web Locks; non-cooperating old clients can race. Workspace import/merge, board deletion/rename, accessibility and additional recovery paths remain unfinished. V1 data remains retained but becomes stale after v2 editing. No local checkout used. Next: inspect CI, test cross-board shared-card deletion and multiple placements, concurrent edits, storage recovery, and keyboard accessibility; add layout/relationship editing improvements.

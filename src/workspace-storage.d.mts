@@ -8,6 +8,7 @@ export function inspectWorkspaceRecovery(storage?: Storage):
 export function restoreWorkspaceBackup(snapshot: RecoverySnapshot, storage?: Storage):
   Promise<{ ok: true } | { ok: false; error: string }>;
 
+export function parseWorkspace(raw: string): import('./workspace.mjs').Workspace | null;
 export type WorkspaceSnapshot = { workspaceRaw: string | null; legacyRaw: string | null };
 export function openWorkspace(storage?: Storage):
   | { ok: true; workspace: import('./workspace.mjs').Workspace; snapshot: WorkspaceSnapshot; source: 'empty' | 'legacy' | 'workspace' }
