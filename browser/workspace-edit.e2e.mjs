@@ -40,3 +40,28 @@ test('workspace canvas moves, connects, labels and removes components with persi
  await expect(page.locator('.react-flow__node')).toHaveCount(1);
  await expect(page.locator('.react-flow__edge')).toHaveCount(0);
 });
+
+test('removing one placement keeps the shared component on other boards', async ({ page }) => {
+ await page.goto('/');
+ await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.getByRole('button', { name: 'Add component' }).click();
+ await page.locator('.react-flow__node').first().click();
+ await page.getByLabel('Shared component name').fill('Shared');
+ page.once('dialog', dialog => dialog.accept('Other board'));
+ await page.getByRole('button', { name: 'New board' }).click();
+ await page.getByLabel('Existing component').selectOption({ label: 'Shared' });
+ await page.getByRole('button', { name: 'Place component' }).click();
+ await page.locator('.react-flow__node').first().click();
+ await page.getByRole('button', { name: 'Remove component from board' }).click();
+ await expect(page.locator('.react-flow__node')).toHaveCount(0);
+ await page.getByLabel('Current board').selectOption({ label: 'My board' });
+ await expect(page.locator('.react-flow__node').filter({ hasText: 'Shared' })).toBeVisible();
+ await page.getByLabel('Current board').selectOption({ label: 'Other board' });
+ await page.getByRole('button', { name: 'Place component' }).click();
+ page.once('dialog', dialog => dialog.accept());
+ await page.getByRole('button', { name: 'Save workspace' }).click();
+ await expect(page.getByRole('status')).toContainText('Workspace saved');
+ await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.getByLabel('Current board').selectOption({ label: 'Other board' });
+ await expect(page.locator('.react-flow__node').filter({ hasText: 'Shared' })).toBeVisible();
+});

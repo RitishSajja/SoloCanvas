@@ -1,7 +1,7 @@
 # Agent handoff
 
 ## Latest run — 2026-11-16, Codex
-Based on main 1303053f32404ffbf1bd312e53166f59fa51830d. Extended the multi-board workspace with draggable placements, node connections, relationship labels, and explicit removal of placements/relationships. Removing a placement removes its incident edges on that board but retains the canonical card, so other boards are unaffected. Added a Chromium flow for movement, connection, save/reload and removal. CI pending.
+Based on main 1303053f32404ffbf1bd312e53166f59fa51830d. Extended the multi-board workspace with draggable placements, node connections, relationship labels, and explicit removal of placements/relationships. Removing a placement removes its incident edges on that board but retains the canonical card, so other boards are unaffected. Added a Chromium flow for movement, connection, save/reload and removal. GitHub Actions run 43935049762 passed unit tests, build and Chromium tests for 9d08fffc812601a7db778036f57798c47e9b0810. A follow-up adds a cross-board placement-removal test; CI pending.
 
 The v2 editor still requires explicit save and Web Locks; non-cooperating old clients can race. Workspace import/merge, board deletion/rename, accessibility and additional recovery paths remain unfinished. V1 data remains retained but becomes stale after v2 editing. No local checkout used. Next: inspect CI, test cross-board shared-card deletion and multiple placements, concurrent edits, storage recovery, and keyboard accessibility; add layout/relationship editing improvements.
 
