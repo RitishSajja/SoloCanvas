@@ -3,7 +3,9 @@
 ## Latest run — 2026-11-16, Codex
 Based on main b73610bbf859ffcac44facbf99f4edb9ff270bf6. Added an opt-in multi-board workspace preview using the existing v2 model and locked storage. Users can create boards, add components, place existing cards on another board, edit shared names and save/export the workspace. The v1 board is retained and migration occurs only after explicit save and confirmation. The preview intentionally does not support moving, connecting or deleting nodes. Unsaved v1 edits remain in the original editor and are not imported into preview.
 
-GitHub Actions run 43882074838 passed unit tests, build and Chromium tests for 05e2915bdfdd7c507b17299ca116e3073533c5db. A follow-up adds cancellation, stale migration, unavailable lock, and unsaved original-editor browser checks; CI pending. Web Locks are required for v2 save; older/non-cooperating clients may still race and v1 is stale after upgrade. No local worktree was used. Next: resolve CI and test migration/rollback, unsupported locks, concurrent edits, recovery and shared-card browser cases. Then implement movement, edges and deletion against v2 with transaction-safe state; preserve both old data and unsaved edits.
+GitHub Actions run 43882074838 passed unit tests, build and Chromium tests for 05e2915bdfdd7c507b17299ca116e3073533c5db. Follow-up 4ac89d405e353f25b43d01cab5559efd5635ec92 adds cancellation, stale migration, unavailable lock, and unsaved original-editor browser checks; GitHub Actions run 43882341770 passed unit tests, build and Chromium tests. Web Locks are required for v2 save; older/non-cooperating clients may still race and v1 is stale after upgrade. No local worktree was used. Next: resolve CI and test migration/rollback, unsupported locks, concurrent edits, recovery and shared-card browser cases. Then implement movement, edges and deletion against v2 with transaction-safe state; preserve both old data and unsaved edits.
+
+Known Codex commits for loop prevention: 05e2915bdfdd7c507b17299ca116e3073533c5db, 4ac89d405e353f25b43d01cab5559efd5635ec92 and the commit containing this handoff update.
 
 ## Prior handoff
 # Agent handoff
