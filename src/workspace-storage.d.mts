@@ -7,3 +7,10 @@ export function inspectWorkspaceRecovery(storage?: Storage):
   | { ok: false; error: string };
 export function restoreWorkspaceBackup(snapshot: RecoverySnapshot, storage?: Storage):
   Promise<{ ok: true } | { ok: false; error: string }>;
+
+export type WorkspaceSnapshot = { workspaceRaw: string | null; legacyRaw: string | null };
+export function openWorkspace(storage?: Storage):
+  | { ok: true; workspace: import('./workspace.mjs').Workspace; snapshot: WorkspaceSnapshot; source: 'empty' | 'legacy' | 'workspace' }
+  | { ok: false; error: string };
+export function writeWorkspaceLocked(workspace: import('./workspace.mjs').Workspace, snapshot: WorkspaceSnapshot, storage?: Storage):
+  Promise<{ ok: true; snapshot: WorkspaceSnapshot } | { ok: false; error: string }>;

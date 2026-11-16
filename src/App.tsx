@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import { ReactFlow, Background, Controls, addEdge, applyNodeChanges, applyEdgeChanges, type Node, type Edge, type Connection, type NodeChange, type EdgeChange } from '@xyflow/react';
 
 import WorkspaceRecovery from './WorkspaceRecovery';
+import WorkspacePilot from './WorkspacePilot';
 import { loadBoard, parseBoard, restoreBackupSafely, saveBoardSafely } from './storage.mjs';
 export default function App() {
   const [initial] = useState(() => loadBoard());
+  const [showWorkspace, setShowWorkspace] = useState(false);
   const savedRaw = useRef<string | null>(initial.raw);
   const [nodes, setNodes] = useState<Node[]>(() => initial.board.nodes.map((node) => ({ ...node, selected: false })));
   const [edges, setEdges] = useState<Edge[]>(() => initial.board.edges.map((edge) => ({ ...edge, selected: false })));
@@ -113,8 +115,9 @@ export default function App() {
     window.addEventListener('beforeunload', warnBeforeUnload);
     return () => window.removeEventListener('beforeunload', warnBeforeUnload);
   }, [hasUnsavedChanges]);
+  if (showWorkspace) return <WorkspacePilot onClose={(saved) => { setShowWorkspace(false); if (saved) { setCanSave(false); setSaveMessage('A newer workspace exists. Export this older board if needed.'); } }} />;
   return <main>
-    <header><div><strong>SoloCanvas</strong><span> Architecture map</span></div><div className="actions"><button onClick={addNode}>Add component</button><button onClick={exportBoard}>Export board</button><label className="import-button">Import board<input type="file" accept=".json,application/json" onChange={importBoard} /></label>{canRestoreBackup && <button onClick={restore} disabled={saving}>Restore previous backup</button>}<button onClick={save} disabled={!canSave || saving}>Save board</button></div></header>
+    <header><div><strong>SoloCanvas</strong><span> Architecture map</span></div><div className="actions"><button onClick={addNode}>Add component</button><button onClick={() => { if (!hasUnsavedChanges || window.confirm('Workspace preview uses the last saved board. Unsaved edits will stay here but will not appear in the preview. Continue?')) setShowWorkspace(true); }}>Open workspace</button><button onClick={exportBoard}>Export board</button><label className="import-button">Import board<input type="file" accept=".json,application/json" onChange={importBoard} /></label>{canRestoreBackup && <button onClick={restore} disabled={saving}>Restore previous backup</button>}<button onClick={save} disabled={!canSave || saving}>Save board</button></div></header>
     <div className="workspace">
       <section className="canvas" aria-label="Architecture canvas"><ReactFlow deleteKeyCode={['Backspace', 'Delete']} nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={(_, node) => { setSelected(node.id); setSelectedEdge(null); }} onEdgeClick={(_, edge) => { setSelected(null); setSelectedEdge(edge.id); }} onPaneClick={() => { setSelected(null); setSelectedEdge(null); }} fitView><Background /><Controls /></ReactFlow></section>
       <aside><h1>Architecture map</h1><p>Add components, drag them into place, and connect the handles to map relationships.</p>

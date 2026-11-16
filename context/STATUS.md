@@ -1,5 +1,13 @@
 # Agent handoff
 
+## Latest run — 2026-11-16, Codex
+Based on main b73610bbf859ffcac44facbf99f4edb9ff270bf6. Added an opt-in multi-board workspace preview using the existing v2 model and locked storage. Users can create boards, add components, place existing cards on another board, edit shared names and save/export the workspace. The v1 board is retained and migration occurs only after explicit save and confirmation. The preview intentionally does not support moving, connecting or deleting nodes. Unsaved v1 edits remain in the original editor and are not imported into preview.
+
+CI pending; inspect the run. Web Locks are required for v2 save; older/non-cooperating clients may still race and v1 is stale after upgrade. No local worktree was used. Next: resolve CI and test migration/rollback, unsupported locks, concurrent edits, recovery and shared-card browser cases. Then implement movement, edges and deletion against v2 with transaction-safe state; preserve both old data and unsaved edits.
+
+## Prior handoff
+# Agent handoff
+
 ## Latest run — 2026-11-15, Codex
 Based on main 7ada953e062a98d92905c693a1568a0cd8090928. The v1 editor now uses the same Web Lock as v2 for saves and restores where available, while preserving the previous non-atomic fallback where locks are unavailable. The UI tracks edits made while a save is waiting, so saving an older snapshot does not clear the unsaved-changes warning. A restore asks before discarding unsaved edits and preserves edits made while waiting. Added unit and Chromium regression coverage. GitHub Actions run 43814021348 passed unit tests and build but exposed a test that read storage before the new asynchronous save completed; follow-up e8a23a38a7487bbe0be7cc78e727db2591d8ac42 waits for save completion, and run 43814147143 passed unit tests, build and browser tests. Follow-up 91c254f8ed7b901c458e9dd83ed4972fc34d00b3 tests simultaneous cooperating v1 and v2 writers; GitHub Actions run 43814354940 passed unit tests, build and Chromium tests.
 
