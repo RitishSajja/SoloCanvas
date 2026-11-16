@@ -21,3 +21,20 @@ test('cooperating tabs serialize v2 saves and reject a stale snapshot', async ({
  const stored = await first.evaluate(open);
  expect(['first', 'second']).toContain(stored.workspace.boards[0].title);
 });
+
+test('cooperating v1 and v2 tabs do not both save from an empty snapshot', async ({ context }) => {
+ const first = await context.newPage();
+ const second = await context.newPage();
+ await first.goto('/');
+ await second.goto('/');
+ const oldState = await first.evaluate(async () => (await import('/src/storage.mjs')).loadBoard());
+ const newState = await second.evaluate(async () => (await import('/src/workspace-storage.mjs')).openWorkspace());
+ expect(newState.ok).toBe(true);
+ const [oldResult, newResult] = await Promise.all([
+   first.evaluate(async ({ raw }) => (await import('/src/storage.mjs')).saveBoardSafely({ nodes: [], edges: [] }, undefined, raw), oldState),
+   second.evaluate(async ({ workspace, snapshot }) => (await import('/src/workspace-storage.mjs')).writeWorkspaceLocked(workspace, snapshot), newState),
+ ]);
+ expect(Number(oldResult === 'Saved on this device') + Number(newResult.ok)).toBe(1);
+ const saved = await first.evaluate(() => ({ v1: localStorage.getItem('solocanvas.board.v1'), v2: localStorage.getItem('solocanvas.workspace.v2') }));
+ expect(Number(saved.v1 !== null) + Number(saved.v2 !== null)).toBe(1);
+});

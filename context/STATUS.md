@@ -1,7 +1,7 @@
 # Agent handoff
 
 ## Latest run — 2026-11-15, Codex
-Based on main 7ada953e062a98d92905c693a1568a0cd8090928. The v1 editor now uses the same Web Lock as v2 for saves and restores where available, while preserving the previous non-atomic fallback where locks are unavailable. The UI tracks edits made while a save is waiting, so saving an older snapshot does not clear the unsaved-changes warning. A restore asks before discarding unsaved edits and preserves edits made while waiting. Added unit and Chromium regression coverage; CI pending.
+Based on main 7ada953e062a98d92905c693a1568a0cd8090928. The v1 editor now uses the same Web Lock as v2 for saves and restores where available, while preserving the previous non-atomic fallback where locks are unavailable. The UI tracks edits made while a save is waiting, so saving an older snapshot does not clear the unsaved-changes warning. A restore asks before discarding unsaved edits and preserves edits made while waiting. Added unit and Chromium regression coverage. GitHub Actions run 43814021348 passed unit tests and build but exposed a test that read storage before the new asynchronous save completed; follow-up e8a23a38a7487bbe0be7cc78e727db2591d8ac42 waits for save completion, and run 43814147143 passed unit tests, build and browser tests. A further browser test covers simultaneous cooperating v1 and v2 writers; CI pending.
 
 This coordinates only updated clients using the shared lock. Older deployments, arbitrary storage writes, and browsers without Web Locks remain non-atomic. v2 editing and multi-board UI are not yet enabled; no existing data was migrated. No local worktree was used.
 
