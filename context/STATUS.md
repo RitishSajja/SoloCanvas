@@ -1,11 +1,13 @@
 # Agent handoff
 
 ## Latest run — 2026-11-15, Codex
-Based on main 7ada953e062a98d92905c693a1568a0cd8090928. The v1 editor now uses the same Web Lock as v2 for saves and restores where available, while preserving the previous non-atomic fallback where locks are unavailable. The UI tracks edits made while a save is waiting, so saving an older snapshot does not clear the unsaved-changes warning. A restore asks before discarding unsaved edits and preserves edits made while waiting. Added unit and Chromium regression coverage. GitHub Actions run 43814021348 passed unit tests and build but exposed a test that read storage before the new asynchronous save completed; follow-up e8a23a38a7487bbe0be7cc78e727db2591d8ac42 waits for save completion, and run 43814147143 passed unit tests, build and browser tests. A further browser test covers simultaneous cooperating v1 and v2 writers; CI pending.
+Based on main 7ada953e062a98d92905c693a1568a0cd8090928. The v1 editor now uses the same Web Lock as v2 for saves and restores where available, while preserving the previous non-atomic fallback where locks are unavailable. The UI tracks edits made while a save is waiting, so saving an older snapshot does not clear the unsaved-changes warning. A restore asks before discarding unsaved edits and preserves edits made while waiting. Added unit and Chromium regression coverage. GitHub Actions run 43814021348 passed unit tests and build but exposed a test that read storage before the new asynchronous save completed; follow-up e8a23a38a7487bbe0be7cc78e727db2591d8ac42 waits for save completion, and run 43814147143 passed unit tests, build and browser tests. Follow-up 91c254f8ed7b901c458e9dd83ed4972fc34d00b3 tests simultaneous cooperating v1 and v2 writers; GitHub Actions run 43814354940 passed unit tests, build and Chromium tests.
 
 This coordinates only updated clients using the shared lock. Older deployments, arbitrary storage writes, and browsers without Web Locks remain non-atomic. v2 editing and multi-board UI are not yet enabled; no existing data was migrated. No local worktree was used.
 
 Next: check CI, then design explicit migration and multi-board UI with backups, cross-version warnings, and browser tests. Test lock contention, unsupported browsers, recovery, and old-client behavior; never claim universal atomicity.
+
+Known Codex commits for loop prevention: 0ecbf4076e9374ae9659bd741bd8114d5ef1d439, e8a23a38a7487bbe0be7cc78e727db2591d8ac42, 91c254f8ed7b901c458e9dd83ed4972fc34d00b3 and this handoff update.
 
 ## Prior handoff
 # Agent handoff
