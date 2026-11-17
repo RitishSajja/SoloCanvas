@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { ReactFlow, Background, Controls, type NodeChange, type Connection } from '@xyflow/react';
-import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, type Workspace } from './workspace.mjs';
+import { ReactFlow, Background, Controls, type NodeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
+import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 
 export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) => void }) {
@@ -10,6 +10,8 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [boardId, setBoardId] = useState(initial.ok ? initial.workspace.boards[0]?.id ?? '' : '');
   const [cardId, setCardId] = useState('');
   const [search, setSearch] = useState('');
+  const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
+  const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
   const [selectedNode, setSelectedNode] = useState('');
   const [selectedEdge, setSelectedEdge] = useState('');
   const [message, setMessage] = useState(initial.ok ? 'Workspace opened. Changes are not saved automatically.' : initial.error);
@@ -26,6 +28,13 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const edge = board?.edges.find(item => item.id === selectedEdge);
   const view = workspace && board ? projectBoard(workspace, board.id) : null;
   const results = workspace ? findCards(workspace, search) : [];
+  const appearances = workspace && selectedCard ? findCardPlacements(workspace, selectedCard.id) : [];
+  useEffect(() => {
+    if (!navigation || !flow || !workspace || navigation.boardId !== boardId) return;
+    const target = workspace.boards.find(item => item.id === boardId)?.nodes.find(node => node.id === navigation.nodeId);
+    if (target) void flow.setCenter(target.position.x + (target.measured?.width ?? target.width ?? 150) / 2, target.position.y + (target.measured?.height ?? target.height ?? 40) / 2, { zoom: 1 });
+    setNavigation(null);
+  }, [navigation, flow, workspace, boardId]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
@@ -33,6 +42,10 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
+  const openPlacement = (targetBoardId: string, targetNodeId: string) => {
+    setBoardId(targetBoardId); setSelectedNode(targetNodeId); setSelectedEdge('');
+    setNavigation({ boardId: targetBoardId, nodeId: targetNodeId });
+  };
   const close = () => {
     if (inFlight.current) return;
     if (dirty && !window.confirm('Leave this workspace and discard its unsaved changes? Export first if needed.')) return;
@@ -160,7 +173,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
       <button onClick={save} disabled={!workspace || busy}>Save workspace</button>
     </div></header>
     <div className="workspace">
-      <section className="canvas" aria-label="Workspace canvas">{view && <ReactFlow nodes={view.nodes.map(node => ({ ...node, selected: node.id === selectedNode }))} edges={view.edges.map(item => ({ ...item, selected: item.id === selectedEdge }))} onNodesChange={moveNodes} onConnect={connect} onNodeClick={(_, node) => { setSelectedNode(node.id); setSelectedEdge(''); }} onEdgeClick={(_, item) => { setSelectedEdge(item.id); setSelectedNode(''); }} onPaneClick={() => { setSelectedNode(''); setSelectedEdge(''); }} fitView><Background /><Controls /></ReactFlow>}</section>
+      <section className="canvas" aria-label="Workspace canvas">{view && <ReactFlow onInit={setFlow} nodes={view.nodes.map(node => ({ ...node, selected: node.id === selectedNode }))} edges={view.edges.map(item => ({ ...item, selected: item.id === selectedEdge }))} onNodesChange={moveNodes} onConnect={connect} onNodeClick={(_, node) => { setSelectedNode(node.id); setSelectedEdge(''); }} onEdgeClick={(_, item) => { setSelectedEdge(item.id); setSelectedNode(''); }} onPaneClick={() => { setSelectedNode(''); setSelectedEdge(''); }} fitView><Background /><Controls /></ReactFlow>}</section>
       <aside>
         <h1>Boards</h1>
         <p>Drag components and connect their handles. Select a component or relationship to edit or remove it from this board.</p>
@@ -176,14 +189,18 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
               <strong>{result.label}</strong>
               {result.placements.length === 0 ? <p>Not placed on a board.</p> : <ul>
                 {result.placements.map(placement => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
-                  <button onClick={() => { setBoardId(placement.boardId); setSelectedNode(placement.nodeId); setSelectedEdge(''); }}>Open on {placement.boardTitle}</button>
+                  <button onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle}</button>
                 </li>)}
               </ul>}
             </div>)}
           </section>}
           <label>Existing component<select aria-label="Existing component" value={cardId} onChange={event => setCardId(event.target.value)}><option value="">Choose a component</option>{workspace.cards.map(card => <option key={card.id} value={card.id}>{String(card.data.label ?? 'Untitled')}</option>)}</select></label>
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
-          {selectedCard && <><label>Shared component name<input value={String(selectedCard.data.label ?? '')} onChange={event => changed(updateCard(workspace, selectedCard.id, { ...selectedCard.data, label: event.target.value }))} /></label><button onClick={removeNode}>Remove component from board</button></>}
+          {selectedCard && <><label>Shared component name<input value={String(selectedCard.data.label ?? '')} onChange={event => changed(updateCard(workspace, selectedCard.id, { ...selectedCard.data, label: event.target.value }))} /></label><button onClick={removeNode}>Remove component from board</button>
+            <section aria-label="Component appearances"><h2>Appears on</h2><ul>{appearances.map(placement => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
+              <button onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle}</button>{placement.boardId === boardId && placement.nodeId === selectedNode && ' (current)'}
+            </li>)}</ul></section>
+          </>}
           {edge && <><label>Relationship label<input value={String(edge.label ?? '')} onChange={event => { const next = structuredClone(workspace); const current = next.boards.find(item => item.id === boardId)?.edges.find(item => item.id === edge.id); if (current) { current.label = event.target.value; changed(next); } }} /></label><button onClick={removeEdge}>Remove relationship</button></>}
         </>}
         <p role="status">{message}</p>

@@ -99,6 +99,18 @@ export function removeBoard(workspace, boardId) {
   return next;
 }
 
+function placementsOf(workspace, cardId) {
+  return workspace.boards.flatMap(board => board.nodes
+    .filter(node => node.cardId === cardId)
+    .map(node => ({ boardId: board.id, boardTitle: board.title, nodeId: node.id })));
+}
+
+/** List all appearances of a shared component, even multiple times on one board. */
+export function findCardPlacements(workspace, cardId) {
+  if (!validateWorkspace(workspace) || !workspace.cards.some(card => card.id === cardId)) throw new Error('Invalid component');
+  return placementsOf(workspace, cardId);
+}
+
 /** Find shared components by name and report each placement across boards. */
 export function findCards(workspace, query) {
   if (!validateWorkspace(workspace) || typeof query !== 'string') throw new Error('Invalid search');
@@ -107,9 +119,7 @@ export function findCards(workspace, query) {
   return workspace.cards.flatMap(card => {
     const label = String(card.data.label ?? 'Untitled');
     if (!label.toLocaleLowerCase().includes(needle)) return [];
-    const placements = workspace.boards.flatMap(board => board.nodes
-      .filter(node => node.cardId === card.id)
-      .map(node => ({ boardId: board.id, boardTitle: board.title, nodeId: node.id })));
+    const placements = placementsOf(workspace, card.id);
     return [{ cardId: card.id, label, placements }];
   });
 }

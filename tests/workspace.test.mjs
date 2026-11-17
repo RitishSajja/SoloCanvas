@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, placeCard, updateCard, renameBoard, removeBoard, findCards } from '../src/workspace.mjs';
+import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, placeCard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements } from '../src/workspace.mjs';
 
 const fixture = {
   viewport: { x: 4, y: 5, zoom: 1 },
@@ -98,4 +98,18 @@ test('component search returns every placement, including unplaced cards', () =>
   assert.deepEqual(findCards(workspace, '  '), []);
   assert.deepEqual(findCards(workspace, 'absent'), []);
   assert.throws(() => findCards(workspace, null));
+});
+
+test('component appearances include all placements and update after a board is deleted', () => {
+  let workspace = migrateLegacyBoard(JSON.stringify(fixture));
+  workspace = addBoard(workspace, 'board-2', 'Other');
+  workspace = placeCard(workspace, 'board-2', 'card:a', { id: 'copy-a', position: { x: 10, y: 20 } });
+  assert.deepEqual(findCardPlacements(workspace, 'card:a'), [
+    { boardId: 'board-1', boardTitle: 'My board', nodeId: 'a' },
+    { boardId: 'board-2', boardTitle: 'Other', nodeId: 'copy-a' },
+  ]);
+  workspace = removeBoard(workspace, 'board-1');
+  assert.deepEqual(findCardPlacements(workspace, 'card:b'), []);
+  assert.equal(findCardPlacements(workspace, 'card:a').length, 1);
+  assert.throws(() => findCardPlacements(workspace, 'unknown'));
 });

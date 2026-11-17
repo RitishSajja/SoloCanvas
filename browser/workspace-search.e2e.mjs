@@ -34,3 +34,35 @@ test('search locates and opens shared components across boards', async ({ page }
   await expect(page.getByRole('button', { name: 'Open on My board' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open on Services' })).toBeVisible();
 });
+
+test('component appearances navigate to a distant placement on another board', async ({ page }) => {
+  const workspace = {
+    version: 2,
+    cards: [{ id: 'api', data: { label: 'Shared API' } }],
+    boards: [
+      { id: 'first', title: 'First board', extra: {}, nodes: [{ id: 'first-api', cardId: 'api', position: { x: 0, y: 0 } }], edges: [] },
+      { id: 'second', title: 'Second board', extra: {}, nodes: [{ id: 'far-api', cardId: 'api', position: { x: 4000, y: 3000 } }], edges: [] },
+    ],
+  };
+  await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await page.locator('.react-flow__node').filter({ hasText: 'Shared API' }).click();
+  const appearances = page.getByRole('region', { name: 'Component appearances' });
+  await expect(appearances.getByRole('button', { name: 'Open on First board' })).toBeVisible();
+  await appearances.getByRole('button', { name: 'Open on Second board' }).click();
+  await expect(page.getByLabel('Current board')).toHaveValue('second');
+  await expect(page.getByLabel('Shared component name')).toHaveValue('Shared API');
+  const node = page.locator('.react-flow__node').filter({ hasText: 'Shared API' });
+  await expect(node).toBeVisible();
+  await expect.poll(async () => {
+    const nodeBox = await node.boundingBox();
+    const canvasBox = await page.getByRole('region', { name: 'Workspace canvas' }).boundingBox();
+    if (!nodeBox || !canvasBox) return Infinity;
+    return Math.abs(nodeBox.x + nodeBox.width / 2 - (canvasBox.x + canvasBox.width / 2)) +
+      Math.abs(nodeBox.y + nodeBox.height / 2 - (canvasBox.y + canvasBox.height / 2));
+  }).toBeLessThan(40);
+  await expect(appearances).toContainText('(current)');
+  await appearances.getByRole('button', { name: 'Open on First board' }).click();
+  await expect(page.getByLabel('Current board')).toHaveValue('first');
+});
