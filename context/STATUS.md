@@ -1,11 +1,13 @@
 # Agent handoff
 
 ## Latest run — 2026-11-16, Codex
-Based on main fcc1c31efb534d2c8dc3f6752869d805d7f6011c. Added import of exported v2 workspaces, using schema validation and a 5 MB limit. The user must confirm replacement of in-memory state and explicitly save; the current snapshot remains in force to reject stale saves. Invalid imports or cancellation leave the workspace unchanged. Added Chromium coverage for cancellation, explicit save/reload, invalid references and stale snapshots. GitHub Actions run 43983755927 passed unit tests/build but exposed an existing asynchronous-save timing issue in a v1 browser test; follow-up 7f730f2954d47e51dceabbc2f7d679919d2f6719 waits for persisted state and run 43983938286 passed unit, build and Chromium tests. A further follow-up tests a real export/import round trip and oversized input; CI pending.
+Based on main fcc1c31efb534d2c8dc3f6752869d805d7f6011c. Added import of exported v2 workspaces, using schema validation and a 5 MB limit. The user must confirm replacement of in-memory state and explicitly save; the current snapshot remains in force to reject stale saves. Invalid imports or cancellation leave the workspace unchanged. Added Chromium coverage for cancellation, explicit save/reload, invalid references and stale snapshots. GitHub Actions run 43983755927 passed unit tests/build but exposed an existing asynchronous-save timing issue in a v1 browser test; follow-up 7f730f2954d47e51dceabbc2f7d679919d2f6719 waits for persisted state and run 43983938286 passed unit, build and Chromium tests. Follow-up 476018648efc1f679824c58afe8b9a7c12c3258d tests a real export/import round trip and oversized input; run 43984178519 passed those but intermittently found a workspace node hidden after invalid import. Follow-up 0e1544b4b937d74a053a96d54b27e25b54f8e50d preserves measured node dimensions in the controlled canvas; GitHub Actions run 43984524909 passed all unit tests, build and Chromium browser tests.
 
 Import replaces rather than merges. It is unavailable when workspace storage could not be opened; use the existing recovery panel for corrupted or newer-version data. v1 exports use the separate board import. Old/non-cooperating clients can still race; workspace saves require Web Locks.
 
 Next: inspect CI, add workspace import/export round-trip, quota, lock contention and browser compatibility checks, then implement board rename/delete and cross-board search/backlinks. Preserve data and unsaved edits. No local checkout was used; confirm peer ownership before further changes.
+
+Known Codex commits for loop prevention: f3686f506b80fc85de3946402f7f025b7256ac67, 7f730f2954d47e51dceabbc2f7d679919d2f6719, 476018648efc1f679824c58afe8b9a7c12c3258d, 0e1544b4b937d74a053a96d54b27e25b54f8e50d and this handoff update.
 
 ## Prior handoff
 # Agent handoff
