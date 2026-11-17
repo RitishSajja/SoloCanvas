@@ -80,3 +80,21 @@ export function updateCard(workspace, cardId, data) {
   card.data = copy(data);
   return next;
 }
+
+export function renameBoard(workspace, boardId, title) {
+  if (!validateWorkspace(workspace) || typeof title !== 'string' || !title.trim()) throw new Error('Invalid board name');
+  const next = copy(workspace);
+  const board = next.boards.find(item => item.id === boardId);
+  if (!board) throw new Error('Board not found');
+  board.title = title.trim();
+  return next;
+}
+
+export function removeBoard(workspace, boardId) {
+  if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
+  if (!workspace.boards.some(board => board.id === boardId)) throw new Error('Board not found');
+  if (workspace.boards.length <= 1) throw new Error('Cannot remove the last board');
+  const next = copy(workspace);
+  next.boards = next.boards.filter(board => board.id !== boardId);
+  return next;
+}

@@ -1,5 +1,13 @@
 # Agent handoff
 
+## Current run — 2026-11-17, Codex
+Based on main 3ba37f20886effe166ed25ac066df83ac4c91bcd. Added workspace board rename and confirmed deletion, preserving all canonical cards and preventing deletion of the final board. Deletion affects only the selected board's placements and relationships; changes require explicit save. Added unit and browser coverage. GitHub Actions verification is pending for this commit. The last prior main run 43984689872 passed. No active peer work was visible in open PRs or branch heads, although GitHub cannot show uncommitted work. Next agent: verify CI, address failures, then implement cross-board search/backlinks and remaining milestone 3 tests. Preserve data and avoid overlapping active work.
+
+Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+
+## Prior handoff
+# Agent handoff
+
 ## Latest run — 2026-11-16, Codex
 Based on main fcc1c31efb534d2c8dc3f6752869d805d7f6011c. Added import of exported v2 workspaces, using schema validation and a 5 MB limit. The user must confirm replacement of in-memory state and explicitly save; the current snapshot remains in force to reject stale saves. Invalid imports or cancellation leave the workspace unchanged. Added Chromium coverage for cancellation, explicit save/reload, invalid references and stale snapshots. GitHub Actions run 43983755927 passed unit tests/build but exposed an existing asynchronous-save timing issue in a v1 browser test; follow-up 7f730f2954d47e51dceabbc2f7d679919d2f6719 waits for persisted state and run 43983938286 passed unit, build and Chromium tests. Follow-up 476018648efc1f679824c58afe8b9a7c12c3258d tests a real export/import round trip and oversized input; run 43984178519 passed those but intermittently found a workspace node hidden after invalid import. Follow-up 0e1544b4b937d74a053a96d54b27e25b54f8e50d preserves measured node dimensions in the controlled canvas; GitHub Actions run 43984524909 passed all unit tests, build and Chromium browser tests.
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, type NodeChange, type Connection } from '@xyflow/react';
-import { addBoard, placeCard, projectBoard, updateCard, type Workspace } from './workspace.mjs';
+import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 
 export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) => void }) {
@@ -41,7 +41,19 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     const title = window.prompt('Name the new board', 'New board');
     if (title === null || !title.trim()) return;
     const id = crypto.randomUUID();
-    changed(addBoard(workspace, id, title.trim())); setBoardId(id); setSelectedNode('');
+    changed(addBoard(workspace, id, title.trim())); setBoardId(id); setSelectedNode(''); setSelectedEdge('');
+  };
+  const renameCurrentBoard = () => {
+    if (!workspace || !board) return;
+    const title = window.prompt('Rename this board', board.title);
+    if (title === null || !title.trim() || title.trim() === board.title) return;
+    changed(renameBoard(workspace, board.id, title));
+  };
+  const deleteCurrentBoard = () => {
+    if (!workspace || !board || workspace.boards.length <= 1) return;
+    if (!window.confirm('Delete this board? Its component placements and relationships will be removed. Shared components remain available. Select Save workspace to make this permanent.')) return;
+    const next = removeBoard(workspace, board.id);
+    changed(next); setBoardId(next.boards[0].id); setSelectedNode(''); setSelectedEdge('');
   };
   const addComponent = () => {
     if (!workspace || !board) return;
@@ -154,7 +166,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
           <label>Current board<select aria-label="Current board" value={boardId} onChange={event => { setBoardId(event.target.value); setSelectedNode(''); setSelectedEdge(''); }}>
             {workspace.boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
           </select></label>
-          <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={addComponent} disabled={!board}>Add component</button></div>
+          <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={renameCurrentBoard} disabled={!board}>Rename board</button><button onClick={deleteCurrentBoard} disabled={!board || workspace.boards.length <= 1}>Delete board</button><button onClick={addComponent} disabled={!board}>Add component</button></div>
           <label>Existing component<select aria-label="Existing component" value={cardId} onChange={event => setCardId(event.target.value)}><option value="">Choose a component</option>{workspace.cards.map(card => <option key={card.id} value={card.id}>{String(card.data.label ?? 'Untitled')}</option>)}</select></label>
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
           {selectedCard && <><label>Shared component name<input value={String(selectedCard.data.label ?? '')} onChange={event => changed(updateCard(workspace, selectedCard.id, { ...selectedCard.data, label: event.target.value }))} /></label><button onClick={removeNode}>Remove component from board</button></>}

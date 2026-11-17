@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, placeCard, updateCard } from '../src/workspace.mjs';
+import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, placeCard, updateCard, renameBoard, removeBoard } from '../src/workspace.mjs';
 
 const fixture = {
   viewport: { x: 4, y: 5, zoom: 1 },
@@ -53,4 +53,30 @@ test('projected data is detached from the underlying workspace', () => {
   const board = projectBoard(workspace, 'board-1');
   board.nodes[0].data.label = 'local change';
   assert.equal(projectBoard(workspace, 'board-1').nodes[0].data.label, 'API');
+});
+
+test('board rename trims names, preserves the source and rejects invalid changes', () => {
+  const before = migrateLegacyBoard(JSON.stringify(fixture));
+  const renamed = renameBoard(before, 'board-1', '  Architecture  ');
+  assert.equal(renamed.boards[0].title, 'Architecture');
+  assert.equal(before.boards[0].title, 'My board');
+  assert.deepEqual(renamed.cards, before.cards);
+  assert.throws(() => renameBoard(before, 'missing', 'Name'));
+  assert.throws(() => renameBoard(before, 'board-1', '   '));
+  assert.throws(() => renameBoard(before, 'board-1', null));
+});
+
+test('board deletion keeps shared and unplaced cards and other boards intact', () => {
+  let before = migrateLegacyBoard(JSON.stringify(fixture));
+  before = addBoard(before, 'board-2', 'Other');
+  before = placeCard(before, 'board-2', 'card:a', { id: 'copy-a', position: { x: 1, y: 2 } });
+  const saved = structuredClone(before);
+  const after = removeBoard(before, 'board-1');
+  assert.deepEqual(before, saved);
+  assert.deepEqual(after.cards, before.cards);
+  assert.deepEqual(after.boards, [before.boards[1]]);
+  assert.equal(validateWorkspace(JSON.parse(JSON.stringify(after))), true);
+  assert.equal(projectBoard(after, 'board-2').nodes[0].data.label, 'API');
+  assert.throws(() => removeBoard(after, 'board-2'), /last board/);
+  assert.throws(() => removeBoard(before, 'missing'), /not found/);
 });
