@@ -1,9 +1,9 @@
 # Agent handoff
 
 ## Current run — 2026-11-17, Codex
-Based on main d8e9048f5ce3b8b8433ed1f181ae246a82fdf9e0. Added selected-component board appearances (backlinks), including multiple placements, and selecting an appearance or search result selects and centers it. Added unit and Chromium checks; CI for aa1fd2c39c8cca81457c2ffdfb6794ec0daada87 is pending. Added browser coverage for edits made during a lock-delayed save and for quota failure with retry; CI for those tests is also pending. Prior main GitHub Actions run 44106904965 passed. No active peer work was visible in open PRs or branch heads; GitHub cannot reveal uncommitted peer work. Next: verify CI, address failures, and continue milestone 3 recovery, lock contention, accessibility and cross-board testing. Preserve local data, do not overlap active work.
+Based on main d8e9048f5ce3b8b8433ed1f181ae246a82fdf9e0. Added selected-component board appearances (backlinks), including multiple placements, and selecting an appearance or search result selects and centers it. Unit, build and Chromium checks passed in GitHub Actions run 44161802851 for aa1fd2c39c8cca81457c2ffdfb6794ec0daada87. Added browser coverage for edits made during a lock-delayed save and for quota failure with retry; unit, build and Chromium checks passed in run 44162025351 for 4bc6cc7997bd6d3a59d78b53ded6ea349be2e838. Prior main GitHub Actions run 44106904965 passed. No active peer work was visible in open PRs or branch heads; GitHub cannot reveal uncommitted peer work. Next: continue milestone 3 accessibility and cross-board testing, including distinguishing multiple appearances on the same board. Then plan repository import under the browser's user-selected-file constraints. Search still matches component names only. Preserve local data, do not overlap active work.
 
-Known Codex commits for loop prevention: aa1fd2c39c8cca81457c2ffdfb6794ec0daada87, the commit containing this handoff and its follow-ups.
+Known Codex commits for loop prevention: aa1fd2c39c8cca81457c2ffdfb6794ec0daada87, 4bc6cc7997bd6d3a59d78b53ded6ea349be2e838, the verification handoff commit and its follow-ups.
 
 ## Prior handoff
 # Agent handoff
