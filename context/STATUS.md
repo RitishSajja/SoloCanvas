@@ -1,7 +1,7 @@
 # Agent handoff
 
 ## Latest run — 2026-11-16, Codex
-Based on main fcc1c31efb534d2c8dc3f6752869d805d7f6011c. Added import of exported v2 workspaces, using schema validation and a 5 MB limit. The user must confirm replacement of in-memory state and explicitly save; the current snapshot remains in force to reject stale saves. Invalid imports or cancellation leave the workspace unchanged. Added Chromium coverage for cancellation, explicit save/reload, invalid references and stale snapshots. CI pending.
+Based on main fcc1c31efb534d2c8dc3f6752869d805d7f6011c. Added import of exported v2 workspaces, using schema validation and a 5 MB limit. The user must confirm replacement of in-memory state and explicitly save; the current snapshot remains in force to reject stale saves. Invalid imports or cancellation leave the workspace unchanged. Added Chromium coverage for cancellation, explicit save/reload, invalid references and stale snapshots. GitHub Actions run 43983755927 passed unit tests/build but exposed an existing asynchronous-save timing issue in a v1 browser test; follow-up 7f730f2954d47e51dceabbc2f7d679919d2f6719 waits for persisted state and run 43983938286 passed unit, build and Chromium tests. A further follow-up tests a real export/import round trip and oversized input; CI pending.
 
 Import replaces rather than merges. It is unavailable when workspace storage could not be opened; use the existing recovery panel for corrupted or newer-version data. v1 exports use the separate board import. Old/non-cooperating clients can still race; workspace saves require Web Locks.
 

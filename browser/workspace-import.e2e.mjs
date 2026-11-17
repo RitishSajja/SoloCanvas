@@ -35,3 +35,31 @@ test('invalid workspace and stale snapshots never overwrite stored data', async 
  await expect(page.getByRole('status')).toContainText('Stored data changed');
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
 });
+
+test('an exported workspace can be reimported after further unsaved edits', async ({ page }) => {
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.getByRole('button', { name: 'Add component' }).click();
+ await page.locator('.react-flow__node').first().click();
+ await page.getByLabel('Shared component name').fill('Exported name');
+ const downloadPromise = page.waitForEvent('download');
+ await page.getByRole('button', { name: 'Export workspace' }).click();
+ const download = await downloadPromise;
+ expect(download.suggestedFilename()).toBe('solocanvas-workspace.json');
+ const stream = await download.createReadStream(); const chunks = [];
+ for await (const chunk of stream) chunks.push(chunk);
+ const data = Buffer.concat(chunks);
+ await page.getByLabel('Shared component name').fill('Later unsaved edit');
+ page.once('dialog', dialog => dialog.accept());
+ await page.getByLabel('Import workspace').setInputFiles({ name: 'workspace.json', mimeType: 'application/json', buffer: data });
+ await expect(page.locator('.react-flow__node').filter({ hasText: 'Exported name' })).toBeVisible();
+ expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
+});
+
+test('oversized import is rejected without changing the workspace', async ({ page }) => {
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.getByRole('button', { name: 'Add component' }).click();
+ await page.getByLabel('Import workspace').setInputFiles({ name: 'large.json', mimeType: 'application/json', buffer: Buffer.alloc(5 * 1024 * 1024 + 1, 32) });
+ await expect(page.getByRole('status')).toContainText('exceeds 5 MB');
+ await expect(page.locator('.react-flow__node')).toHaveCount(1);
+ expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
+});
