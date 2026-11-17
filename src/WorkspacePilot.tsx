@@ -59,8 +59,9 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
 
   const moveNodes = (changes: NodeChange[]) => {
     const positions = changes.filter(change => change.type === 'position' && change.position);
-    if (!positions.length) return;
-    editVersion.current += 1; setDirty(true);
+    const dimensions = changes.filter(change => change.type === 'dimensions' && change.dimensions);
+    if (!positions.length && !dimensions.length) return;
+    if (positions.length) { editVersion.current += 1; setDirty(true); }
     setWorkspace(previous => {
       if (!previous) return previous;
       const next = structuredClone(previous);
@@ -70,6 +71,11 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
         if (change.type !== 'position' || !change.position) continue;
         const node = target.nodes.find(item => item.id === change.id);
         if (node) node.position = change.position;
+      }
+      for (const change of dimensions) {
+        if (change.type !== 'dimensions' || !change.dimensions) continue;
+        const node = target.nodes.find(item => item.id === change.id);
+        if (node) node.measured = { ...change.dimensions };
       }
       return next;
     });
