@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, type NodeChange, type Connection } from '@xyflow/react';
-import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, type Workspace } from './workspace.mjs';
+import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 
 export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) => void }) {
@@ -9,6 +9,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(initial.ok ? initial.snapshot : null);
   const [boardId, setBoardId] = useState(initial.ok ? initial.workspace.boards[0]?.id ?? '' : '');
   const [cardId, setCardId] = useState('');
+  const [search, setSearch] = useState('');
   const [selectedNode, setSelectedNode] = useState('');
   const [selectedEdge, setSelectedEdge] = useState('');
   const [message, setMessage] = useState(initial.ok ? 'Workspace opened. Changes are not saved automatically.' : initial.error);
@@ -24,6 +25,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const selectedCard = workspace?.cards.find(item => item.id === selected?.cardId);
   const edge = board?.edges.find(item => item.id === selectedEdge);
   const view = workspace && board ? projectBoard(workspace, board.id) : null;
+  const results = workspace ? findCards(workspace, search) : [];
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
@@ -167,6 +169,18 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             {workspace.boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
           </select></label>
           <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={renameCurrentBoard} disabled={!board}>Rename board</button><button onClick={deleteCurrentBoard} disabled={!board || workspace.boards.length <= 1}>Delete board</button><button onClick={addComponent} disabled={!board}>Add component</button></div>
+          <label>Find components across boards<input value={search} onChange={event => setSearch(event.target.value)} /></label>
+          {search.trim() && <section aria-label="Component search results">
+            {results.length === 0 && <p>No matching components.</p>}
+            {results.map(result => <div key={result.cardId}>
+              <strong>{result.label}</strong>
+              {result.placements.length === 0 ? <p>Not placed on a board.</p> : <ul>
+                {result.placements.map(placement => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
+                  <button onClick={() => { setBoardId(placement.boardId); setSelectedNode(placement.nodeId); setSelectedEdge(''); }}>Open on {placement.boardTitle}</button>
+                </li>)}
+              </ul>}
+            </div>)}
+          </section>}
           <label>Existing component<select aria-label="Existing component" value={cardId} onChange={event => setCardId(event.target.value)}><option value="">Choose a component</option>{workspace.cards.map(card => <option key={card.id} value={card.id}>{String(card.data.label ?? 'Untitled')}</option>)}</select></label>
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
           {selectedCard && <><label>Shared component name<input value={String(selectedCard.data.label ?? '')} onChange={event => changed(updateCard(workspace, selectedCard.id, { ...selectedCard.data, label: event.target.value }))} /></label><button onClick={removeNode}>Remove component from board</button></>}

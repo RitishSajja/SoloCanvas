@@ -98,3 +98,18 @@ export function removeBoard(workspace, boardId) {
   next.boards = next.boards.filter(board => board.id !== boardId);
   return next;
 }
+
+/** Find shared components by name and report each placement across boards. */
+export function findCards(workspace, query) {
+  if (!validateWorkspace(workspace) || typeof query !== 'string') throw new Error('Invalid search');
+  const needle = query.trim().toLocaleLowerCase();
+  if (!needle) return [];
+  return workspace.cards.flatMap(card => {
+    const label = String(card.data.label ?? 'Untitled');
+    if (!label.toLocaleLowerCase().includes(needle)) return [];
+    const placements = workspace.boards.flatMap(board => board.nodes
+      .filter(node => node.cardId === card.id)
+      .map(node => ({ boardId: board.id, boardTitle: board.title, nodeId: node.id })));
+    return [{ cardId: card.id, label, placements }];
+  });
+}

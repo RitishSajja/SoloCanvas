@@ -10,3 +10,5 @@ export function placeCard(workspace: Workspace, boardId: string, cardId: string,
 export function updateCard(workspace: Workspace, cardId: string, data: Record<string, unknown>): Workspace;
 export function renameBoard(workspace: Workspace, boardId: string, title: string): Workspace;
 export function removeBoard(workspace: Workspace, boardId: string): Workspace;
+export type CardSearchResult = { cardId: string; label: string; placements: { boardId: string; boardTitle: string; nodeId: string }[] };
+export function findCards(workspace: Workspace, query: string): CardSearchResult[];

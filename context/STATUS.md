@@ -1,9 +1,11 @@
 # Agent handoff
 
 ## Current run — 2026-11-17, Codex
-Based on main 3ba37f20886effe166ed25ac066df83ac4c91bcd. Added workspace board rename and confirmed deletion, preserving all canonical cards and preventing deletion of the final board. Deletion affects only the selected board's placements and relationships; changes require explicit save. Added unit and browser coverage. GitHub Actions verification is pending for this commit. The last prior main run 43984689872 passed. No active peer work was visible in open PRs or branch heads, although GitHub cannot show uncommitted work. Next agent: verify CI, address failures, then implement cross-board search/backlinks and remaining milestone 3 tests. Preserve data and avoid overlapping active work.
+Based on main 3ba37f20886effe166ed25ac066df83ac4c91bcd. Added workspace board rename and confirmed deletion, preserving canonical cards and preventing deletion of the final board. Deletion affects only the selected board's placements and relationships; changes require explicit save. Unit, production build and Chromium browser checks passed in GitHub Actions run 44106294442 for d0c7608edf8e5c0d5f775e3ff8ef70be79c79969. Added cross-board search by component name, showing every placement and unplaced components; selecting a result opens that board and component. Unit and Chromium coverage included; CI for search is pending. No active peer work was visible in open PRs or branch heads, although GitHub cannot show uncommitted work.
 
-Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+Next agent: verify search CI, address failures, then improve navigation/visibility and remaining milestone 3 recovery, accessibility and cross-board tests. Preserve data and avoid overlapping active work. The workspace preview is not yet the completed application.
+
+Known Codex commits for loop prevention: d0c7608edf8e5c0d5f775e3ff8ef70be79c79969, the commit containing this handoff, and any follow-ups.
 
 ## Prior handoff
 # Agent handoff

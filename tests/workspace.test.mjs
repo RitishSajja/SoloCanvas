@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, placeCard, updateCard, renameBoard, removeBoard } from '../src/workspace.mjs';
+import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, placeCard, updateCard, renameBoard, removeBoard, findCards } from '../src/workspace.mjs';
 
 const fixture = {
   viewport: { x: 4, y: 5, zoom: 1 },
@@ -79,4 +79,23 @@ test('board deletion keeps shared and unplaced cards and other boards intact', (
   assert.equal(projectBoard(after, 'board-2').nodes[0].data.label, 'API');
   assert.throws(() => removeBoard(after, 'board-2'), /last board/);
   assert.throws(() => removeBoard(before, 'missing'), /not found/);
+});
+
+test('component search returns every placement, including unplaced cards', () => {
+  let workspace = migrateLegacyBoard(JSON.stringify(fixture));
+  workspace = addBoard(workspace, 'board-2', 'Services');
+  workspace = placeCard(workspace, 'board-2', 'card:a', { id: 'api-2', position: { x: 0, y: 0 } });
+  workspace = placeCard(workspace, 'board-2', 'card:a', { id: 'api-3', position: { x: 1, y: 1 } });
+  workspace.cards.push({ id: 'unplaced', data: { label: 'API orphan' } });
+  assert.deepEqual(findCards(workspace, ' aPi '), [
+    { cardId: 'card:a', label: 'API', placements: [
+      { boardId: 'board-1', boardTitle: 'My board', nodeId: 'a' },
+      { boardId: 'board-2', boardTitle: 'Services', nodeId: 'api-2' },
+      { boardId: 'board-2', boardTitle: 'Services', nodeId: 'api-3' },
+    ] },
+    { cardId: 'unplaced', label: 'API orphan', placements: [] },
+  ]);
+  assert.deepEqual(findCards(workspace, '  '), []);
+  assert.deepEqual(findCards(workspace, 'absent'), []);
+  assert.throws(() => findCards(workspace, null));
 });
