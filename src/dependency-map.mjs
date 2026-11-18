@@ -17,6 +17,19 @@ function relativeCandidates(from, specifier) {
   const base = parts.join('/');
   if (!base) return [];
   const candidates = [base];
+  // TypeScript commonly refers to emitted .js paths while the selected
+  // source is .ts/.tsx. Consider all matches and refuse to guess if ambiguous.
+  if (/\.(?:ts|tsx)$/i.test(from)) {
+    const substitutions = [
+      [/\.js$/i, ['.ts', '.tsx', '.d.ts']],
+      [/\.jsx$/i, ['.tsx', '.d.ts']],
+      [/\.mjs$/i, ['.mts', '.d.mts']],
+      [/\.cjs$/i, ['.cts', '.d.cts']],
+    ];
+    for (const [pattern, endings] of substitutions) {
+      if (pattern.test(base)) for (const ending of endings) candidates.push(base.replace(pattern, ending));
+    }
+  }
   if (!/\.[^/]+$/.test(base)) {
     for (const ext of extensions) candidates.push(base + ext, base + '/index' + ext);
   }
@@ -46,21 +59,42 @@ export function suggestDependencies(workspace, boardId) {
   const seen = new Set(existing);
   const suggestions = [];
   const diagnostics = [];
+  const report = item => {
+    if (diagnostics.length >= 250) throw new Error('Too many import diagnostics; reduce the selected files.');
+    diagnostics.push(item);
+  };
   for (const [path, items] of sources) {
-    if (items.length !== 1) { diagnostics.push({ path, reason: 'multiple placements for this file' }); continue; }
+    if (items.length !== 1) { report({ path, reason: 'multiple placements for this file' }); continue; }
     const { node, data } = items[0];
     const kind = /\.tsx$/i.test(path) ? ts.ScriptKind.TSX : /\.jsx$/i.test(path) ? ts.ScriptKind.JSX : /\.(?:ts)$/i.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS;
     const source = ts.createSourceFile(path, data.sourceText, ts.ScriptTarget.Latest, false, kind);
-    if (source.parseDiagnostics.length) { diagnostics.push({ path, reason: 'source could not be parsed' }); continue; }
+    if (source.parseDiagnostics.length) { report({ path, reason: 'source could not be parsed' }); continue; }
+    const scanUnsupported = node => {
+      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+          (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) {
+        const arg = node.arguments[0];
+        report({
+          path,
+          reason: node.expression.kind === ts.SyntaxKind.ImportKeyword ? 'dynamic import not analyzed' : 'require call not analyzed',
+          ...(arg && ts.isStringLiteral(arg) ? { specifier: arg.text } : {}),
+          line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+        });
+      }
+      ts.forEachChild(node, scanUnsupported);
+    };
+    scanUnsupported(source);
     for (const statement of source.statements) {
       if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement))) continue;
       if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
       const specifier = statement.moduleSpecifier.text;
-      if (!specifier.startsWith('./') && !specifier.startsWith('../')) continue;
+      if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
+        report({ path, reason: 'non-relative import not analyzed', specifier, line: source.getLineAndCharacterOfPosition(statement.moduleSpecifier.getStart(source)).line + 1 });
+        continue;
+      }
       const matches = relativeCandidates(path, specifier).filter(candidate => paths.has(candidate));
       const line = source.getLineAndCharacterOfPosition(statement.moduleSpecifier.getStart(source)).line + 1;
       if (matches.length !== 1 || paths.get(matches[0]).length !== 1) {
-        diagnostics.push({ path, reason: matches.length ? 'ambiguous local import' : 'unresolved local import', specifier, line });
+        report({ path, reason: matches.length ? 'ambiguous local import' : 'unresolved local import', specifier, line });
         continue;
       }
       const target = paths.get(matches[0])[0].node;

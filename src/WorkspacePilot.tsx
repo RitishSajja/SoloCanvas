@@ -282,7 +282,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
           </section>
           <section aria-label="Import relationship suggestions">
             <h2>Suggest import relationships</h2>
-            <p>Analyze imported JS/TS source on this board for static relative imports and re-exports. Review suggestions before adding them. External packages, dynamic imports and Python imports are not analyzed.</p>
+            <p>Analyze imported JS/TS source on this board for static relative imports and re-exports. Review suggestions before adding them. Non-relative imports, dynamic imports and require calls are reported but not resolved. Python imports are not analyzed.</p>
             <button onClick={analyzeImports} disabled={!board || busy}>Analyze board imports</button>
             {analysisError && <p role="alert">{analysisError}</p>}
             {analysis && (analysis.boardId !== boardId || analysis.version !== editVersion.current ? <p>Workspace changed. Analyze again before adding relationships.</p> : <>

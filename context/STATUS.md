@@ -1,6 +1,16 @@
 # Agent handoff
 
 ## Current run — 2026-11-18, Codex
+Based on main 04796dace0b0b8569fead2c5d40daef2aa23778a. Added conservative emitted-extension matching for TypeScript relative imports and reports for non-relative, dynamic and require syntax, with a diagnostics cap. Ambiguous file matches remain unresolved. Unit and browser checks are pending. Prior main GitHub Actions run 44303996643 passed. The TypeScript parser remains lazy-loaded (3,601 kB minified, 1,031 kB gzip); replacing it is deferred until TS/JS correctness is preserved. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted work.
+
+Next: verify CI, add selective review/apply for proposed relationships, and preserve all workspace data. Dynamic imports, require calls, packages and Python imports remain unresolved.
+
+Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+
+## Prior handoff
+# Agent handoff
+
+## Current run — 2026-11-18, Codex
 Based on main ea0687536818df41896f4c1f20a5bedf3234e373. Added a local static JS/TS import-suggestion model using TypeScript's parser; it only considers selected board paths and source text, reports ambiguous/unresolved imports, limits analysis, and records source evidence when suggestions are applied. Unit, build and Chromium checks passed in GitHub Actions run 44303091648 for 78b4d2418191a0ed51975a3e9a5f4f2cb074a5cb. Added a preview-and-apply UI with provenance, stale-result protection, and Chromium coverage. Unit, build and dev-server Chromium checks passed in GitHub Actions run 44303353266 for 1837e3ac5ba940804dd3d2f7a0b829f7496d8e9f. Production-preview browser coverage passed with unit, build and dev-server Chromium checks in GitHub Actions run 44303673200 for dab3ce7448dc2e8671de7a2ab780f575c15de411. The lazy-loaded TypeScript parser chunk is 3,601 kB minified (1,031 kB gzip); consider a smaller parser while retaining TS/JS correctness and production tests. TypeScript is now a runtime dependency for the parser. Prior main GitHub Actions run 44246555963 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted peer work.
 
 Next: reduce the parser bundle size without weakening parsing correctness; extend dependency coverage carefully and consider explicit remediation for unsupported import forms. The analyzer only sees static relative JS/TS imports and re-exports; it cannot infer dynamic imports, packages, aliases, Python imports or extension substitution. Preserve local data and coordinate with other agents.

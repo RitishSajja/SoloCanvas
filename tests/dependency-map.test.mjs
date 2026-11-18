@@ -25,7 +25,7 @@ test('suggests only unambiguous static local imports with source evidence', () =
    { targetPath: 'repo/src/a.ts', specifier: './a', line: 2 },
    { targetPath: 'repo/src/b.js', specifier: './b.js', line: 3 },
  ]);
- assert.deepEqual(result.diagnostics.map(item => item.reason), ['ambiguous local import', 'unresolved local import']);
+ assert.deepEqual(result.diagnostics.map(item => item.reason), ['dynamic import not analyzed', 'ambiguous local import', 'unresolved local import']);
  assert.deepEqual(workspace, original);
  let id = 0;
  const applied = addSuggestedDependencies(workspace, 'b', result.suggestions, () => 'edge-' + ++id);
@@ -46,4 +46,32 @@ test('skips ambiguous placements and syntax errors, and refuses excessive input'
  const tooLarge = fixture(); tooLarge.cards[0].data.sourceText = 'x'.repeat(512 * 1024 + 1);
  assert.throws(() => suggestDependencies(tooLarge, 'b'), /512 KiB/);
  assert.throws(() => addSuggestedDependencies(workspace, 'b', [{ sourceNodeId: 'bad' }], () => 'edge'));
+});
+
+test('TypeScript emitted extensions resolve conservatively and unsupported forms are reported', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = [
+   "import { x } from './a.js';",
+   "import React from 'react';",
+   "const dynamic = import('./b.js');",
+   "const common = require('./b.js');",
+ ].join('\n');
+ let result = suggestDependencies(workspace, 'b');
+ assert.equal(result.suggestions.length, 1);
+ assert.equal(result.suggestions[0].targetPath, 'repo/src/a.ts');
+ assert.equal(result.suggestions[0].specifier, './a.js');
+ assert.deepEqual(result.diagnostics.map(item => item.reason), [
+   'dynamic import not analyzed', 'require call not analyzed', 'non-relative import not analyzed',
+ ]);
+ workspace.cards.push({ id: 'js', data: { kind: 'file', path: 'repo/src/a.js', label: 'a.js' } });
+ workspace.boards[0].nodes.push({ id: 'js-node', cardId: 'js', position: { x: 2, y: 2 } });
+ result = suggestDependencies(workspace, 'b');
+ assert.equal(result.suggestions.length, 0);
+ assert.ok(result.diagnostics.some(item => item.reason === 'ambiguous local import' && item.specifier === './a.js'));
+});
+
+test('diagnostics are bounded for large imports', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = Array.from({ length: 251 }, (_, i) => "import './missing" + i + "';").join('\n');
+ assert.throws(() => suggestDependencies(workspace, 'b'), /Too many import diagnostics/);
 });
