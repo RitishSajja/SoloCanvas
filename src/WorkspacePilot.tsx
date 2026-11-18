@@ -11,6 +11,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [boardId, setBoardId] = useState(initial.ok ? initial.workspace.boards[0]?.id ?? '' : '');
   const [cardId, setCardId] = useState('');
   const [search, setSearch] = useState('');
+  const [searchSource, setSearchSource] = useState(false);
   const [filePaths, setFilePaths] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [includeSource, setIncludeSource] = useState(false);
@@ -33,7 +34,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const selectedCard = workspace?.cards.find(item => item.id === selected?.cardId);
   const edge = board?.edges.find(item => item.id === selectedEdge);
   const view = workspace && board ? projectBoard(workspace, board.id) : null;
-  const results = workspace ? findCards(workspace, search) : [];
+  const results = workspace ? findCards(workspace, search, { includeSource: searchSource }) : [];
   const appearances = workspace && selectedCard ? findCardPlacements(workspace, selectedCard.id) : [];
   useEffect(() => {
     if (!navigation || !flow || !workspace || navigation.boardId !== boardId) return;
@@ -244,6 +245,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             {filePaths.length > 0 && <><p>{filePaths.length} file(s) selected:</p><ul>{filePaths.map(path => <li key={path}>{path}</li>)}</ul><button onClick={addFileMap} disabled={busy}>Create file map board</button></>}
           </section>
           <label>Find components across boards<input value={search} onChange={event => setSearch(event.target.value)} /></label>
+          <label><input type="checkbox" checked={searchSource} onChange={event => setSearchSource(event.target.checked)} /> Search imported source text</label>
           {search.trim() && <section aria-label="Component search results">
             {results.length === 0 && <p>No matching components.</p>}
             {results.map(result => <div key={result.cardId}>

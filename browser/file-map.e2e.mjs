@@ -145,3 +145,23 @@ test('edits during source reading are preserved and map creation is cancelled', 
   await expect(page.getByLabel('Current board').locator('option')).toHaveCount(1);
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
 });
+
+test('source content is searchable only after enabling source search', async ({ page }) => {
+  const workspace = {
+    version: 2,
+    cards: [{ id: 'file', data: { label: 'src/main.ts', kind: 'file', path: 'src/main.ts', sourceText: 'function findRareService() {}' } }],
+    boards: [{ id: 'b', title: 'Files', extra: {}, nodes: [{ id: 'n', cardId: 'file', position: { x: 0, y: 0 } }], edges: [] }],
+  };
+  await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await page.getByLabel('Find components across boards').fill('findrareservice');
+  const results = page.getByRole('region', { name: 'Component search results' });
+  await expect(results).toContainText('No matching components');
+  await page.getByLabel('Search imported source text').check();
+  await expect(results).toContainText('src/main.ts');
+  await results.getByRole('button', { name: 'Open on Files' }).click();
+  await expect(page.getByRole('region', { name: 'Imported source text' })).toContainText('findRareService');
+  await page.getByLabel('Search imported source text').uncheck();
+  await expect(results).toContainText('No matching components');
+});

@@ -113,3 +113,12 @@ test('component appearances include all placements and update after a board is d
   assert.equal(findCardPlacements(workspace, 'card:a').length, 1);
   assert.throws(() => findCardPlacements(workspace, 'unknown'));
 });
+
+test('search only includes imported source when explicitly enabled', () => {
+  const workspace = migrateLegacyBoard(JSON.stringify(fixture));
+  workspace.cards[0].data.sourceText = 'function privateGateway() {}';
+  assert.deepEqual(findCards(workspace, 'privategateway'), []);
+  assert.equal(findCards(workspace, 'privategateway', { includeSource: true })[0].cardId, 'card:a');
+  assert.equal(findCards(workspace, 'database', { includeSource: true })[0].cardId, 'card:b');
+  assert.equal(findCards(workspace, 'privategateway', { includeSource: false }).length, 0);
+});

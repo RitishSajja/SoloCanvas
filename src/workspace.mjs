@@ -111,14 +111,15 @@ export function findCardPlacements(workspace, cardId) {
   return placementsOf(workspace, cardId);
 }
 
-/** Find shared components by name and report each placement across boards. */
-export function findCards(workspace, query) {
+/** Search component names and, only on request, imported source text. */
+export function findCards(workspace, query, { includeSource = false } = {}) {
   if (!validateWorkspace(workspace) || typeof query !== 'string') throw new Error('Invalid search');
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [];
   return workspace.cards.flatMap(card => {
     const label = String(card.data.label ?? 'Untitled');
-    if (!label.toLocaleLowerCase().includes(needle)) return [];
+    const source = typeof card.data.sourceText === 'string' ? card.data.sourceText : '';
+    if (!label.toLocaleLowerCase().includes(needle) && !(includeSource && source.toLocaleLowerCase().includes(needle))) return [];
     const placements = placementsOf(workspace, card.id);
     return [{ cardId: card.id, label, placements }];
   });
