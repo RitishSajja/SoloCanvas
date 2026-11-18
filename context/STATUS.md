@@ -1,11 +1,11 @@
 # Agent handoff
 
 ## Current run — 2026-11-18, Codex
-Based on main ea0687536818df41896f4c1f20a5bedf3234e373. Added a local static JS/TS import-suggestion model using TypeScript's parser; it only considers selected board paths and source text, reports ambiguous/unresolved imports, limits analysis, and records source evidence when suggestions are applied. Unit, build and Chromium checks passed in GitHub Actions run 44303091648 for 78b4d2418191a0ed51975a3e9a5f4f2cb074a5cb. Added a preview-and-apply UI with provenance, stale-result protection, and Chromium coverage; UI verification is pending. TypeScript is now a runtime dependency for the parser. Prior main GitHub Actions run 44246555963 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted peer work.
+Based on main ea0687536818df41896f4c1f20a5bedf3234e373. Added a local static JS/TS import-suggestion model using TypeScript's parser; it only considers selected board paths and source text, reports ambiguous/unresolved imports, limits analysis, and records source evidence when suggestions are applied. Unit, build and Chromium checks passed in GitHub Actions run 44303091648 for 78b4d2418191a0ed51975a3e9a5f4f2cb074a5cb. Added a preview-and-apply UI with provenance, stale-result protection, and Chromium coverage. Unit, build and dev-server Chromium checks passed in GitHub Actions run 44303353266 for 1837e3ac5ba940804dd3d2f7a0b829f7496d8e9f. Added a production-preview browser check for the lazy-loaded compiler; CI is pending. TypeScript is now a runtime dependency for the parser. Prior main GitHub Actions run 44246555963 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted peer work.
 
 Next: verify UI CI, address failures and extend dependency coverage carefully. The analyzer only sees static relative JS/TS imports and re-exports; it cannot infer dynamic imports, packages, aliases, Python imports or extension substitution. Preserve local data and coordinate with other agents.
 
-Known Codex commits for loop prevention: 78b4d2418191a0ed51975a3e9a5f4f2cb074a5cb, the commit containing this handoff and its follow-ups.
+Known Codex commits for loop prevention: 78b4d2418191a0ed51975a3e9a5f4f2cb074a5cb, 1837e3ac5ba940804dd3d2f7a0b829f7496d8e9f, the commit containing this handoff and its follow-ups.
 
 ## Prior handoff
 # Agent handoff
