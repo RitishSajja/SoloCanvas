@@ -66,3 +66,33 @@ test('component appearances navigate to a distant placement on another board', a
   await appearances.getByRole('button', { name: 'Open on First board' }).click();
   await expect(page.getByLabel('Current board')).toHaveValue('first');
 });
+
+test('keyboard selection and distinct appearances work for repeated placements', async ({ page }) => {
+  const workspace = {
+    version: 2,
+    cards: [{ id: 'api', data: { label: 'Shared API' } }],
+    boards: [{ id: 'b', title: 'Architecture', extra: {}, nodes: [
+      { id: 'one', cardId: 'api', position: { x: 0, y: 0 } },
+      { id: 'two', cardId: 'api', position: { x: 600, y: 0 } },
+    ], edges: [] }],
+  };
+  await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open workspace' }).click();
+  const first = page.locator('.react-flow__node').filter({ hasText: 'Shared API' }).first();
+  await first.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Shared component name')).toHaveValue('Shared API');
+  const appearances = page.getByRole('region', { name: 'Component appearances' });
+  const firstAppearance = appearances.getByRole('button', { name: 'Open on Architecture — placement 1' });
+  const secondAppearance = appearances.getByRole('button', { name: 'Open on Architecture — placement 2' });
+  await expect(firstAppearance).toHaveAttribute('aria-current', 'location');
+  await secondAppearance.focus();
+  await page.keyboard.press('Enter');
+  await expect(secondAppearance).toHaveAttribute('aria-current', 'location');
+  await expect(firstAppearance).not.toHaveAttribute('aria-current', 'location');
+  await page.getByLabel('Find components across boards').fill('api');
+  const results = page.getByRole('region', { name: 'Component search results' });
+  await expect(results.getByRole('button', { name: 'Open on Architecture — placement 1' })).toBeVisible();
+  await expect(results.getByRole('button', { name: 'Open on Architecture — placement 2' })).toBeVisible();
+});

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { ReactFlow, Background, Controls, type NodeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
+import { ReactFlow, Background, Controls, type NodeChange, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
 import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 
@@ -85,6 +85,10 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   };
 
   const moveNodes = (changes: NodeChange[]) => {
+    const selections = changes.filter(change => change.type === 'select');
+    const chosen = selections.filter(change => change.selected).slice(-1)[0];
+    if (chosen) { setSelectedNode(chosen.id); setSelectedEdge(''); }
+    else if (selections.some(change => !change.selected && change.id === selectedNode)) setSelectedNode('');
     const positions = changes.filter(change => change.type === 'position' && change.position);
     const dimensions = changes.filter(change => change.type === 'dimensions' && change.dimensions);
     if (!positions.length && !dimensions.length) return;
@@ -106,6 +110,12 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
       }
       return next;
     });
+  };
+  const selectEdges = (changes: EdgeChange[]) => {
+    const selections = changes.filter(change => change.type === 'select');
+    const chosen = selections.filter(change => change.selected).slice(-1)[0];
+    if (chosen) { setSelectedEdge(chosen.id); setSelectedNode(''); }
+    else if (selections.some(change => !change.selected && change.id === selectedEdge)) setSelectedEdge('');
   };
   const connect = (connection: Connection) => {
     if (!workspace || !board || !connection.source || !connection.target) return;
@@ -173,7 +183,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
       <button onClick={save} disabled={!workspace || busy}>Save workspace</button>
     </div></header>
     <div className="workspace">
-      <section className="canvas" aria-label="Workspace canvas">{view && <ReactFlow onInit={setFlow} nodes={view.nodes.map(node => ({ ...node, selected: node.id === selectedNode }))} edges={view.edges.map(item => ({ ...item, selected: item.id === selectedEdge }))} onNodesChange={moveNodes} onConnect={connect} onNodeClick={(_, node) => { setSelectedNode(node.id); setSelectedEdge(''); }} onEdgeClick={(_, item) => { setSelectedEdge(item.id); setSelectedNode(''); }} onPaneClick={() => { setSelectedNode(''); setSelectedEdge(''); }} fitView><Background /><Controls /></ReactFlow>}</section>
+      <section className="canvas" aria-label="Workspace canvas">{view && <ReactFlow onInit={setFlow} nodes={view.nodes.map(node => ({ ...node, selected: node.id === selectedNode }))} edges={view.edges.map(item => ({ ...item, selected: item.id === selectedEdge }))} onNodesChange={moveNodes} onEdgesChange={selectEdges} onConnect={connect} onNodeClick={(_, node) => { setSelectedNode(node.id); setSelectedEdge(''); }} onEdgeClick={(_, item) => { setSelectedEdge(item.id); setSelectedNode(''); }} onPaneClick={() => { setSelectedNode(''); setSelectedEdge(''); }} fitView><Background /><Controls /></ReactFlow>}</section>
       <aside>
         <h1>Boards</h1>
         <p>Drag components and connect their handles. Select a component or relationship to edit or remove it from this board.</p>
@@ -188,8 +198,8 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             {results.map(result => <div key={result.cardId}>
               <strong>{result.label}</strong>
               {result.placements.length === 0 ? <p>Not placed on a board.</p> : <ul>
-                {result.placements.map(placement => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
-                  <button onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle}</button>
+                {result.placements.map((placement, index) => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
+                  <button onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle} — placement {index + 1}</button>
                 </li>)}
               </ul>}
             </div>)}
@@ -197,8 +207,8 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
           <label>Existing component<select aria-label="Existing component" value={cardId} onChange={event => setCardId(event.target.value)}><option value="">Choose a component</option>{workspace.cards.map(card => <option key={card.id} value={card.id}>{String(card.data.label ?? 'Untitled')}</option>)}</select></label>
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
           {selectedCard && <><label>Shared component name<input value={String(selectedCard.data.label ?? '')} onChange={event => changed(updateCard(workspace, selectedCard.id, { ...selectedCard.data, label: event.target.value }))} /></label><button onClick={removeNode}>Remove component from board</button>
-            <section aria-label="Component appearances"><h2>Appears on</h2><ul>{appearances.map(placement => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
-              <button onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle}</button>{placement.boardId === boardId && placement.nodeId === selectedNode && ' (current)'}
+            <section aria-label="Component appearances"><h2>Appears on</h2><ul>{appearances.map((placement, index) => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
+              <button aria-current={placement.boardId === boardId && placement.nodeId === selectedNode ? 'location' : undefined} onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle} — placement {index + 1}</button>{placement.boardId === boardId && placement.nodeId === selectedNode && ' (current)'}
             </li>)}</ul></section>
           </>}
           {edge && <><label>Relationship label<input value={String(edge.label ?? '')} onChange={event => { const next = structuredClone(workspace); const current = next.boards.find(item => item.id === boardId)?.edges.find(item => item.id === edge.id); if (current) { current.label = event.target.value; changed(next); } }} /></label><button onClick={removeEdge}>Remove relationship</button></>}
