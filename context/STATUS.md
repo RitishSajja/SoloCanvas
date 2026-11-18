@@ -1,6 +1,16 @@
 # Agent handoff
 
 ## Current run — 2026-11-18, Codex
+Based on main ea0687536818df41896f4c1f20a5bedf3234e373. Added a local static JS/TS import-suggestion model using TypeScript's parser; it only considers selected board paths and source text, reports ambiguous/unresolved imports, limits analysis, and records source evidence when suggestions are applied. This checkpoint is model-only and has no user interface yet. Unit and build checks are pending. TypeScript is now a runtime dependency for the parser. Prior main GitHub Actions run 44246555963 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted peer work.
+
+Next: verify CI, add an explicit preview and apply flow, inspect provenance, test browser behavior, and document limitations. Preserve local data and coordinate with other agents.
+
+Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+
+## Prior handoff
+# Agent handoff
+
+## Current run — 2026-11-18, Codex
 Based on main 9af8582b633466e868cc7fabf5f065b00c35aaeb. Added explicit opt-in import and plain-text inspection/removal for selected JavaScript, TypeScript and Python files in file maps. Reads are limited to 64 KiB per file and 512 KiB total; unsupported, oversized and invalid files remain path-only with a report. Source text is stored in browser workspace data and exports when saved; no network or code execution. Async imports abort without overwriting if the workspace changes while reading. Unit, build and Chromium checks passed in GitHub Actions run 44246137324 for 83e5dd8bc7dcd0d88574caedb999a8e57f32ea9a. Added optional source-content search (off by default); unit, build and Chromium checks passed in GitHub Actions run 44246370042 for 571a840dbd3b76a73b709a3780da577b5dcb18ca. Prior main GitHub Actions run 44210321797 passed. No active peer work visible in branch heads or open PRs; GitHub cannot reveal uncommitted work. Next: verify CI, then consider explicitly scoped, inspectable dependency extraction and stronger source-size/security UX; preserve local data and existing work.
 
 Known Codex commits for loop prevention: 83e5dd8bc7dcd0d88574caedb999a8e57f32ea9a, 571a840dbd3b76a73b709a3780da577b5dcb18ca, the verification handoff commit and its follow-ups.
