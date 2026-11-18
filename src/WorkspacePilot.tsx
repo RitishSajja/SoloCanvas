@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, type NodeChange, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
 import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
-import { createFileMap, validateFilePaths } from './file-map.mjs';
+import { createFileMap, validateFilePaths, readSelectedSources } from './file-map.mjs';
 
 export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) => void }) {
   const [initial] = useState(() => openWorkspace());
@@ -12,6 +12,9 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [cardId, setCardId] = useState('');
   const [search, setSearch] = useState('');
   const [filePaths, setFilePaths] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [includeSource, setIncludeSource] = useState(false);
+  const [mapReport, setMapReport] = useState<{ path: string; reason: string }[]>([]);
   const [mapError, setMapError] = useState('');
   const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
   const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
@@ -79,25 +82,34 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     if (files.length === 0) return;
     try {
       setFilePaths(validateFilePaths(files.map(file => file.webkitRelativePath || file.name)));
-      setMapError('');
+      setSelectedFiles(files); setIncludeSource(false); setMapReport([]); setMapError('');
     } catch (error) {
-      setFilePaths([]);
+      setFilePaths([]); setSelectedFiles([]); setIncludeSource(false); setMapReport([]);
       setMapError(error instanceof Error ? error.message : 'Could not use these files.');
     }
   };
-  const addFileMap = () => {
-    if (!workspace || filePaths.length === 0) return;
+  const addFileMap = async () => {
+    if (!workspace || filePaths.length === 0 || inFlight.current) return;
     const title = window.prompt('Name the file map board', 'File map');
     if (title === null || !title.trim()) return;
+    const version = editVersion.current;
+    inFlight.current = true; setBusy(true);
     try {
+      const result = includeSource
+        ? await readSelectedSources(selectedFiles.map(file => ({ path: file.webkitRelativePath || file.name, file })))
+        : { contents: new Map<string, string>(), skipped: [] };
+      if (version !== editVersion.current) {
+        setMapError('The workspace changed while reading files. Your edits were kept; create the map again.');
+        return;
+      }
       const id = crypto.randomUUID();
-      const next = createFileMap(workspace, id, title, filePaths, () => crypto.randomUUID());
+      const next = createFileMap(workspace, id, title, filePaths, () => crypto.randomUUID(), result.contents);
       changed(next); setBoardId(id); setSelectedNode(''); setSelectedEdge('');
-      setFilePaths([]); setMapError('');
+      setFilePaths([]); setSelectedFiles([]); setIncludeSource(false); setMapReport(result.skipped); setMapError('');
       setMessage('File map created. Select Save workspace to keep it on this device.');
     } catch (error) {
       setMapError(error instanceof Error ? error.message : 'Could not create the file map.');
-    }
+    } finally { inFlight.current = false; setBusy(false); }
   };
   const addComponent = () => {
     if (!workspace || !board) return;
@@ -223,11 +235,13 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
           <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={renameCurrentBoard} disabled={!board}>Rename board</button><button onClick={deleteCurrentBoard} disabled={!board || workspace.boards.length <= 1}>Delete board</button><button onClick={addComponent} disabled={!board}>Add component</button></div>
           <section aria-label="Create file map">
             <h2>Create file map</h2>
-            <p>Choose up to 100 files or a folder. Only their paths are used to create cards on a new board; file contents are not read. No relationships are inferred.</p>
-            <label>Choose files<input type="file" multiple aria-label="Choose files for map" onChange={selectMapFiles} /></label>
-            <label>Choose folder<input type="file" multiple {...{ webkitdirectory: '' }} aria-label="Choose folder for map" onChange={selectMapFiles} /></label>
+            <p>Choose up to 100 files or a folder. By default only paths are used. Optional source text is saved in your browser and workspace exports; review it for secrets. No relationships are inferred.</p>
+            <label>Choose files<input type="file" multiple aria-label="Choose files for map" onChange={selectMapFiles} disabled={busy} /></label>
+            <label>Choose folder<input type="file" multiple {...{ webkitdirectory: '' }} aria-label="Choose folder for map" onChange={selectMapFiles} disabled={busy} /></label>
+            <label><input type="checkbox" checked={includeSource} onChange={event => setIncludeSource(event.target.checked)} disabled={busy} /> Include source text for JS, TS and Python files (up to 64 KiB each, 512 KiB total)</label>
             {mapError && <p role="alert">{mapError}</p>}
-            {filePaths.length > 0 && <><p>{filePaths.length} file(s) selected:</p><ul>{filePaths.map(path => <li key={path}>{path}</li>)}</ul><button onClick={addFileMap}>Create file map board</button></>}
+            {mapReport.length > 0 && <section aria-label="Files without source text"><p>These files were added by path only:</p><ul>{mapReport.map(item => <li key={item.path}>{item.path}: {item.reason}</li>)}</ul></section>}
+            {filePaths.length > 0 && <><p>{filePaths.length} file(s) selected:</p><ul>{filePaths.map(path => <li key={path}>{path}</li>)}</ul><button onClick={addFileMap} disabled={busy}>Create file map board</button></>}
           </section>
           <label>Find components across boards<input value={search} onChange={event => setSearch(event.target.value)} /></label>
           {search.trim() && <section aria-label="Component search results">
@@ -244,6 +258,10 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
           <label>Existing component<select aria-label="Existing component" value={cardId} onChange={event => setCardId(event.target.value)}><option value="">Choose a component</option>{workspace.cards.map(card => <option key={card.id} value={card.id}>{String(card.data.label ?? 'Untitled')}</option>)}</select></label>
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
           {selectedCard && <><label>Shared component name<input value={String(selectedCard.data.label ?? '')} onChange={event => changed(updateCard(workspace, selectedCard.id, { ...selectedCard.data, label: event.target.value }))} /></label><button onClick={removeNode}>Remove component from board</button>
+            {typeof selectedCard.data.sourceText === 'string' && <section aria-label="Imported source text">
+              <h2>Imported source text</h2><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{selectedCard.data.sourceText}</pre>
+              <button onClick={() => { const data = { ...selectedCard.data }; delete data.sourceText; changed(updateCard(workspace, selectedCard.id, data)); }}>Remove source text</button>
+            </section>}
             <section aria-label="Component appearances"><h2>Appears on</h2><ul>{appearances.map((placement, index) => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
               <button aria-current={placement.boardId === boardId && placement.nodeId === selectedNode ? 'location' : undefined} onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle} — placement {index + 1}</button>{placement.boardId === boardId && placement.nodeId === selectedNode && ' (current)'}
             </li>)}</ul></section>

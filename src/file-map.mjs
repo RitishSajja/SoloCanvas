@@ -1,4 +1,4 @@
-// Build a local map from names explicitly selected by the user; file contents are never read.
+// Build a local map from explicitly selected paths and, only when requested, bounded source text.
 import { addBoard, validateWorkspace } from './workspace.mjs';
 
 export const MAX_MAP_FILES = 100;
@@ -15,17 +15,49 @@ export function validateFilePaths(paths) {
   return [...paths].sort((a, b) => a.localeCompare(b));
 }
 
-export function createFileMap(workspace, boardId, title, paths, makeId) {
+export function createFileMap(workspace, boardId, title, paths, makeId, contents = new Map()) {
   const names = validateFilePaths(paths);
   if (typeof title !== 'string' || !title.trim() || typeof makeId !== 'function') throw new Error('Invalid map details.');
+  if (!(contents instanceof Map) || [...contents].some(([path, text]) => !names.includes(path) || typeof text !== 'string')) throw new Error('Invalid source contents.');
   const next = addBoard(workspace, boardId, title.trim());
   const board = next.boards.find(item => item.id === boardId);
   names.forEach((path, index) => {
     const cardId = makeId();
     const nodeId = makeId();
-    next.cards.push({ id: cardId, data: { label: path, kind: 'file', path } });
+    next.cards.push({ id: cardId, data: { label: path, kind: 'file', path, ...(contents.has(path) ? { sourceText: contents.get(path) } : {}) } });
     board.nodes.push({ id: nodeId, cardId, position: { x: (index % 4) * 260, y: Math.floor(index / 4) * 100 } });
   });
   if (!validateWorkspace(next)) throw new Error('Could not create unique file map IDs.');
   return next;
+}
+
+export const MAX_SOURCE_FILE_BYTES = 64 * 1024;
+export const MAX_SOURCE_TOTAL_BYTES = 512 * 1024;
+const sourceExtension = /\.(?:js|jsx|mjs|cjs|ts|tsx|py)$/i;
+
+// Call only after the user opts in. Unsupported, too-large and invalid files are
+// reported, not executed, parsed as markup, or read from paths on the host.
+export async function readSelectedSources(entries) {
+  validateFilePaths(entries.map(entry => entry.path));
+  const contents = new Map();
+  const skipped = [];
+  let total = 0;
+  for (const { path, file } of entries) {
+    if (!sourceExtension.test(path)) { skipped.push({ path, reason: 'unsupported extension' }); continue; }
+    if (!Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_SOURCE_FILE_BYTES) {
+      skipped.push({ path, reason: 'file exceeds 64 KiB' }); continue;
+    }
+    if (total + file.size > MAX_SOURCE_TOTAL_BYTES) { skipped.push({ path, reason: 'total exceeds 512 KiB' }); continue; }
+    try {
+      const data = await file.arrayBuffer();
+      if (data.byteLength !== file.size || data.byteLength > MAX_SOURCE_FILE_BYTES) throw new Error('size changed');
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(data);
+      if (text.includes('\0')) throw new Error('binary data');
+      contents.set(path, text);
+      total += data.byteLength;
+    } catch {
+      skipped.push({ path, reason: 'unreadable or invalid UTF-8 text' });
+    }
+  }
+  return { contents, skipped };
 }

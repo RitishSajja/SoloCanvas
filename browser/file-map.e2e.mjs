@@ -82,3 +82,66 @@ test('folder selection preserves relative paths in the generated board', async (
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+test('source text is opt-in, bounded, displayed as text and removable', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await page.getByLabel('Choose files for map').setInputFiles([
+    { name: 'main.ts', mimeType: 'text/plain', buffer: Buffer.from('<script>window.sourceRan = true</script>') },
+    { name: 'secret.env', mimeType: 'text/plain', buffer: Buffer.from('SHOULD_NOT_BE_IMPORTED') },
+    { name: 'large.py', mimeType: 'text/plain', buffer: Buffer.alloc(65537, 65) },
+  ]);
+  await page.getByLabel(/Include source text/).check();
+  page.once('dialog', dialog => dialog.accept('Source map'));
+  await page.getByRole('button', { name: 'Create file map board' }).click();
+  const skipped = page.getByRole('region', { name: 'Files without source text' });
+  await expect(skipped).toContainText('secret.env: unsupported extension');
+  await expect(skipped).toContainText('large.py: file exceeds 64 KiB');
+  await page.locator('.react-flow__node').filter({ hasText: 'main.ts' }).click();
+  const source = page.getByRole('region', { name: 'Imported source text' });
+  await expect(source).toContainText('<script>window.sourceRan = true</script>');
+  expect(await page.evaluate(() => window.sourceRan)).toBeUndefined();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Save workspace' }).click();
+  await expect(page.getByRole('status')).toContainText('Workspace saved');
+  const saved = await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'));
+  expect(saved).toContain('window.sourceRan');
+  expect(saved).not.toContain('SHOULD_NOT_BE_IMPORTED');
+  await page.reload();
+  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await page.getByLabel('Current board').selectOption({ label: 'Source map' });
+  await page.locator('.react-flow__node').filter({ hasText: 'main.ts' }).click();
+  await expect(source).toContainText('window.sourceRan');
+  await source.getByRole('button', { name: 'Remove source text' }).click();
+  await expect(source).toHaveCount(0);
+  await page.getByRole('button', { name: 'Save workspace' }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).not.toContain('window.sourceRan');
+});
+
+test('edits during source reading are preserved and map creation is cancelled', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await page.getByRole('button', { name: 'Add component' }).click();
+  await page.locator('.react-flow__node').first().click();
+  await page.getByLabel('Shared component name').fill('Before');
+  await page.evaluate(() => {
+    const original = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = function() {
+      const file = this;
+      return new Promise(resolve => { window.releaseTestRead = async () => resolve(await original.call(file)); });
+    };
+  });
+  await page.getByLabel('Choose files for map').setInputFiles([
+    { name: 'main.js', mimeType: 'text/plain', buffer: Buffer.from('hello') },
+  ]);
+  await page.getByLabel(/Include source text/).check();
+  page.once('dialog', dialog => dialog.accept('Map'));
+  await page.getByRole('button', { name: 'Create file map board' }).click();
+  await expect.poll(() => page.evaluate(() => typeof window.releaseTestRead)).toBe('function');
+  await page.getByLabel('Shared component name').fill('Edit while reading');
+  await page.evaluate(() => window.releaseTestRead());
+  await expect(page.getByRole('alert')).toContainText('workspace changed');
+  await expect(page.getByLabel('Shared component name')).toHaveValue('Edit while reading');
+  await expect(page.getByLabel('Current board').locator('option')).toHaveCount(1);
+  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
+});

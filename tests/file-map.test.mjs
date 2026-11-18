@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createFileMap, validateFilePaths } from '../src/file-map.mjs';
+import { createFileMap, validateFilePaths, readSelectedSources, MAX_SOURCE_FILE_BYTES, MAX_SOURCE_TOTAL_BYTES } from '../src/file-map.mjs';
 
 const initial = { version: 2, cards: [{ id: 'old', data: { label: 'Existing' } }], boards: [
   { id: 'original', title: 'Original', extra: {}, nodes: [{ id: 'old-node', cardId: 'old', position: { x: 1, y: 2 } }], edges: [] },
@@ -26,4 +26,37 @@ test('rejects ambiguous, unsafe or excessive file selections without mutation', 
   assert.throws(() => createFileMap(initial, 'original', 'Map', ['a'], () => 'new'));
   assert.throws(() => createFileMap(initial, 'map', 'Map', ['a', 'b'], () => 'duplicate'));
   assert.deepEqual(initial, original);
+});
+
+test('source reading is bounded and reports unsupported, invalid or oversized files', async () => {
+ const file = bytes => ({ size: bytes.byteLength, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) });
+ const text = value => file(new TextEncoder().encode(value));
+ const tooLarge = { size: MAX_SOURCE_FILE_BYTES + 1, arrayBuffer() { throw new Error('must not read'); } };
+ const unread = { size: 1, arrayBuffer() { throw new Error('must not read'); } };
+ const entries = [
+   { path: 'src/main.ts', file: text('export const x = 1;') },
+   { path: '.env', file: unread },
+   { path: 'big.py', file: tooLarge },
+   { path: 'bad.js', file: file(Uint8Array.from([255])) },
+   { path: 'null.ts', file: file(Uint8Array.from([0])) },
+ ];
+ const { contents, skipped } = await readSelectedSources(entries);
+ assert.deepEqual([...contents], [['src/main.ts', 'export const x = 1;']]);
+ assert.deepEqual(skipped.map(item => item.path), ['.env', 'big.py', 'bad.js', 'null.ts']);
+ let id = 0;
+ const output = createFileMap(initial, 'mapped', 'Map', entries.map(entry => entry.path), () => 'id-' + ++id, contents);
+ assert.equal(output.cards.find(card => card.data.path === 'src/main.ts').data.sourceText, 'export const x = 1;');
+ assert.equal(output.cards.find(card => card.data.path === '.env').data.sourceText, undefined);
+ assert.throws(() => createFileMap(initial, 'map', 'Map', ['a'], () => 'x', new Map([['other', 'text']])));
+});
+
+test('total imported source has a strict byte limit', async () => {
+ const bytes = new Uint8Array(MAX_SOURCE_FILE_BYTES).fill(65);
+ let reads = 0;
+ const entries = Array.from({ length: MAX_SOURCE_TOTAL_BYTES / MAX_SOURCE_FILE_BYTES + 1 }, (_, i) => ({
+   path: 'file' + i + '.js', file: { size: bytes.length, async arrayBuffer() { reads++; return bytes.buffer; } },
+ }));
+ const result = await readSelectedSources(entries);
+ assert.equal(reads, MAX_SOURCE_TOTAL_BYTES / MAX_SOURCE_FILE_BYTES);
+ assert.equal(result.skipped.at(-1).reason, 'total exceeds 512 KiB');
 });
