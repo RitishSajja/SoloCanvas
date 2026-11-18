@@ -5,6 +5,8 @@ import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnap
 import { createFileMap, validateFilePaths, readSelectedSources } from './file-map.mjs';
 import type { Suggestion, Diagnostic } from './dependency-map.mjs';
 
+const suggestionKey = (item: Suggestion) => JSON.stringify([item.sourceNodeId, item.targetNodeId]);
+
 export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) => void }) {
   const [initial] = useState(() => openWorkspace());
   const [workspace, setWorkspace] = useState<Workspace | null>(initial.ok ? initial.workspace : null);
@@ -20,6 +22,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [mapError, setMapError] = useState('');
   const [analysis, setAnalysis] = useState<{ boardId: string; version: number; suggestions: Suggestion[]; diagnostics: Diagnostic[] } | null>(null);
   const [analysisError, setAnalysisError] = useState('');
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(() => new Set());
   const currentBoardId = useRef(boardId); currentBoardId.current = boardId;
   const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
   const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
@@ -128,6 +131,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
         setAnalysisError('The workspace or board changed. Analyze again.');
         return;
       }
+      setSelectedSuggestions(new Set(result.suggestions.map(suggestionKey)));
       setAnalysis({ boardId: analyzedBoard, version, ...result });
     } catch (error) {
       setAnalysisError(error instanceof Error ? error.message : 'Could not analyze imports.');
@@ -135,14 +139,16 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   };
   const applyImports = async () => {
     if (!workspace || !board || !analysis || inFlight.current ||
-        analysis.boardId !== board.id || analysis.version !== editVersion.current) return;
+        analysis.boardId !== board.id || analysis.version !== editVersion.current || selectedSuggestions.size === 0) return;
     inFlight.current = true; setBusy(true); setAnalysisError('');
     try {
       const module = await import('./dependency-map.mjs');
       if (analysis.version !== editVersion.current || currentBoardId.current !== board.id) {
         setAnalysisError('The workspace or board changed. Analyze again.'); return;
       }
-      changed(module.addSuggestedDependencies(workspace, board.id, analysis.suggestions, () => crypto.randomUUID()));
+      const selected = analysis.suggestions.filter(item => selectedSuggestions.has(suggestionKey(item)));
+      if (selected.length === 0) return;
+      changed(module.addSuggestedDependencies(workspace, board.id, selected, () => crypto.randomUUID()));
       setAnalysis(null); setMessage('Relationships added. Select Save workspace to keep them.');
     } catch (error) {
       setAnalysisError(error instanceof Error ? error.message : 'Could not add relationships.');
@@ -287,9 +293,14 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             {analysisError && <p role="alert">{analysisError}</p>}
             {analysis && (analysis.boardId !== boardId || analysis.version !== editVersion.current ? <p>Workspace changed. Analyze again before adding relationships.</p> : <>
               <p>{analysis.suggestions.length} relationship(s) suggested.</p>
-              <ul>{analysis.suggestions.map(item => <li key={JSON.stringify([item.sourceNodeId, item.targetNodeId])}>{item.sourcePath}:{item.line} imports {item.specifier} → {item.targetPath}</li>)}</ul>
+              <ul>{analysis.suggestions.map(item => <li key={suggestionKey(item)}><label>
+                <input type="checkbox" checked={selectedSuggestions.has(suggestionKey(item))} disabled={busy} onChange={event => {
+                  const checked = event.target.checked;
+                  setSelectedSuggestions(previous => { const next = new Set(previous); if (checked) next.add(suggestionKey(item)); else next.delete(suggestionKey(item)); return next; });
+                }} /> {item.sourcePath}:{item.line} imports {item.specifier} → {item.targetPath}
+              </label></li>)}</ul>
               {analysis.diagnostics.length > 0 && <><p>Some imports or files could not be resolved:</p><ul>{analysis.diagnostics.map((item, index) => <li key={index}>{item.path}{item.line ? ':' + item.line : ''}{item.specifier ? ' ' + item.specifier : ''}: {item.reason}</li>)}</ul></>}
-              <button onClick={applyImports} disabled={busy || analysis.suggestions.length === 0}>Add suggested relationships</button>
+              <button onClick={applyImports} disabled={busy || selectedSuggestions.size === 0}>Add suggested relationships</button>
             </>)}
           </section>
           <label>Find components across boards<input value={search} onChange={event => setSearch(event.target.value)} /></label>
