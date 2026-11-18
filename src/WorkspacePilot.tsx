@@ -3,6 +3,7 @@ import { ReactFlow, Background, Controls, type NodeChange, type EdgeChange, type
 import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 import { createFileMap, validateFilePaths, readSelectedSources } from './file-map.mjs';
+import type { Suggestion, Diagnostic } from './dependency-map.mjs';
 
 export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) => void }) {
   const [initial] = useState(() => openWorkspace());
@@ -17,6 +18,9 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [includeSource, setIncludeSource] = useState(false);
   const [mapReport, setMapReport] = useState<{ path: string; reason: string }[]>([]);
   const [mapError, setMapError] = useState('');
+  const [analysis, setAnalysis] = useState<{ boardId: string; version: number; suggestions: Suggestion[]; diagnostics: Diagnostic[] } | null>(null);
+  const [analysisError, setAnalysisError] = useState('');
+  const currentBoardId = useRef(boardId); currentBoardId.current = boardId;
   const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
   const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
   const [selectedNode, setSelectedNode] = useState('');
@@ -110,6 +114,38 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
       setMessage('File map created. Select Save workspace to keep it on this device.');
     } catch (error) {
       setMapError(error instanceof Error ? error.message : 'Could not create the file map.');
+    } finally { inFlight.current = false; setBusy(false); }
+  };
+  const analyzeImports = async () => {
+    if (!workspace || !board || inFlight.current) return;
+    const version = editVersion.current;
+    const analyzedBoard = board.id;
+    inFlight.current = true; setBusy(true); setAnalysis(null); setAnalysisError('');
+    try {
+      const module = await import('./dependency-map.mjs');
+      const result = module.suggestDependencies(workspace, analyzedBoard);
+      if (version !== editVersion.current || currentBoardId.current !== analyzedBoard) {
+        setAnalysisError('The workspace or board changed. Analyze again.');
+        return;
+      }
+      setAnalysis({ boardId: analyzedBoard, version, ...result });
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : 'Could not analyze imports.');
+    } finally { inFlight.current = false; setBusy(false); }
+  };
+  const applyImports = async () => {
+    if (!workspace || !board || !analysis || inFlight.current ||
+        analysis.boardId !== board.id || analysis.version !== editVersion.current) return;
+    inFlight.current = true; setBusy(true); setAnalysisError('');
+    try {
+      const module = await import('./dependency-map.mjs');
+      if (analysis.version !== editVersion.current || currentBoardId.current !== board.id) {
+        setAnalysisError('The workspace or board changed. Analyze again.'); return;
+      }
+      changed(module.addSuggestedDependencies(workspace, board.id, analysis.suggestions, () => crypto.randomUUID()));
+      setAnalysis(null); setMessage('Relationships added. Select Save workspace to keep them.');
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : 'Could not add relationships.');
     } finally { inFlight.current = false; setBusy(false); }
   };
   const addComponent = () => {
@@ -244,6 +280,18 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             {mapReport.length > 0 && <section aria-label="Files without source text"><p>These files were added by path only:</p><ul>{mapReport.map(item => <li key={item.path}>{item.path}: {item.reason}</li>)}</ul></section>}
             {filePaths.length > 0 && <><p>{filePaths.length} file(s) selected:</p><ul>{filePaths.map(path => <li key={path}>{path}</li>)}</ul><button onClick={addFileMap} disabled={busy}>Create file map board</button></>}
           </section>
+          <section aria-label="Import relationship suggestions">
+            <h2>Suggest import relationships</h2>
+            <p>Analyze imported JS/TS source on this board for static relative imports and re-exports. Review suggestions before adding them. External packages, dynamic imports and Python imports are not analyzed.</p>
+            <button onClick={analyzeImports} disabled={!board || busy}>Analyze board imports</button>
+            {analysisError && <p role="alert">{analysisError}</p>}
+            {analysis && (analysis.boardId !== boardId || analysis.version !== editVersion.current ? <p>Workspace changed. Analyze again before adding relationships.</p> : <>
+              <p>{analysis.suggestions.length} relationship(s) suggested.</p>
+              <ul>{analysis.suggestions.map(item => <li key={JSON.stringify([item.sourceNodeId, item.targetNodeId])}>{item.sourcePath}:{item.line} imports {item.specifier} → {item.targetPath}</li>)}</ul>
+              {analysis.diagnostics.length > 0 && <><p>Some imports or files could not be resolved:</p><ul>{analysis.diagnostics.map((item, index) => <li key={index}>{item.path}{item.line ? ':' + item.line : ''}{item.specifier ? ' ' + item.specifier : ''}: {item.reason}</li>)}</ul></>}
+              <button onClick={applyImports} disabled={busy || analysis.suggestions.length === 0}>Add suggested relationships</button>
+            </>)}
+          </section>
           <label>Find components across boards<input value={search} onChange={event => setSearch(event.target.value)} /></label>
           <label><input type="checkbox" checked={searchSource} onChange={event => setSearchSource(event.target.checked)} /> Search imported source text</label>
           {search.trim() && <section aria-label="Component search results">
@@ -261,14 +309,14 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
           {selectedCard && <><label>Shared component name<input value={String(selectedCard.data.label ?? '')} onChange={event => changed(updateCard(workspace, selectedCard.id, { ...selectedCard.data, label: event.target.value }))} /></label><button onClick={removeNode}>Remove component from board</button>
             {typeof selectedCard.data.sourceText === 'string' && <section aria-label="Imported source text">
-              <h2>Imported source text</h2><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{selectedCard.data.sourceText}</pre>
+              <h2>Imported source text</h2><p>Removing source from this card does not erase older workspace backups or exports.</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{selectedCard.data.sourceText}</pre>
               <button onClick={() => { const data = { ...selectedCard.data }; delete data.sourceText; changed(updateCard(workspace, selectedCard.id, data)); }}>Remove source text</button>
             </section>}
             <section aria-label="Component appearances"><h2>Appears on</h2><ul>{appearances.map((placement, index) => <li key={JSON.stringify([placement.boardId, placement.nodeId])}>
               <button aria-current={placement.boardId === boardId && placement.nodeId === selectedNode ? 'location' : undefined} onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle} — placement {index + 1}</button>{placement.boardId === boardId && placement.nodeId === selectedNode && ' (current)'}
             </li>)}</ul></section>
           </>}
-          {edge && <><label>Relationship label<input value={String(edge.label ?? '')} onChange={event => { const next = structuredClone(workspace); const current = next.boards.find(item => item.id === boardId)?.edges.find(item => item.id === edge.id); if (current) { current.label = event.target.value; changed(next); } }} /></label><button onClick={removeEdge}>Remove relationship</button></>}
+          {edge && <>{typeof edge.data?.specifier === 'string' && typeof edge.data?.sourcePath === 'string' && <p>Suggested from {String(edge.data.sourcePath)}:{String(edge.data.line)} — {String(edge.data.specifier)} → {String(edge.data.targetPath)}</p>}<label>Relationship label<input value={String(edge.label ?? '')} onChange={event => { const next = structuredClone(workspace); const current = next.boards.find(item => item.id === boardId)?.edges.find(item => item.id === edge.id); if (current) { current.label = event.target.value; changed(next); } }} /></label><button onClick={removeEdge}>Remove relationship</button></>}
         </>}
         <p role="status">{message}</p>
       </aside>
