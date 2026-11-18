@@ -4,6 +4,8 @@ import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 import { createFileMap, validateFilePaths, readSelectedSources } from './file-map.mjs';
 import type { Suggestion, Diagnostic } from './dependency-map.mjs';
+import { startDependencyAnalysis } from './analysis-client.mjs';
+import { addSuggestedDependencies } from './dependency-apply.mjs';
 
 const suggestionKey = (item: Suggestion) => JSON.stringify([item.sourceNodeId, item.targetNodeId]);
 
@@ -22,6 +24,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [mapError, setMapError] = useState('');
   const [analysis, setAnalysis] = useState<{ boardId: string; version: number; suggestions: Suggestion[]; diagnostics: Diagnostic[] } | null>(null);
   const [analysisError, setAnalysisError] = useState('');
+  const analysisTask = useRef<ReturnType<typeof startDependencyAnalysis> | null>(null);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(() => new Set());
   const currentBoardId = useRef(boardId); currentBoardId.current = boardId;
   const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
@@ -60,6 +63,8 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     setBoardId(targetBoardId); setSelectedNode(targetNodeId); setSelectedEdge('');
     setNavigation({ boardId: targetBoardId, nodeId: targetNodeId });
   };
+  useEffect(() => () => { analysisTask.current?.cancel(); }, []);
+
   const close = () => {
     if (inFlight.current) return;
     if (dirty && !window.confirm('Leave this workspace and discard its unsaved changes? Export first if needed.')) return;
@@ -124,9 +129,11 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     const version = editVersion.current;
     const analyzedBoard = board.id;
     inFlight.current = true; setBusy(true); setAnalysis(null); setAnalysisError('');
+    let task: ReturnType<typeof startDependencyAnalysis> | null = null;
     try {
-      const module = await import('./dependency-map.mjs');
-      const result = module.suggestDependencies(workspace, analyzedBoard);
+      task = startDependencyAnalysis(workspace, analyzedBoard);
+      analysisTask.current = task;
+      const result = await task.promise;
       if (version !== editVersion.current || currentBoardId.current !== analyzedBoard) {
         setAnalysisError('The workspace or board changed. Analyze again.');
         return;
@@ -135,20 +142,19 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
       setAnalysis({ boardId: analyzedBoard, version, ...result });
     } catch (error) {
       setAnalysisError(error instanceof Error ? error.message : 'Could not analyze imports.');
-    } finally { inFlight.current = false; setBusy(false); }
+    } finally { if (analysisTask.current === task) analysisTask.current = null; inFlight.current = false; setBusy(false); }
   };
   const applyImports = async () => {
     if (!workspace || !board || !analysis || inFlight.current ||
         analysis.boardId !== board.id || analysis.version !== editVersion.current || selectedSuggestions.size === 0) return;
     inFlight.current = true; setBusy(true); setAnalysisError('');
     try {
-      const module = await import('./dependency-map.mjs');
       if (analysis.version !== editVersion.current || currentBoardId.current !== board.id) {
         setAnalysisError('The workspace or board changed. Analyze again.'); return;
       }
       const selected = analysis.suggestions.filter(item => selectedSuggestions.has(suggestionKey(item)));
       if (selected.length === 0) return;
-      changed(module.addSuggestedDependencies(workspace, board.id, selected, () => crypto.randomUUID()));
+      changed(addSuggestedDependencies(workspace, board.id, selected, () => crypto.randomUUID()));
       setAnalysis(null); setMessage('Relationships added. Select Save workspace to keep them.');
     } catch (error) {
       setAnalysisError(error instanceof Error ? error.message : 'Could not add relationships.');
@@ -290,6 +296,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             <h2>Suggest import relationships</h2>
             <p>Analyze imported JS/TS source on this board for static relative imports and re-exports. Review suggestions before adding them. Non-relative imports, dynamic imports and require calls are reported but not resolved. Python imports are not analyzed.</p>
             <button onClick={analyzeImports} disabled={!board || busy}>Analyze board imports</button>
+            {busy && analysisTask.current && <button onClick={() => analysisTask.current?.cancel()}>Cancel import analysis</button>}
             {analysisError && <p role="alert">{analysisError}</p>}
             {analysis && (analysis.boardId !== boardId || analysis.version !== editVersion.current ? <p>Workspace changed. Analyze again before adding relationships.</p> : <>
               <p>{analysis.suggestions.length} relationship(s) suggested.</p>

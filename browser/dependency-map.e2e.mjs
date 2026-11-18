@@ -80,3 +80,41 @@ test('users can choose which suggested relationships to add', async ({ page }) =
  await expect(panel).toContainText('1 relationship(s) suggested');
  await expect(panel.getByRole('checkbox', { name: /imports .\/two/ })).toBeChecked();
 });
+
+test('an analysis can be cancelled without changing the workspace', async ({ page }) => {
+ await page.addInitScript(() => {
+   window.Worker = class {
+     postMessage() {}
+     terminate() { window.testWorkerTerminated = true; }
+   };
+ });
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ await expect(panel.getByRole('button', { name: 'Cancel import analysis' })).toBeVisible();
+ await panel.getByRole('button', { name: 'Cancel import analysis' }).click();
+ await expect(panel.getByRole('alert')).toContainText('cancelled');
+ expect(await page.evaluate(() => window.testWorkerTerminated)).toBe(true);
+ expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
+ await expect(panel.getByRole('button', { name: 'Analyze board imports' })).toBeEnabled();
+});
+
+test('edits during worker analysis invalidate the result', async ({ page }) => {
+ await page.addInitScript(() => {
+   window.Worker = class {
+     postMessage() { window.finishTestAnalysis = () => this.onmessage({ data: { ok: true, result: { suggestions: [], diagnostics: [] } } }); }
+     terminate() {}
+   };
+ });
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.getByRole('button', { name: 'Add component' }).click();
+ await page.locator('.react-flow__node').first().click();
+ await page.getByLabel('Shared component name').fill('Before');
+ const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ await page.getByLabel('Shared component name').fill('Kept edit');
+ await page.evaluate(() => window.finishTestAnalysis());
+ await expect(panel.getByRole('alert')).toContainText('workspace or board changed');
+ await expect(page.getByLabel('Shared component name')).toHaveValue('Kept edit');
+ await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toHaveCount(0);
+});
