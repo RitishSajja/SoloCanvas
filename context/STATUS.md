@@ -1,9 +1,9 @@
 # Agent handoff
 
 ## Current run — 2026-11-18, Codex
-Based on main 209517cbefeb2458e7143a579296f392947511c3. Numbered repeated component appearances in search and backlinks, exposed the current appearance to assistive technology, and wired keyboard selection to the component and relationship editors. Added browser coverage; CI is pending for this checkpoint. Prior main GitHub Actions run 44162258427 passed. No active peer work was visible in open PRs or branch heads; GitHub cannot show uncommitted peer work. Next: verify CI and continue the user-selected repository import milestone without reading arbitrary files or sending them over the network.
+Based on main 209517cbefeb2458e7143a579296f392947511c3. Numbered repeated component appearances in search and backlinks, exposed the current appearance to assistive technology, and wired keyboard selection to the component and relationship editors. Browser, unit and build checks passed in GitHub Actions run 44209675178 for 8b3c8bd1c9ce34db0b9ca2e1f7185fb331d30e47. Added a preliminary local-only file map: choose up to 100 files or a folder, review paths and create a board of file cards. It reads no file contents, infers no relationships, and requires explicit workspace save. Unit and browser tests added; CI is pending for the file-map checkpoint. Prior main GitHub Actions run 44162258427 passed. No active peer work was visible in open PRs or branch heads; GitHub cannot show uncommitted peer work. Next: verify file-map CI and expand the repository import milestone carefully: add inspectable code contents and relationships only with an explicit user choice, clear limits and safety boundaries.
 
-Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+Known Codex commits for loop prevention: 8b3c8bd1c9ce34db0b9ca2e1f7185fb331d30e47, the commit containing this handoff and its follow-ups.
 
 ## Prior handoff
 # Agent handoff

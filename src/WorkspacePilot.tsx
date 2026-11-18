@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, type NodeChange, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
 import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
+import { createFileMap, validateFilePaths } from './file-map.mjs';
 
 export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) => void }) {
   const [initial] = useState(() => openWorkspace());
@@ -10,6 +11,8 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [boardId, setBoardId] = useState(initial.ok ? initial.workspace.boards[0]?.id ?? '' : '');
   const [cardId, setCardId] = useState('');
   const [search, setSearch] = useState('');
+  const [filePaths, setFilePaths] = useState<string[]>([]);
+  const [mapError, setMapError] = useState('');
   const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
   const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
   const [selectedNode, setSelectedNode] = useState('');
@@ -69,6 +72,32 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     if (!window.confirm('Delete this board? Its component placements and relationships will be removed. Shared components remain available. Select Save workspace to make this permanent.')) return;
     const next = removeBoard(workspace, board.id);
     changed(next); setBoardId(next.boards[0].id); setSelectedNode(''); setSelectedEdge('');
+  };
+  const selectMapFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = '';
+    if (files.length === 0) return;
+    try {
+      setFilePaths(validateFilePaths(files.map(file => file.webkitRelativePath || file.name)));
+      setMapError('');
+    } catch (error) {
+      setFilePaths([]);
+      setMapError(error instanceof Error ? error.message : 'Could not use these files.');
+    }
+  };
+  const addFileMap = () => {
+    if (!workspace || filePaths.length === 0) return;
+    const title = window.prompt('Name the file map board', 'File map');
+    if (title === null || !title.trim()) return;
+    try {
+      const id = crypto.randomUUID();
+      const next = createFileMap(workspace, id, title, filePaths, () => crypto.randomUUID());
+      changed(next); setBoardId(id); setSelectedNode(''); setSelectedEdge('');
+      setFilePaths([]); setMapError('');
+      setMessage('File map created. Select Save workspace to keep it on this device.');
+    } catch (error) {
+      setMapError(error instanceof Error ? error.message : 'Could not create the file map.');
+    }
   };
   const addComponent = () => {
     if (!workspace || !board) return;
@@ -192,6 +221,14 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             {workspace.boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
           </select></label>
           <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={renameCurrentBoard} disabled={!board}>Rename board</button><button onClick={deleteCurrentBoard} disabled={!board || workspace.boards.length <= 1}>Delete board</button><button onClick={addComponent} disabled={!board}>Add component</button></div>
+          <section aria-label="Create file map">
+            <h2>Create file map</h2>
+            <p>Choose up to 100 files or a folder. Only their paths are used to create cards on a new board; file contents are not read. No relationships are inferred.</p>
+            <label>Choose files<input type="file" multiple aria-label="Choose files for map" onChange={selectMapFiles} /></label>
+            <label>Choose folder<input type="file" multiple {...{ webkitdirectory: '' }} aria-label="Choose folder for map" onChange={selectMapFiles} /></label>
+            {mapError && <p role="alert">{mapError}</p>}
+            {filePaths.length > 0 && <><p>{filePaths.length} file(s) selected:</p><ul>{filePaths.map(path => <li key={path}>{path}</li>)}</ul><button onClick={addFileMap}>Create file map board</button></>}
+          </section>
           <label>Find components across boards<input value={search} onChange={event => setSearch(event.target.value)} /></label>
           {search.trim() && <section aria-label="Component search results">
             {results.length === 0 && <p>No matching components.</p>}
