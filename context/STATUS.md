@@ -1,11 +1,11 @@
 # Agent handoff
 
 ## Current run — 2026-11-18, Codex
-Based on main 04796dace0b0b8569fead2c5d40daef2aa23778a. Added conservative emitted-extension matching for TypeScript relative imports and reports for non-relative, dynamic and require syntax, with a diagnostics cap. Ambiguous file matches remain unresolved. Unit and build checks passed; browser checks for c77fa52afeee83a3ad49b5442320631a1eb8d642 are still running. Added individually selectable suggested relationships with Chromium coverage; CI for the selection checkpoint is pending. Prior main GitHub Actions run 44303996643 passed. The TypeScript parser remains lazy-loaded (3,601 kB minified, 1,031 kB gzip); replacing it is deferred until TS/JS correctness is preserved. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted work.
+Based on main 04796dace0b0b8569fead2c5d40daef2aa23778a. Added conservative emitted-extension matching for TypeScript relative imports and reports for non-relative, dynamic and require syntax, with a diagnostics cap. Ambiguous file matches remain unresolved. Unit, build and both dev-server and production Chromium checks passed in GitHub Actions run 44357530155 for c77fa52afeee83a3ad49b5442320631a1eb8d642. Added individually selectable suggested relationships; unit, build and both browser suites passed in run 44357809044 for ca1b8ed62d6668305681611003ae5c654295c6b8. Prior main GitHub Actions run 44303996643 passed. The TypeScript parser remains lazy-loaded (3,601 kB minified, 1,031 kB gzip); replacing it is deferred until TS/JS correctness is preserved. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted work.
 
 Next: verify both CI runs and continue parser-size and supported-syntax improvements without compromising correctness. Dynamic imports, require calls, packages and Python imports remain unresolved.
 
-Known Codex commits for loop prevention: c77fa52afeee83a3ad49b5442320631a1eb8d642, the commit containing this handoff and its follow-ups.
+Known Codex commits for loop prevention: c77fa52afeee83a3ad49b5442320631a1eb8d642, ca1b8ed62d6668305681611003ae5c654295c6b8, the verification handoff commit and its follow-ups.
 
 ## Prior handoff
 # Agent handoff
