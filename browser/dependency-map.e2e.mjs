@@ -16,11 +16,14 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  await page.addInitScript(value => {
    if (!localStorage.getItem('solocanvas.workspace.v2')) localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value));
  }, workspace);
+ await page.addInitScript(() => sessionStorage.setItem('testPageLoads', String(Number(sessionStorage.getItem('testPageLoads') || 0) + 1)));
  await page.goto('/');
+ const initialPageLoads = await page.evaluate(() => Number(sessionStorage.getItem('testPageLoads')));
  await page.getByRole('button', { name: 'Open workspace' }).click();
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('1 relationship(s) suggested', { timeout: 20000 });
+ expect(await page.evaluate(() => Number(sessionStorage.getItem('testPageLoads')))).toBe(initialPageLoads);
  await expect(panel).toContainText("repo/main.ts:1 imports ./service → repo/service.ts");
  await expect(panel).toContainText('unresolved local import');
  await expect(page.locator('.react-flow__edge')).toHaveCount(0);
