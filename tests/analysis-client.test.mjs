@@ -4,7 +4,7 @@ import { boardAnalysisSnapshot, startDependencyAnalysis } from '../src/analysis-
 
 const workspace = {
  version: 2,
- cards: [{ id: 'shown', data: { label: 'Visible' } }, { id: 'hidden', data: { sourceText: 'other board' } }, { id: 'orphan', data: { label: 'Unused' } }],
+ cards: [{ id: 'shown', data: { kind: 'file', path: 'src/main.ts', sourceText: 'export {}', notes: 'private notes', label: 'Visible' } }, { id: 'hidden', data: { sourceText: 'other board' } }, { id: 'orphan', data: { label: 'Unused' } }],
  boards: [
   { id: 'one', title: 'One', extra: {}, nodes: [{ id: 'n', cardId: 'shown', position: { x: 0, y: 0 } }], edges: [] },
   { id: 'two', title: 'Two', extra: {}, nodes: [{ id: 'm', cardId: 'hidden', position: { x: 0, y: 0 } }], edges: [] },
@@ -15,8 +15,10 @@ test('analysis receives only an independent copy of the selected board and its c
  const result = boardAnalysisSnapshot(workspace, 'one');
  assert.deepEqual(result.cards.map(card => card.id), ['shown']);
  assert.deepEqual(result.boards.map(board => board.id), ['one']);
- result.cards[0].data.label = 'changed';
- assert.equal(workspace.cards[0].data.label, 'Visible');
+ assert.deepEqual(result.cards[0].data, { kind: 'file', path: 'src/main.ts', sourceText: 'export {}' });
+ assert.deepEqual(result.boards[0].extra, {});
+ result.cards[0].data.path = 'changed';
+ assert.equal(workspace.cards[0].data.path, 'src/main.ts');
  assert.throws(() => boardAnalysisSnapshot(workspace, 'missing'));
 });
 

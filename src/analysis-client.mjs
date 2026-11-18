@@ -6,7 +6,20 @@ export function boardAnalysisSnapshot(workspace, boardId) {
   const board = workspace.boards.find(item => item.id === boardId);
   if (!board) throw new Error('Board not found.');
   const cardIds = new Set(board.nodes.map(node => node.cardId));
-  return structuredClone({ version: 2, cards: workspace.cards.filter(card => cardIds.has(card.id)), boards: [board] });
+  const cards = workspace.cards.filter(card => cardIds.has(card.id)).map(card => {
+    const data = card.data;
+    return { id: card.id, data: data.kind === 'file' && typeof data.path === 'string'
+      ? { kind: 'file', path: data.path, ...(typeof data.sourceText === 'string' ? { sourceText: data.sourceText } : {}) }
+      : {} };
+  });
+  return {
+    version: 2,
+    cards,
+    boards: [{ id: board.id, title: board.title, extra: {},
+      nodes: board.nodes.map(node => ({ id: node.id, cardId: node.cardId, position: { ...node.position } })),
+      edges: board.edges.map(edge => ({ id: edge.id, source: edge.source, target: edge.target })),
+    }],
+  };
 }
 
 export function startDependencyAnalysis(workspace, boardId) {
