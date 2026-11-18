@@ -1,4 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 test('selected files create a local map only after review and explicit save', async ({ page }) => {
   await page.goto('/');
@@ -51,4 +54,31 @@ test('duplicate selected names do not create a map', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText('paths must be unique');
   await expect(page.getByRole('button', { name: 'Create file map board' })).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
+});
+
+test('folder selection preserves relative paths in the generated board', async ({ page }) => {
+  const folder = await mkdtemp(join(tmpdir(), 'solocanvas-map-'));
+  try {
+    await mkdir(join(folder, 'src'));
+    await writeFile(join(folder, 'src', 'alpha.ts'), 'private source text');
+    await writeFile(join(folder, 'README.md'), 'private documentation');
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Open workspace' }).click();
+    await page.getByLabel('Choose folder for map').setInputFiles(folder);
+    const panel = page.getByRole('region', { name: 'Create file map' });
+    await expect(panel).toContainText('2 file(s) selected');
+    await expect(panel).toContainText('src/alpha.ts');
+    page.once('dialog', dialog => dialog.accept('Folder map'));
+    await panel.getByRole('button', { name: 'Create file map board' }).click();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Save workspace' }).click();
+    await expect(page.getByRole('status')).toContainText('Workspace saved');
+    const saved = await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'));
+    expect(saved).not.toContain('private source text');
+    const paths = JSON.parse(saved).cards.map(card => card.data.path);
+    expect(paths.some(path => path.endsWith('/src/alpha.ts'))).toBe(true);
+    expect(paths.some(path => path.endsWith('/README.md'))).toBe(true);
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
 });
