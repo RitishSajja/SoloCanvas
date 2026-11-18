@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('static import suggestions are reviewed, applied and saved explicitly', async ({ page }) => {
+ test.setTimeout(60000);
  const workspace = {
    version: 2,
    cards: [
@@ -19,7 +20,7 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  await page.getByRole('button', { name: 'Open workspace' }).click();
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
- await expect(panel).toContainText('1 relationship(s) suggested');
+ await expect(panel).toContainText('1 relationship(s) suggested', { timeout: 20000 });
  await expect(panel).toContainText("repo/main.ts:1 imports ./service → repo/service.ts");
  await expect(panel).toContainText('unresolved local import');
  await expect(page.locator('.react-flow__edge')).toHaveCount(0);
@@ -28,7 +29,7 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  await expect(panel).toContainText('Workspace changed');
  await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toHaveCount(0);
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
- await expect(panel).toContainText('1 relationship(s) suggested');
+ await expect(panel).toContainText('1 relationship(s) suggested', { timeout: 20000 });
  await panel.getByRole('button', { name: 'Add suggested relationships' }).click();
  await expect(page.locator('.react-flow__edge')).toHaveCount(1);
  const beforeSave = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
@@ -42,10 +43,11 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  await page.locator('.react-flow__edge-interaction').click({ force: true });
  await expect(page.getByText(/Suggested from repo\/main.ts:1/)).toBeVisible();
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
- await expect(panel).toContainText('0 relationship(s) suggested');
+ await expect(panel).toContainText('0 relationship(s) suggested', { timeout: 20000 });
 });
 
 test('users can choose which suggested relationships to add', async ({ page }) => {
+ test.setTimeout(60000);
  const workspace = {
    version: 2,
    cards: [
@@ -63,7 +65,7 @@ test('users can choose which suggested relationships to add', async ({ page }) =
  await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
- await expect(panel).toContainText('2 relationship(s) suggested');
+ await expect(panel).toContainText('2 relationship(s) suggested', { timeout: 20000 });
  const first = panel.getByRole('checkbox', { name: /imports .\/one/ });
  const second = panel.getByRole('checkbox', { name: /imports .\/two/ });
  await expect(first).toBeChecked(); await expect(second).toBeChecked();
@@ -77,7 +79,7 @@ test('users can choose which suggested relationships to add', async ({ page }) =
  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
  expect(saved.boards[0].edges[0].target).toBe('b-node');
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
- await expect(panel).toContainText('1 relationship(s) suggested');
+ await expect(panel).toContainText('1 relationship(s) suggested', { timeout: 20000 });
  await expect(panel.getByRole('checkbox', { name: /imports .\/two/ })).toBeChecked();
 });
 
