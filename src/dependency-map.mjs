@@ -77,7 +77,7 @@ export function suggestDependencies(workspace, boardId) {
       const matches = relativeCandidates(path, specifier).filter(candidate => paths.has(candidate));
       if (matches.length !== 1 || paths.get(matches[0]).length !== 1) {
         const candidates = matches.flatMap(targetPath => paths.get(targetPath).map(entry => ({ targetPath, targetNodeId: entry.node.id, alreadyConnected: existing.has(JSON.stringify([node.id, entry.node.id])) })));
-        report({ path, reason: matches.length ? 'ambiguous local import' : 'unresolved local import', specifier, line,
+        report({ path, reason: candidates.length > 25 ? 'ambiguous local import (more than 25 candidate placements)' : matches.length ? 'ambiguous local import' : 'unresolved local import', specifier, line,
           ...(candidates.length > 1 && candidates.length <= 25 ? { sourceNodeId: node.id, importKind, candidates } : {}),
         });
         return;

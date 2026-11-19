@@ -135,3 +135,13 @@ test('ambiguous duplicate placements distinguish already-connected targets', () 
    { id: 'n1', connected: true }, { id: 'other-a', connected: false },
  ]);
 });
+
+test('too many ambiguous placements are reported without a truncated choice list', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = "import './a';";
+ for (let i = 0; i < 25; i++) workspace.boards[0].nodes.push({ id: 'copy-' + i, cardId: 'c1', position: { x: i, y: 0 } });
+ const result = suggestDependencies(workspace, 'b');
+ assert.match(result.diagnostics[0].reason, /more than 25 candidate placements/);
+ assert.equal(result.diagnostics[0].candidates, undefined);
+ assert.equal(result.suggestions.length, 0);
+});
