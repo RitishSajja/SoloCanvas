@@ -203,3 +203,42 @@ test('ambiguous imports require an explicit target choice', async ({ page }) => 
  await expect(panel).toContainText('ambiguous local import', { timeout: 20000 });
  await expect(panel.getByRole('option', { name: /repo\/dup.ts/ })).toBeDisabled();
 });
+
+test('duplicate placements remain distinct and stale choices cannot be applied', async ({ page }) => {
+ test.setTimeout(60000);
+ const workspace = {
+   version: 2,
+   cards: [
+     { id: 'main', data: { kind: 'file', path: 'repo/main.ts', label: 'main.ts', sourceText: "import './dup';" } },
+     { id: 'shared', data: { kind: 'file', path: 'repo/dup.ts', label: 'dup.ts' } },
+   ],
+   boards: [{ id: 'board', title: 'Files', extra: {}, nodes: [
+     { id: 'main-node', cardId: 'main', position: { x: 0, y: 0 } },
+     { id: 'one', cardId: 'shared', position: { x: 400, y: 0 } },
+     { id: 'two', cardId: 'shared', position: { x: 400, y: 200 } },
+   ], edges: [] }],
+ };
+ await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ await expect(panel).toContainText('ambiguous local import', { timeout: 20000 });
+ let choice = panel.getByRole('combobox', { name: 'Choose target for repo/main.ts line 1 ./dup' });
+ await expect(choice.locator('option')).toHaveCount(3);
+ await choice.selectOption('two');
+ await page.locator('.react-flow__node').filter({ hasText: 'main.ts' }).click();
+ await page.getByLabel('Shared component name').fill('new main name');
+ await expect(panel).toContainText('Workspace changed');
+ await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toHaveCount(0);
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ choice = panel.getByRole('combobox', { name: 'Choose target for repo/main.ts line 1 ./dup' });
+ await expect(choice).toHaveValue('', { timeout: 20000 });
+ await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toBeDisabled();
+ await choice.selectOption('two');
+ await panel.getByRole('button', { name: 'Add suggested relationships' }).click();
+ await page.getByRole('button', { name: 'Save workspace' }).click();
+ await expect(page.getByRole('status')).toContainText('Workspace saved');
+ const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
+ expect(saved.boards[0].edges[0].target).toBe('two');
+ expect(saved.cards.find(card => card.id === 'main').data.label).toBe('new main name');
+});

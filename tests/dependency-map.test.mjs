@@ -123,3 +123,15 @@ test('ambiguous imports report explicit candidates without selecting a target', 
  assert.deepEqual(diagnostic.candidates.map(item => item.targetPath).sort(), ['repo/src/dup.js', 'repo/src/dup.ts']);
  assert.deepEqual(workspace, original);
 });
+
+test('ambiguous duplicate placements distinguish already-connected targets', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = "import './a';";
+ workspace.boards[0].nodes.push({ id: 'other-a', cardId: 'c1', position: { x: 4, y: 5 } });
+ workspace.boards[0].edges.push({ id: 'existing', source: 'n0', target: 'n1' });
+ const result = suggestDependencies(workspace, 'b');
+ assert.equal(result.suggestions.length, 0);
+ assert.deepEqual(result.diagnostics[0].candidates.map(item => ({ id: item.targetNodeId, connected: item.alreadyConnected })), [
+   { id: 'n1', connected: true }, { id: 'other-a', connected: false },
+ ]);
+});

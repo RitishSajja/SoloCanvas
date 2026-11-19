@@ -1,11 +1,11 @@
 # Agent handoff
 
 ## Current run — 2026-11-19, Codex
-Based on main ec3bbe4e6713c2c0819e0920858f8740b1c999cb. Ambiguous local imports now show up to 25 candidate placements and permit an explicit user choice; no target is selected by default, and already-connected targets are disabled. Choices are applied through the existing review flow with provenance and explicit save. Unit and browser checks are pending. Prior main GitHub Actions run 44572082200 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted work.
+Based on main ec3bbe4e6713c2c0819e0920858f8740b1c999cb. Ambiguous local imports now show up to 25 candidate placements and permit an explicit user choice; no target is selected by default, and already-connected targets are disabled. Choices are applied through the existing review flow with provenance and explicit save. Unit and build checks passed for b34537077676a8aa4a241b097dd14f87548ee493; browser checks are still running. Added regression coverage for duplicate placements and for stale choices after workspace edits; CI for this follow-up is pending. Prior main GitHub Actions run 44572082200 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted work.
 
-Next: verify CI, test duplicate placements and stale selection handling, then continue import diagnostics and performance work without changing existing data silently.
+Next: verify both CI runs, then continue import diagnostics and performance work without changing existing data silently.
 
-Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+Known Codex commits for loop prevention: b34537077676a8aa4a241b097dd14f87548ee493, the commit containing this handoff and its follow-ups.
 
 ## Prior handoff
 # Agent handoff
