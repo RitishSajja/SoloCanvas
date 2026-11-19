@@ -108,3 +108,18 @@ test('static relationship takes precedence when a pair is also dynamically impor
  assert.equal(result.suggestions[0].importKind, 'static');
  assert.equal(result.suggestions[0].line, 2);
 });
+
+test('ambiguous imports report explicit candidates without selecting a target', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = "import './dup';";
+ const original = structuredClone(workspace);
+ const result = suggestDependencies(workspace, 'b');
+ assert.equal(result.suggestions.length, 0);
+ assert.equal(result.diagnostics.length, 1);
+ const diagnostic = result.diagnostics[0];
+ assert.equal(diagnostic.reason, 'ambiguous local import');
+ assert.equal(diagnostic.sourceNodeId, 'n0');
+ assert.equal(diagnostic.importKind, 'static');
+ assert.deepEqual(diagnostic.candidates.map(item => item.targetPath).sort(), ['repo/src/dup.js', 'repo/src/dup.ts']);
+ assert.deepEqual(workspace, original);
+});

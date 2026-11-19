@@ -1,6 +1,16 @@
 # Agent handoff
 
 ## Current run — 2026-11-19, Codex
+Based on main ec3bbe4e6713c2c0819e0920858f8740b1c999cb. Ambiguous local imports now show up to 25 candidate placements and permit an explicit user choice; no target is selected by default, and already-connected targets are disabled. Choices are applied through the existing review flow with provenance and explicit save. Unit and browser checks are pending. Prior main GitHub Actions run 44572082200 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted work.
+
+Next: verify CI, test duplicate placements and stale selection handling, then continue import diagnostics and performance work without changing existing data silently.
+
+Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+
+## Prior handoff
+# Agent handoff
+
+## Current run — 2026-11-19, Codex
 Based on main 0addbe41b04d474e696f29dffa41c4210df73f6e. Added reviewable relative dynamic imports when the argument is a string literal, labeled and stored distinctly from static imports. Non-literal and non-relative dynamic imports remain diagnostic only; when both kinds target the same pair, the static relationship takes priority. Unit, build, dev-server and production-preview Chromium checks passed in GitHub Actions run 44571454449 for df4b539720393892907c93f30f0d5b90f4965ec0. Added navigation from suggestions to their source and from recorded evidence to either endpoint; the same checks passed in run 44571766895 for 0ff31b8462b69218048d5ec5098907fb9feac2bc. Prior main run 44411486269 passed. No active peer work is visible in branch heads or open PRs; GitHub cannot show uncommitted work.
 
 Next: improve diagnosis and precise review of inferred relationships while preserving existing workspace data. The TypeScript parser remains a large lazy-loaded worker bundle; do not trade parsing correctness for size.

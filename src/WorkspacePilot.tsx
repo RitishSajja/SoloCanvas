@@ -26,6 +26,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [analysisError, setAnalysisError] = useState('');
   const analysisTask = useRef<ReturnType<typeof startDependencyAnalysis> | null>(null);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(() => new Set());
+  const [candidateChoices, setCandidateChoices] = useState<Record<number, string>>({});
   const currentBoardId = useRef(boardId); currentBoardId.current = boardId;
   const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
   const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
@@ -46,6 +47,13 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const view = workspace && board ? projectBoard(workspace, board.id) : null;
   const results = workspace ? findCards(workspace, search, { includeSource: searchSource }) : [];
   const appearances = workspace && selectedCard ? findCardPlacements(workspace, selectedCard.id) : [];
+  const manualSuggestions: Suggestion[] = analysis ? Object.entries(candidateChoices).flatMap(([index, targetNodeId]) => {
+    const item = analysis.diagnostics[Number(index)];
+    const candidate = item?.candidates?.find(option => option.targetNodeId === targetNodeId && !option.alreadyConnected);
+    if (!item || !candidate || !item.sourceNodeId || !item.specifier || !item.line || !item.importKind) return [];
+    return [{ sourceNodeId: item.sourceNodeId, targetNodeId: candidate.targetNodeId, sourcePath: item.path,
+      targetPath: candidate.targetPath, specifier: item.specifier, line: item.line, importKind: item.importKind }];
+  }) : [];
   useEffect(() => {
     if (!navigation || !flow || !workspace || navigation.boardId !== boardId) return;
     const target = workspace.boards.find(item => item.id === boardId)?.nodes.find(node => node.id === navigation.nodeId);
@@ -138,7 +146,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
         setAnalysisError('The workspace or board changed. Analyze again.');
         return;
       }
-      setSelectedSuggestions(new Set(result.suggestions.map(suggestionKey)));
+      setSelectedSuggestions(new Set(result.suggestions.map(suggestionKey))); setCandidateChoices({});
       setAnalysis({ boardId: analyzedBoard, version, ...result });
     } catch (error) {
       setAnalysisError(error instanceof Error ? error.message : 'Could not analyze imports.');
@@ -146,13 +154,13 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   };
   const applyImports = async () => {
     if (!workspace || !board || !analysis || inFlight.current ||
-        analysis.boardId !== board.id || analysis.version !== editVersion.current || selectedSuggestions.size === 0) return;
+        analysis.boardId !== board.id || analysis.version !== editVersion.current || (selectedSuggestions.size === 0 && manualSuggestions.length === 0)) return;
     inFlight.current = true; setBusy(true); setAnalysisError('');
     try {
       if (analysis.version !== editVersion.current || currentBoardId.current !== board.id) {
         setAnalysisError('The workspace or board changed. Analyze again.'); return;
       }
-      const selected = analysis.suggestions.filter(item => selectedSuggestions.has(suggestionKey(item)));
+      const selected = [...analysis.suggestions.filter(item => selectedSuggestions.has(suggestionKey(item))), ...manualSuggestions];
       if (selected.length === 0) return;
       changed(addSuggestedDependencies(workspace, board.id, selected, () => crypto.randomUUID()));
       setAnalysis(null); setMessage('Relationships added. Select Save workspace to keep them.');
@@ -306,8 +314,16 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
                   setSelectedSuggestions(previous => { const next = new Set(previous); if (checked) next.add(suggestionKey(item)); else next.delete(suggestionKey(item)); return next; });
                 }} /> {item.sourcePath}:{item.line} {item.importKind === 'dynamic' ? 'dynamically imports' : 'imports'} {item.specifier} → {item.targetPath}
               </label><button onClick={() => openPlacement(boardId, item.sourceNodeId)} aria-label={`Inspect source ${item.sourcePath} line ${item.line} for ${item.specifier}`}>Inspect source</button></li>)}</ul>
-              {analysis.diagnostics.length > 0 && <><p>Some imports or files could not be resolved:</p><ul>{analysis.diagnostics.map((item, index) => <li key={index}>{item.path}{item.line ? ':' + item.line : ''}{item.specifier ? ' ' + item.specifier : ''}: {item.reason}</li>)}</ul></>}
-              <button onClick={applyImports} disabled={busy || selectedSuggestions.size === 0}>Add suggested relationships</button>
+              {analysis.diagnostics.length > 0 && <><p>Some imports or files could not be resolved:</p><ul>{analysis.diagnostics.map((item, index) => <li key={index}>
+                {item.path}{item.line ? ':' + item.line : ''}{item.specifier ? ' ' + item.specifier : ''}: {item.reason}
+                {item.candidates && item.sourceNodeId && <><label>Choose target for {item.path}:{item.line} {item.specifier}
+                  <select aria-label={`Choose target for ${item.path} line ${item.line} ${item.specifier}`} value={candidateChoices[index] ?? ''} disabled={busy}
+                    onChange={event => setCandidateChoices(previous => ({ ...previous, [index]: event.target.value }))}>
+                    <option value="">Do not add a relationship</option>
+                    {item.candidates.map((candidate, candidateIndex) => <option key={candidate.targetNodeId} value={candidate.targetNodeId} disabled={candidate.alreadyConnected}>{candidate.targetPath} — placement {candidateIndex + 1}{candidate.alreadyConnected && ' (already connected)'}</option>)}
+                  </select></label><button onClick={() => openPlacement(boardId, item.sourceNodeId!)}>Inspect source</button></>}
+              </li>)}</ul></>}
+              <button onClick={applyImports} disabled={busy || (selectedSuggestions.size === 0 && manualSuggestions.length === 0)}>Add suggested relationships</button>
             </>)}
           </section>
           <label>Find components across boards<input value={search} onChange={event => setSearch(event.target.value)} /></label>

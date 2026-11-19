@@ -165,3 +165,41 @@ test('literal dynamic imports are reviewable and remain distinguishable after sa
  await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();
  await expect(page.getByText('dynamic import', { exact: true })).toBeVisible();
 });
+
+test('ambiguous imports require an explicit target choice', async ({ page }) => {
+ test.setTimeout(60000);
+ const workspace = {
+   version: 2,
+   cards: [
+     { id: 'main', data: { kind: 'file', path: 'repo/main.ts', label: 'main.ts', sourceText: "import './dup';" } },
+     { id: 'ts', data: { kind: 'file', path: 'repo/dup.ts', label: 'dup.ts' } },
+     { id: 'js', data: { kind: 'file', path: 'repo/dup.js', label: 'dup.js' } },
+   ],
+   boards: [{ id: 'board', title: 'Files', extra: {}, nodes: [
+     { id: 'main-node', cardId: 'main', position: { x: 0, y: 0 } },
+     { id: 'ts-node', cardId: 'ts', position: { x: 400, y: 0 } },
+     { id: 'js-node', cardId: 'js', position: { x: 400, y: 200 } },
+   ], edges: [] }],
+ };
+ await page.addInitScript(value => {
+   if (!localStorage.getItem('solocanvas.workspace.v2')) localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value));
+ }, workspace);
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ await expect(panel).toContainText('ambiguous local import', { timeout: 20000 });
+ const choice = panel.getByRole('combobox', { name: 'Choose target for repo/main.ts line 1 ./dup' });
+ await expect(choice).toHaveValue('');
+ await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toBeDisabled();
+ await choice.selectOption('ts-node');
+ await panel.getByRole('button', { name: 'Add suggested relationships' }).click();
+ await expect(page.locator('.react-flow__edge')).toHaveCount(1);
+ await page.getByRole('button', { name: 'Save workspace' }).click();
+ await expect(page.getByRole('status')).toContainText('Workspace saved');
+ const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
+ expect(saved.boards[0].edges[0].target).toBe('ts-node');
+ expect(saved.boards[0].edges[0].data.specifier).toBe('./dup');
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ await expect(panel).toContainText('ambiguous local import', { timeout: 20000 });
+ await expect(panel.getByRole('option', { name: /repo\/dup.ts/ })).toBeDisabled();
+});
