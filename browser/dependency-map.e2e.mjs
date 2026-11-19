@@ -123,3 +123,36 @@ test('edits during worker analysis invalidate the result', async ({ page }) => {
  await expect(page.getByLabel('Shared component name')).toHaveValue('Kept edit');
  await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toHaveCount(0);
 });
+
+test('literal dynamic imports are reviewable and remain distinguishable after saving', async ({ page }) => {
+ test.setTimeout(60000);
+ const workspace = {
+   version: 2,
+   cards: [
+     { id: 'a', data: { kind: 'file', path: 'repo/main.ts', label: 'main.ts', sourceText: "const lazy = import('./feature');\nconst unknown = import(name);" } },
+     { id: 'b', data: { kind: 'file', path: 'repo/feature.ts', label: 'feature.ts' } },
+   ],
+   boards: [{ id: 'board', title: 'Files', extra: {}, nodes: [
+     { id: 'a-node', cardId: 'a', position: { x: 50, y: 50 } },
+     { id: 'b-node', cardId: 'b', position: { x: 400, y: 50 } },
+   ], edges: [] }],
+ };
+ await page.addInitScript(value => {
+   if (!localStorage.getItem('solocanvas.workspace.v2')) localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value));
+ }, workspace);
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ await expect(panel).toContainText('1 relationship(s) suggested', { timeout: 20000 });
+ await expect(panel).toContainText('dynamically imports ./feature');
+ await expect(panel).toContainText('dynamic import expression not analyzed');
+ await panel.getByRole('button', { name: 'Add suggested relationships' }).click();
+ await expect(page.getByText('dynamic import', { exact: true })).toBeVisible();
+ await page.getByRole('button', { name: 'Save workspace' }).click();
+ await expect(page.getByRole('status')).toContainText('Workspace saved');
+ const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
+ expect(saved.boards[0].edges[0].label).toBe('dynamic import');
+ expect(saved.boards[0].edges[0].data.importKind).toBe('dynamic');
+ await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await expect(page.getByText('dynamic import', { exact: true })).toBeVisible();
+});

@@ -294,7 +294,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
           </section>
           <section aria-label="Import relationship suggestions">
             <h2>Suggest import relationships</h2>
-            <p>Analyze imported JS/TS source on this board for static relative imports and re-exports. Review suggestions before adding them. Non-relative imports, dynamic imports and require calls are reported but not resolved. Python imports are not analyzed.</p>
+            <p>Analyze imported JS/TS source on this board for static relative imports, re-exports and literal dynamic imports. Review suggestions before adding them. Non-relative imports, non-literal dynamic imports and require calls are reported but not resolved. Python imports are not analyzed.</p>
             <button onClick={analyzeImports} disabled={!board || busy}>Analyze board imports</button>
             {busy && analysisTask.current && <><span role="status">Analyzing imports…</span><button onClick={() => analysisTask.current?.cancel()}>Cancel import analysis</button></>}
             {analysisError && <p role="alert">{analysisError}</p>}
@@ -304,7 +304,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
                 <input type="checkbox" checked={selectedSuggestions.has(suggestionKey(item))} disabled={busy} onChange={event => {
                   const checked = event.target.checked;
                   setSelectedSuggestions(previous => { const next = new Set(previous); if (checked) next.add(suggestionKey(item)); else next.delete(suggestionKey(item)); return next; });
-                }} /> {item.sourcePath}:{item.line} imports {item.specifier} → {item.targetPath}
+                }} /> {item.sourcePath}:{item.line} {item.importKind === 'dynamic' ? 'dynamically imports' : 'imports'} {item.specifier} → {item.targetPath}
               </label></li>)}</ul>
               {analysis.diagnostics.length > 0 && <><p>Some imports or files could not be resolved:</p><ul>{analysis.diagnostics.map((item, index) => <li key={index}>{item.path}{item.line ? ':' + item.line : ''}{item.specifier ? ' ' + item.specifier : ''}: {item.reason}</li>)}</ul></>}
               <button onClick={applyImports} disabled={busy || selectedSuggestions.size === 0}>Add suggested relationships</button>

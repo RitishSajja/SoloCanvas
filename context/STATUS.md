@@ -1,5 +1,15 @@
 # Agent handoff
 
+## Current run — 2026-11-19, Codex
+Based on main 0addbe41b04d474e696f29dffa41c4210df73f6e. Added reviewable relative dynamic imports when the argument is a string literal, labeled and stored distinctly from static imports. Non-literal and non-relative dynamic imports remain diagnostic only; when both kinds target the same pair, the static relationship takes priority. Added unit and Chromium coverage; CI pending. Prior main run 44411486269 passed. No active peer work is visible in branch heads or open PRs; GitHub cannot show uncommitted work.
+
+Next: verify all checks, then improve diagnosis and precise review of inferred relationships while preserving existing workspace data. The TypeScript parser remains a large lazy-loaded worker bundle; do not trade parsing correctness for size.
+
+Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+
+## Prior handoff
+# Agent handoff
+
 ## Current run — 2026-11-18, Codex
 Based on main 34d50d1a8342e78a17e30b52378cffddeac5223d. Moved import analysis to a cancellable browser worker so parsing does not block the canvas; only the selected board and its referenced cards are sent to it. The TypeScript parser remains lazy-loaded. Added cancellation, worker-error, isolation, concurrent-edit and production-browser coverage. GitHub Actions run 44410372795 passed unit and build but a Chromium test timed out after five seconds while the worker was still starting; the remaining browser tests passed and production verification was skipped. A follow-up adds an analysis-in-progress status and allows up to 20 seconds for real worker results. Follow-up GitHub Actions run 44410741342 for aa9dbe91a529d4f6dee8f89deb7cd49d21a0603e also failed: the dev-server editor disappeared while the worker started, consistent with Vite re-optimizing a newly discovered dependency and reloading pages; a separate canvas test also lost its rendered nodes after reload. A follow-up minimizes worker data to the current board graph, file paths and opted-in source text. The latest checkpoint prebundles TypeScript at dev-server startup and asserts the page does not reload during analysis. Unit, build, dev-server Chromium and production-preview Chromium checks passed in GitHub Actions run 44411177317 for ebd4097cb2ed05448f358fbf2fffe0fbb58ab2a8. This validates the combined changes; the exact cause of the earlier dev-server failures was not independently proven. Prior main GitHub Actions run 44358136287 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted work.
 

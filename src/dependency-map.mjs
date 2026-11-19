@@ -37,7 +37,7 @@ function relativeCandidates(from, specifier) {
 }
 
 // Does not read files or execute source. Only top-level static ESM imports and
-// re-exports from the board's selected JS/TS paths are considered.
+// re-exports, plus literal dynamic imports, from selected JS/TS paths are considered.
 export function suggestDependencies(workspace, boardId) {
   if (!validateWorkspace(workspace)) throw new Error('Invalid workspace.');
   const board = workspace.boards.find(item => item.id === boardId);
@@ -69,41 +69,45 @@ export function suggestDependencies(workspace, boardId) {
     const kind = /\.tsx$/i.test(path) ? ts.ScriptKind.TSX : /\.jsx$/i.test(path) ? ts.ScriptKind.JSX : /\.(?:ts)$/i.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS;
     const source = ts.createSourceFile(path, data.sourceText, ts.ScriptTarget.Latest, false, kind);
     if (source.parseDiagnostics.length) { report({ path, reason: 'source could not be parsed' }); continue; }
-    const scanUnsupported = node => {
-      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-          (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) {
-        const arg = node.arguments[0];
-        report({
-          path,
-          reason: node.expression.kind === ts.SyntaxKind.ImportKeyword ? 'dynamic import not analyzed' : 'require call not analyzed',
-          ...(arg && ts.isStringLiteral(arg) ? { specifier: arg.text } : {}),
-          line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
-        });
-      }
-      ts.forEachChild(node, scanUnsupported);
-    };
-    scanUnsupported(source);
-    for (const statement of source.statements) {
-      if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement))) continue;
-      if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-      const specifier = statement.moduleSpecifier.text;
+    const consider = (specifier, line, importKind) => {
       if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
-        report({ path, reason: 'non-relative import not analyzed', specifier, line: source.getLineAndCharacterOfPosition(statement.moduleSpecifier.getStart(source)).line + 1 });
-        continue;
+        report({ path, reason: importKind === 'dynamic' ? 'non-relative dynamic import not analyzed' : 'non-relative import not analyzed', specifier, line });
+        return;
       }
       const matches = relativeCandidates(path, specifier).filter(candidate => paths.has(candidate));
-      const line = source.getLineAndCharacterOfPosition(statement.moduleSpecifier.getStart(source)).line + 1;
       if (matches.length !== 1 || paths.get(matches[0]).length !== 1) {
         report({ path, reason: matches.length ? 'ambiguous local import' : 'unresolved local import', specifier, line });
-        continue;
+        return;
       }
       const target = paths.get(matches[0])[0].node;
       const key = JSON.stringify([node.id, target.id]);
-      if (seen.has(key)) continue;
+      if (seen.has(key)) return;
       seen.add(key);
-      suggestions.push({ sourceNodeId: node.id, targetNodeId: target.id, sourcePath: path, targetPath: matches[0], specifier, line });
+      suggestions.push({ sourceNodeId: node.id, targetNodeId: target.id, sourcePath: path, targetPath: matches[0], specifier, line, importKind });
       if (suggestions.length > 250) throw new Error('Too many suggested relationships; reduce the selected files.');
+    };
+    // Prefer a static relationship if both forms refer to the same pair.
+    for (const statement of source.statements) {
+      if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement))) continue;
+      if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+      const line = source.getLineAndCharacterOfPosition(statement.moduleSpecifier.getStart(source)).line + 1;
+      consider(statement.moduleSpecifier.text, line, 'static');
     }
+    const scanCalls = current => {
+      if (ts.isCallExpression(current) && current.expression.kind === ts.SyntaxKind.ImportKeyword) {
+        const arg = current.arguments[0];
+        const line = source.getLineAndCharacterOfPosition(current.getStart(source)).line + 1;
+        if (arg && ts.isStringLiteral(arg)) consider(arg.text, line, 'dynamic');
+        else report({ path, reason: 'dynamic import expression not analyzed', line });
+      } else if (ts.isCallExpression(current) && ts.isIdentifier(current.expression) && current.expression.text === 'require') {
+        const arg = current.arguments[0];
+        report({ path, reason: 'require call not analyzed',
+          ...(arg && ts.isStringLiteral(arg) ? { specifier: arg.text } : {}),
+          line: source.getLineAndCharacterOfPosition(current.getStart(source)).line + 1 });
+      }
+      ts.forEachChild(current, scanCalls);
+    };
+    scanCalls(source);
   }
   return { suggestions, diagnostics };
 }

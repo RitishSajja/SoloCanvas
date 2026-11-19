@@ -25,7 +25,7 @@ test('suggests only unambiguous static local imports with source evidence', () =
    { targetPath: 'repo/src/a.ts', specifier: './a', line: 2 },
    { targetPath: 'repo/src/b.js', specifier: './b.js', line: 3 },
  ]);
- assert.deepEqual(result.diagnostics.map(item => item.reason), ['dynamic import not analyzed', 'ambiguous local import', 'unresolved local import']);
+ assert.deepEqual(result.diagnostics.map(item => item.reason), ['ambiguous local import', 'unresolved local import', 'non-relative dynamic import not analyzed']);
  assert.deepEqual(workspace, original);
  let id = 0;
  const applied = addSuggestedDependencies(workspace, 'b', result.suggestions, () => 'edge-' + ++id);
@@ -57,16 +57,17 @@ test('TypeScript emitted extensions resolve conservatively and unsupported forms
    "const common = require('./b.js');",
  ].join('\n');
  let result = suggestDependencies(workspace, 'b');
- assert.equal(result.suggestions.length, 1);
+ assert.equal(result.suggestions.length, 2);
  assert.equal(result.suggestions[0].targetPath, 'repo/src/a.ts');
  assert.equal(result.suggestions[0].specifier, './a.js');
  assert.deepEqual(result.diagnostics.map(item => item.reason), [
-   'dynamic import not analyzed', 'require call not analyzed', 'non-relative import not analyzed',
+   'non-relative import not analyzed', 'require call not analyzed',
  ]);
  workspace.cards.push({ id: 'js', data: { kind: 'file', path: 'repo/src/a.js', label: 'a.js' } });
  workspace.boards[0].nodes.push({ id: 'js-node', cardId: 'js', position: { x: 2, y: 2 } });
  result = suggestDependencies(workspace, 'b');
- assert.equal(result.suggestions.length, 0);
+ assert.equal(result.suggestions.length, 1);
+ assert.equal(result.suggestions[0].importKind, 'dynamic');
  assert.ok(result.diagnostics.some(item => item.reason === 'ambiguous local import' && item.specifier === './a.js'));
 });
 
@@ -74,4 +75,36 @@ test('diagnostics are bounded for large imports', () => {
  const workspace = fixture();
  workspace.cards[0].data.sourceText = Array.from({ length: 251 }, (_, i) => "import './missing" + i + "';").join('\n');
  assert.throws(() => suggestDependencies(workspace, 'b'), /Too many import diagnostics/);
+});
+
+test('literal dynamic imports produce distinct provenance without executing source', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = [
+   "const later = import('./a');",
+   "const also = import('./b.js');",
+   "const unknown = import(variable);",
+   "const packageModule = import('react');",
+   "// import('./dup')",
+ ].join('\n');
+ const original = structuredClone(workspace);
+ const result = suggestDependencies(workspace, 'b');
+ assert.deepEqual(result.suggestions.map(({ targetPath, line, importKind }) => ({ targetPath, line, importKind })), [
+   { targetPath: 'repo/src/a.ts', line: 1, importKind: 'dynamic' },
+   { targetPath: 'repo/src/b.js', line: 2, importKind: 'dynamic' },
+ ]);
+ assert.deepEqual(result.diagnostics.map(item => item.reason), ['dynamic import expression not analyzed', 'non-relative dynamic import not analyzed']);
+ let id = 0;
+ const next = addSuggestedDependencies(workspace, 'b', result.suggestions, () => 'dynamic-' + ++id);
+ assert.deepEqual(next.boards[0].edges.map(edge => edge.label), ['dynamic import', 'dynamic import']);
+ assert.equal(next.boards[0].edges[0].data.importKind, 'dynamic');
+ assert.deepEqual(workspace, original);
+});
+
+test('static relationship takes precedence when a pair is also dynamically imported', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = "const later = import('./a');\nimport './a';";
+ const result = suggestDependencies(workspace, 'b');
+ assert.equal(result.suggestions.length, 1);
+ assert.equal(result.suggestions[0].importKind, 'static');
+ assert.equal(result.suggestions[0].line, 2);
 });
