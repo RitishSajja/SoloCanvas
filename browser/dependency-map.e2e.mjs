@@ -27,7 +27,9 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  await expect(panel).toContainText("repo/main.ts:1 imports ./service → repo/service.ts");
  await expect(panel).toContainText('unresolved local import');
  await expect(page.locator('.react-flow__edge')).toHaveCount(0);
- await page.locator('.react-flow__node').filter({ hasText: 'main.ts' }).click();
+ await panel.getByRole('button', { name: 'Inspect source repo/main.ts line 1 for ./service' }).click();
+ await expect(page.getByRole('region', { name: 'Imported source text' })).toContainText("import { value } from './service'");
+ await expect(panel).toContainText('1 relationship(s) suggested');
  await page.getByLabel('Shared component name').fill('renamed.ts');
  await expect(panel).toContainText('Workspace changed');
  await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toHaveCount(0);
@@ -39,6 +41,13 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  expect(beforeSave.boards[0].edges).toHaveLength(0);
  await page.locator('.react-flow__edge-interaction').click({ force: true });
  await expect(page.getByText(/Suggested from repo\/main.ts:1/)).toBeVisible();
+ const evidence = page.getByRole('region', { name: 'Relationship evidence' });
+ await expect(evidence).toContainText('analysis time');
+ await evidence.getByRole('button', { name: 'Open target component' }).click();
+ await expect(page.getByLabel('Shared component name')).toHaveValue('service.ts');
+ await page.locator('.react-flow__edge-interaction').click({ force: true });
+ await evidence.getByRole('button', { name: 'Open source component' }).click();
+ await expect(page.getByLabel('Shared component name')).toHaveValue('renamed.ts');
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect(page.getByRole('status')).toContainText('Workspace saved');
  await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();

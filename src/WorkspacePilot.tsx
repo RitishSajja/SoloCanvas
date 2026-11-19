@@ -305,7 +305,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
                   const checked = event.target.checked;
                   setSelectedSuggestions(previous => { const next = new Set(previous); if (checked) next.add(suggestionKey(item)); else next.delete(suggestionKey(item)); return next; });
                 }} /> {item.sourcePath}:{item.line} {item.importKind === 'dynamic' ? 'dynamically imports' : 'imports'} {item.specifier} → {item.targetPath}
-              </label></li>)}</ul>
+              </label><button onClick={() => openPlacement(boardId, item.sourceNodeId)} aria-label={`Inspect source ${item.sourcePath} line ${item.line} for ${item.specifier}`}>Inspect source</button></li>)}</ul>
               {analysis.diagnostics.length > 0 && <><p>Some imports or files could not be resolved:</p><ul>{analysis.diagnostics.map((item, index) => <li key={index}>{item.path}{item.line ? ':' + item.line : ''}{item.specifier ? ' ' + item.specifier : ''}: {item.reason}</li>)}</ul></>}
               <button onClick={applyImports} disabled={busy || selectedSuggestions.size === 0}>Add suggested relationships</button>
             </>)}
@@ -334,7 +334,12 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
               <button aria-current={placement.boardId === boardId && placement.nodeId === selectedNode ? 'location' : undefined} onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle} — placement {index + 1}</button>{placement.boardId === boardId && placement.nodeId === selectedNode && ' (current)'}
             </li>)}</ul></section>
           </>}
-          {edge && <>{typeof edge.data?.specifier === 'string' && typeof edge.data?.sourcePath === 'string' && <p>Suggested from {String(edge.data.sourcePath)}:{String(edge.data.line)} — {String(edge.data.specifier)} → {String(edge.data.targetPath)}</p>}<label>Relationship label<input value={String(edge.label ?? '')} onChange={event => { const next = structuredClone(workspace); const current = next.boards.find(item => item.id === boardId)?.edges.find(item => item.id === edge.id); if (current) { current.label = event.target.value; changed(next); } }} /></label><button onClick={removeEdge}>Remove relationship</button></>}
+          {edge && <>{typeof edge.data?.specifier === 'string' && typeof edge.data?.sourcePath === 'string' && <section aria-label="Relationship evidence">
+            <p>Suggested from {String(edge.data.sourcePath)}:{String(edge.data.line)} — {String(edge.data.specifier)} → {String(edge.data.targetPath)}</p>
+            <p>Evidence reflects the source at analysis time.</p>
+            <button onClick={() => openPlacement(boardId, edge.source)}>Open source component</button>
+            <button onClick={() => openPlacement(boardId, edge.target)}>Open target component</button>
+          </section>}<label>Relationship label<input value={String(edge.label ?? '')} onChange={event => { const next = structuredClone(workspace); const current = next.boards.find(item => item.id === boardId)?.edges.find(item => item.id === edge.id); if (current) { current.label = event.target.value; changed(next); } }} /></label><button onClick={removeEdge}>Remove relationship</button></>}
         </>}
         <p role="status">{message}</p>
       </aside>
