@@ -1,11 +1,11 @@
 # Agent handoff
 
 ## Current run — 2026-11-20, Codex
-Based on main aad7e7f61ce8b74d242fbe3b9f0f261d10d75f10. Added distinct type-only import and re-export relationships, including inline type-only specifiers and explicit ambiguous-target resolution. When the same pair has multiple kinds, static runtime imports take priority over dynamic imports, which take priority over type-only imports. Unit, build and development Chromium checks passed for d4a68e06114c4f5508f40a9e627a4f6927f40767; production-preview checks are still running. Added explicit TypeScript import-equals relationships while keeping ordinary require calls diagnostic-only; CI for this checkpoint is pending. Prior main GitHub Actions run 44624656088 passed. No active peer work is visible in branch heads or open PRs; GitHub cannot show uncommitted work.
+Based on main aad7e7f61ce8b74d242fbe3b9f0f261d10d75f10. Added distinct type-only import and re-export relationships, including inline type-only specifiers and explicit ambiguous-target resolution. When the same pair has multiple kinds, static runtime imports take priority over dynamic imports, which take priority over type-only imports. Unit, build and both Chromium suites passed in GitHub Actions run 44714252425 for d4a68e06114c4f5508f40a9e627a4f6927f40767. Added explicit TypeScript import-equals relationships while keeping ordinary require calls diagnostic-only; unit and build passed, with browser checks still running for c4dab31791f028436fb1f1022a1b5f959fa00f00. Added ambiguous type-only import and namespace/star regression coverage; follow-up CI is pending. Prior main GitHub Actions run 44624656088 passed. No active peer work is visible in branch heads or open PRs; GitHub cannot show uncommitted work.
 
 Next: verify both CI runs and continue code-map work without changing existing data silently.
 
-Known Codex commits for loop prevention: d4a68e06114c4f5508f40a9e627a4f6927f40767, the commit containing this handoff and its follow-ups.
+Known Codex commits for loop prevention: d4a68e06114c4f5508f40a9e627a4f6927f40767, c4dab31791f028436fb1f1022a1b5f959fa00f00, the commit containing this handoff and its follow-ups.
 
 ## Prior handoff
 # Agent handoff

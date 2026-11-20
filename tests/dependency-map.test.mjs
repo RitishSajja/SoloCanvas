@@ -222,3 +222,10 @@ test('ambiguous TypeScript import-equals preserves its import kind', () => {
  assert.equal(result.diagnostics[0].importKind, 'require');
  assert.equal(result.diagnostics[0].candidates.length, 2);
 });
+
+test('namespace and star type syntax is recognized', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = "import type * as A from './a';\nexport type * from './b.js';";
+ const result = suggestDependencies(workspace, 'b');
+ assert.deepEqual(result.suggestions.map(item => item.importKind), ['type', 'type']);
+});

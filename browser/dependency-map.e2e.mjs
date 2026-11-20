@@ -292,3 +292,31 @@ test('TypeScript import-equals is reviewable and remains distinct after save', a
  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
  expect(saved.boards[0].edges[0].data.importKind).toBe('require');
 });
+
+test('an ambiguous type-only import keeps its kind when the user chooses a target', async ({ page }) => {
+ test.setTimeout(60000);
+ const workspace = { version: 2, cards: [
+   { id: 'a', data: { kind: 'file', path: 'repo/main.ts', label: 'main.ts', sourceText: "import type Service = require('./service');" } },
+   { id: 'b', data: { kind: 'file', path: 'repo/service.ts', label: 'service.ts' } },
+   { id: 'c', data: { kind: 'file', path: 'repo/service.js', label: 'service.js' } },
+ ], boards: [{ id: 'board', title: 'Files', extra: {}, nodes: [
+   { id: 'a-node', cardId: 'a', position: { x: 0, y: 0 } },
+   { id: 'b-node', cardId: 'b', position: { x: 400, y: 0 } },
+   { id: 'c-node', cardId: 'c', position: { x: 400, y: 200 } },
+ ], edges: [] }] };
+ await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ await expect(panel).toContainText('ambiguous local import', { timeout: 20000 });
+ const choice = panel.getByRole('combobox', { name: 'Choose target for repo/main.ts line 1 ./service' });
+ await expect(choice).toHaveValue('');
+ await choice.selectOption('b-node');
+ await panel.getByRole('button', { name: 'Add suggested relationships' }).click();
+ await expect(page.getByText('type import', { exact: true })).toBeVisible();
+ await page.getByRole('button', { name: 'Save workspace' }).click();
+ await expect(page.getByRole('status')).toContainText('Workspace saved');
+ const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
+ expect(saved.boards[0].edges[0].target).toBe('b-node');
+ expect(saved.boards[0].edges[0].data.importKind).toBe('type');
+});
