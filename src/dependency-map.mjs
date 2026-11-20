@@ -53,7 +53,7 @@ function isTypeOnly(statement) {
 }
 
 // Does not read files or execute source. Only top-level static ESM imports and
-// re-exports, plus literal dynamic imports, from selected JS/TS paths are considered.
+// re-exports, TS import-equals and literal dynamic imports from selected JS/TS paths are considered.
 export function suggestDependencies(workspace, boardId) {
   if (!validateWorkspace(workspace)) throw new Error('Invalid workspace.');
   const board = workspace.boards.find(item => item.id === boardId);
@@ -73,7 +73,7 @@ export function suggestDependencies(workspace, boardId) {
   if (bytes > 512 * 1024) throw new Error('Analyze at most 512 KiB of source text at a time.');
   const existing = new Set(board.edges.map(edge => JSON.stringify([edge.source, edge.target])));
   const suggestionIndex = new Map();
-  const priority = { type: 0, dynamic: 1, static: 2 };
+  const priority = { type: 0, dynamic: 1, require: 2, static: 3 };
   const suggestions = [];
   const diagnostics = [];
   const report = item => {
@@ -114,6 +114,14 @@ export function suggestDependencies(workspace, boardId) {
     };
     // Keep one relationship per pair, preferring runtime imports over type-only imports.
     for (const statement of source.statements) {
+      if (ts.isImportEqualsDeclaration(statement) && ts.isExternalModuleReference(statement.moduleReference)) {
+        const reference = statement.moduleReference.expression;
+        if (reference && ts.isStringLiteral(reference)) {
+          const line = source.getLineAndCharacterOfPosition(reference.getStart(source)).line + 1;
+          consider(reference.text, line, statement.isTypeOnly ? 'type' : 'require');
+        }
+        continue;
+      }
       if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement))) continue;
       if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
       const line = source.getLineAndCharacterOfPosition(statement.moduleSpecifier.getStart(source)).line + 1;

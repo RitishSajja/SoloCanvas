@@ -10,13 +10,13 @@ export function addSuggestedDependencies(workspace, boardId, suggestions, makeId
   for (const item of suggestions) {
     if (!nodes.has(item.sourceNodeId) || !nodes.has(item.targetNodeId) || typeof item.sourcePath !== 'string' ||
         typeof item.targetPath !== 'string' || typeof item.specifier !== 'string' || !Number.isInteger(item.line) || item.line < 1 ||
-        (item.importKind !== undefined && item.importKind !== 'static' && item.importKind !== 'dynamic' && item.importKind !== 'type')) {
+        (item.importKind !== undefined && item.importKind !== 'static' && item.importKind !== 'dynamic' && item.importKind !== 'require' && item.importKind !== 'type')) {
       throw new Error('Invalid or stale suggestion.');
     }
     const pair = JSON.stringify([item.sourceNodeId, item.targetNodeId]);
     if (pairs.has(pair)) continue;
     pairs.add(pair);
-    board.edges.push({ id: makeId(), source: item.sourceNodeId, target: item.targetNodeId, label: item.importKind === 'dynamic' ? 'dynamic import' : item.importKind === 'type' ? 'type import' : 'imports',
+    board.edges.push({ id: makeId(), source: item.sourceNodeId, target: item.targetNodeId, label: item.importKind === 'dynamic' ? 'dynamic import' : item.importKind === 'require' ? 'require import' : item.importKind === 'type' ? 'type import' : 'imports',
       data: { sourcePath: item.sourcePath, targetPath: item.targetPath, specifier: item.specifier, line: item.line, importKind: item.importKind ?? 'static' } });
   }
   if (!validateWorkspace(next)) throw new Error('Could not create unique relationships.');

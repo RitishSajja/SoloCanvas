@@ -302,7 +302,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
           </section>
           <section aria-label="Import relationship suggestions">
             <h2>Suggest import relationships</h2>
-            <p>Analyze imported JS/TS source on this board for static relative imports, re-exports and literal dynamic imports. Review suggestions before adding them. Non-relative imports, non-literal dynamic imports and require calls are reported but not resolved. Python imports are not analyzed.</p>
+            <p>Analyze imported JS/TS source on this board for static relative imports, re-exports, TypeScript import-equals and literal dynamic imports. Review suggestions before adding them. Non-relative imports, non-literal dynamic imports and require calls are reported but not resolved. Python imports are not analyzed.</p>
             <button onClick={analyzeImports} disabled={!board || busy}>Analyze board imports</button>
             {busy && analysisTask.current && <><span role="status">Analyzing imports…</span><button onClick={() => analysisTask.current?.cancel()}>Cancel import analysis</button></>}
             {analysisError && <p role="alert">{analysisError}</p>}
@@ -312,7 +312,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
                 <input type="checkbox" checked={selectedSuggestions.has(suggestionKey(item))} disabled={busy} onChange={event => {
                   const checked = event.target.checked;
                   setSelectedSuggestions(previous => { const next = new Set(previous); if (checked) next.add(suggestionKey(item)); else next.delete(suggestionKey(item)); return next; });
-                }} /> {item.sourcePath}:{item.line} {item.importKind === 'dynamic' ? 'dynamically imports' : item.importKind === 'type' ? 'imports type from' : 'imports'} {item.specifier} → {item.targetPath}
+                }} /> {item.sourcePath}:{item.line} {item.importKind === 'dynamic' ? 'dynamically imports' : item.importKind === 'require' ? 'requires' : item.importKind === 'type' ? 'imports type from' : 'imports'} {item.specifier} → {item.targetPath}
               </label><button onClick={() => openPlacement(boardId, item.sourceNodeId)} aria-label={`Inspect source ${item.sourcePath} line ${item.line} for ${item.specifier}`}>Inspect source</button></li>)}</ul>
               {analysis.diagnostics.length > 0 && <><p>Some imports or files could not be resolved:</p><ul>{analysis.diagnostics.map((item, index) => <li key={index}>
                 {item.path}{item.line ? ':' + item.line : ''}{item.specifier ? ' ' + item.specifier : ''}: {item.reason}

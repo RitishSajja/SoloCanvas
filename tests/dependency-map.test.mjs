@@ -192,3 +192,33 @@ test('ambiguous type-only imports preserve their kind for explicit resolution', 
  assert.equal(result.diagnostics[0].importKind, 'type');
  assert.equal(result.diagnostics[0].candidates.length, 2);
 });
+
+test('TypeScript import-equals is distinguished from arbitrary require calls', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = [
+   "import A = require('./a');",
+   "import type B = require('./b.js');",
+   "const shadowed = require('./b.js');",
+   "import Package = require('outside');",
+ ].join('\n');
+ const result = suggestDependencies(workspace, 'b');
+ assert.deepEqual(result.suggestions.map(item => [item.targetPath, item.importKind, item.line]), [
+   ['repo/src/a.ts', 'require', 1],
+   ['repo/src/b.js', 'type', 2],
+ ]);
+ assert.ok(result.diagnostics.some(item => item.reason === 'non-relative import not analyzed' && item.specifier === 'outside'));
+ assert.ok(result.diagnostics.some(item => item.reason === 'require call not analyzed' && item.specifier === './b.js'));
+ let id = 0;
+ const next = addSuggestedDependencies(workspace, 'b', result.suggestions, () => 'require-' + ++id);
+ assert.deepEqual(next.boards[0].edges.map(edge => edge.label), ['require import', 'type import']);
+ assert.equal(next.boards[0].edges[0].data.importKind, 'require');
+});
+
+test('ambiguous TypeScript import-equals preserves its import kind', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = "import D = require('./dup');";
+ const result = suggestDependencies(workspace, 'b');
+ assert.equal(result.suggestions.length, 0);
+ assert.equal(result.diagnostics[0].importKind, 'require');
+ assert.equal(result.diagnostics[0].candidates.length, 2);
+});
