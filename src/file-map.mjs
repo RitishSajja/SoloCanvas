@@ -3,6 +3,22 @@ import { addBoard, validateWorkspace } from './workspace.mjs';
 
 export const MAX_MAP_FILES = 100;
 
+const generatedDirectories = new Set(['.git', '.hg', '.svn', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', 'coverage', '.next']);
+
+// Only directory-picker paths are filtered. The chosen root itself is never
+// excluded, and explicitly selected individual files are always retained.
+export function partitionSelectedFiles(files, excludeGenerated = true) {
+  if (!Array.isArray(files)) throw new Error('Invalid file selection.');
+  const retained = [];
+  const ignored = [];
+  for (const file of files) {
+    const relative = typeof file.webkitRelativePath === 'string' ? file.webkitRelativePath : '';
+    const directories = relative ? relative.split('/').slice(1, -1) : [];
+    (excludeGenerated && directories.some(part => generatedDirectories.has(part)) ? ignored : retained).push(file);
+  }
+  return { retained, ignored };
+}
+
 export function validateFilePaths(paths) {
   if (!Array.isArray(paths) || paths.length === 0 || paths.length > MAX_MAP_FILES) {
     throw new Error('Choose between 1 and 100 files.');

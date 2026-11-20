@@ -165,3 +165,31 @@ test('source content is searchable only after enabling source search', async ({ 
   await page.getByLabel('Search imported source text').uncheck();
   await expect(results).toContainText('No matching components');
 });
+
+test('folder selection can exclude generated files before applying the 100-file limit', async ({ page }) => {
+ const folder = await mkdtemp(join(tmpdir(), 'solocanvas-filter-'));
+ try {
+  await mkdir(join(folder, 'src')); await mkdir(join(folder, 'node_modules'));
+  await writeFile(join(folder, 'src', 'main.ts'), 'selected source');
+  await Promise.all(Array.from({ length: 101 }, (_, i) => writeFile(join(folder, 'node_modules', 'file' + i + '.js'), 'generated')));
+  await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+  await page.getByLabel('Choose folder for map').setInputFiles(folder);
+  const panel = page.getByRole('region', { name: 'Create file map' });
+  await expect(panel).toContainText('101 file(s) excluded from generated folders');
+  await expect(panel).toContainText('1 file(s) selected');
+  await panel.getByText('101 file(s) excluded from generated folders').click();
+  await expect(panel).toContainText('node_modules/file');
+  const filter = page.getByLabel('Exclude common generated folders from folder selection');
+  await filter.uncheck();
+  await expect(panel.getByRole('alert')).toContainText('between 1 and 100 files');
+  await expect(panel.getByRole('button', { name: 'Create file map board' })).toHaveCount(0);
+  await filter.check();
+  await expect(panel).toContainText('1 file(s) selected');
+  page.once('dialog', dialog => dialog.accept('Filtered files'));
+  await panel.getByRole('button', { name: 'Create file map board' }).click();
+  await expect(page.locator('.react-flow__node')).toHaveCount(1);
+  await expect(page.locator('.react-flow__node').first()).toContainText('src/main.ts');
+ } finally {
+  await rm(folder, { recursive: true, force: true });
+ }
+});

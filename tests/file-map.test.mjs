@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createFileMap, validateFilePaths, readSelectedSources, MAX_SOURCE_FILE_BYTES, MAX_SOURCE_TOTAL_BYTES } from '../src/file-map.mjs';
+import { createFileMap, validateFilePaths, partitionSelectedFiles, readSelectedSources, MAX_SOURCE_FILE_BYTES, MAX_SOURCE_TOTAL_BYTES } from '../src/file-map.mjs';
 
 const initial = { version: 2, cards: [{ id: 'old', data: { label: 'Existing' } }], boards: [
   { id: 'original', title: 'Original', extra: {}, nodes: [{ id: 'old-node', cardId: 'old', position: { x: 1, y: 2 } }], edges: [] },
@@ -59,4 +59,18 @@ test('total imported source has a strict byte limit', async () => {
  const result = await readSelectedSources(entries);
  assert.equal(reads, MAX_SOURCE_TOTAL_BYTES / MAX_SOURCE_FILE_BYTES);
  assert.equal(result.skipped.at(-1).reason, 'total exceeds 512 KiB');
+});
+
+test('folder filtering skips generated subdirectories but respects the selected root and individual files', () => {
+ const root = { name: 'root.ts', webkitRelativePath: 'build/root.ts' };
+ const source = { name: 'app.ts', webkitRelativePath: 'project/src/app.ts' };
+ const generated = { name: 'dep.js', webkitRelativePath: 'project/node_modules/pkg/dep.js' };
+ const git = { name: 'config', webkitRelativePath: 'project/.git/config' };
+ const individual = { name: 'dep.js', webkitRelativePath: '' };
+ const files = [root, source, generated, git, individual];
+ const result = partitionSelectedFiles(files);
+ assert.deepEqual(result.retained, [root, source, individual]);
+ assert.deepEqual(result.ignored, [generated, git]);
+ assert.deepEqual(partitionSelectedFiles(files, false).retained, files);
+ assert.deepEqual(files, [root, source, generated, git, individual]);
 });

@@ -5,3 +5,4 @@ export function createFileMap(workspace: Workspace, boardId: string, title: stri
 export const MAX_SOURCE_FILE_BYTES: number;
 export const MAX_SOURCE_TOTAL_BYTES: number;
 export function readSelectedSources(entries: { path: string; file: File }[]): Promise<{ contents: Map<string, string>; skipped: { path: string; reason: string }[] }>;
+export function partitionSelectedFiles(files: File[], excludeGenerated?: boolean): { retained: File[]; ignored: File[] };

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, type NodeChange, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
 import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
-import { createFileMap, validateFilePaths, readSelectedSources } from './file-map.mjs';
+import { createFileMap, validateFilePaths, readSelectedSources, partitionSelectedFiles } from './file-map.mjs';
 import type { Suggestion, Diagnostic } from './dependency-map.mjs';
 import { startDependencyAnalysis } from './analysis-client.mjs';
 import { addSuggestedDependencies } from './dependency-apply.mjs';
@@ -19,6 +19,9 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   const [searchSource, setSearchSource] = useState(false);
   const [filePaths, setFilePaths] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [pickedFiles, setPickedFiles] = useState<File[]>([]);
+  const [ignoredFiles, setIgnoredFiles] = useState<File[]>([]);
+  const [excludeGenerated, setExcludeGenerated] = useState(true);
   const [includeSource, setIncludeSource] = useState(false);
   const [mapReport, setMapReport] = useState<{ path: string; reason: string }[]>([]);
   const [mapError, setMapError] = useState('');
@@ -97,17 +100,22 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     const next = removeBoard(workspace, board.id);
     changed(next); setBoardId(next.boards[0].id); setSelectedNode(''); setSelectedEdge('');
   };
+  const updateFileSelection = (files: File[], exclude: boolean) => {
+    const { retained, ignored } = partitionSelectedFiles(files, exclude);
+    setIgnoredFiles(ignored); setIncludeSource(false); setMapReport([]);
+    try {
+      setFilePaths(validateFilePaths(retained.map(file => file.webkitRelativePath || file.name)));
+      setSelectedFiles(retained); setMapError('');
+    } catch (error) {
+      setFilePaths([]); setSelectedFiles([]);
+      setMapError(error instanceof Error ? error.message : 'Could not use these files.');
+    }
+  };
   const selectMapFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = '';
     if (files.length === 0) return;
-    try {
-      setFilePaths(validateFilePaths(files.map(file => file.webkitRelativePath || file.name)));
-      setSelectedFiles(files); setIncludeSource(false); setMapReport([]); setMapError('');
-    } catch (error) {
-      setFilePaths([]); setSelectedFiles([]); setIncludeSource(false); setMapReport([]);
-      setMapError(error instanceof Error ? error.message : 'Could not use these files.');
-    }
+    setPickedFiles(files); updateFileSelection(files, excludeGenerated);
   };
   const addFileMap = async () => {
     if (!workspace || filePaths.length === 0 || inFlight.current) return;
@@ -126,7 +134,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
       const id = crypto.randomUUID();
       const next = createFileMap(workspace, id, title, filePaths, () => crypto.randomUUID(), result.contents);
       changed(next); setBoardId(id); setSelectedNode(''); setSelectedEdge('');
-      setFilePaths([]); setSelectedFiles([]); setIncludeSource(false); setMapReport(result.skipped); setMapError('');
+      setFilePaths([]); setSelectedFiles([]); setPickedFiles([]); setIgnoredFiles([]); setIncludeSource(false); setMapReport(result.skipped); setMapError('');
       setMessage('File map created. Select Save workspace to keep it on this device.');
     } catch (error) {
       setMapError(error instanceof Error ? error.message : 'Could not create the file map.');
@@ -295,6 +303,14 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             <p>Choose up to 100 files or a folder. By default only paths are used. Optional source text is saved in your browser and workspace exports; review it for secrets. No relationships are inferred.</p>
             <label>Choose files<input type="file" multiple aria-label="Choose files for map" onChange={selectMapFiles} disabled={busy} /></label>
             <label>Choose folder<input type="file" multiple {...{ webkitdirectory: '' }} aria-label="Choose folder for map" onChange={selectMapFiles} disabled={busy} /></label>
+            <label><input type="checkbox" checked={excludeGenerated} disabled={busy} onChange={event => {
+              const exclude = event.target.checked; setExcludeGenerated(exclude);
+              if (pickedFiles.length) updateFileSelection(pickedFiles, exclude);
+            }} /> Exclude common generated folders from folder selection</label>
+            {ignoredFiles.length > 0 && <details><summary>{ignoredFiles.length} file(s) excluded from generated folders</summary>
+              <ul>{ignoredFiles.slice(0, 25).map((file, index) => <li key={index}>{file.webkitRelativePath || file.name}</li>)}</ul>
+              {ignoredFiles.length > 25 && <p>And {ignoredFiles.length - 25} more.</p>}
+            </details>}
             <label><input type="checkbox" checked={includeSource} onChange={event => setIncludeSource(event.target.checked)} disabled={busy} /> Include source text for JS, TS and Python files (up to 64 KiB each, 512 KiB total)</label>
             {mapError && <p role="alert">{mapError}</p>}
             {mapReport.length > 0 && <section aria-label="Files without source text"><p>These files were added by path only:</p><ul>{mapReport.map(item => <li key={item.path}>{item.path}: {item.reason}</li>)}</ul></section>}
