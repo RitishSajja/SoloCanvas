@@ -3,6 +3,7 @@ import { ReactFlow, Background, Controls, type NodeChange, type EdgeChange, type
 import { addBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 import { createFileMap, validateFilePaths, readSelectedSources, partitionSelectedFiles } from './file-map.mjs';
+import { exportBoardMermaid } from './mermaid-export.mjs';
 import type { Suggestion, Diagnostic } from './dependency-map.mjs';
 import { startDependencyAnalysis } from './analysis-client.mjs';
 import { addSuggestedDependencies } from './dependency-apply.mjs';
@@ -275,6 +276,18 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
       setMessage('Import failed: the file could not be read.');
     } finally { inFlight.current = false; setBusy(false); }
   };
+  const exportMermaid = () => {
+    if (!workspace || !board) return;
+    try {
+      const diagram = exportBoardMermaid(workspace, board.id);
+      const url = URL.createObjectURL(new Blob([diagram], { type: 'text/plain;charset=utf-8' }));
+      const link = document.createElement('a'); link.href = url; link.download = 'solocanvas-board.mmd'; link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setMessage('Mermaid export started. Layout, source text and metadata are not included.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Mermaid export failed.');
+    }
+  };
   const exportWorkspace = () => {
     if (!workspace) return;
     const url = URL.createObjectURL(new Blob([JSON.stringify(workspace, null, 2)], { type: 'application/json' }));
@@ -285,7 +298,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
   return <main>
     <header><strong>Workspace preview</strong><div className="actions">
       <button onClick={close} disabled={busy}>Back to board</button>
-      <button onClick={exportWorkspace} disabled={!workspace}>Export workspace</button><label className="import-button">Import workspace<input type="file" accept=".json,application/json" aria-label="Import workspace" onChange={importWorkspace} disabled={!snapshot || busy} /></label>
+      <button onClick={exportWorkspace} disabled={!workspace}>Export workspace</button><button onClick={exportMermaid} disabled={!board}>Export board as Mermaid</button><label className="import-button">Import workspace<input type="file" accept=".json,application/json" aria-label="Import workspace" onChange={importWorkspace} disabled={!snapshot || busy} /></label>
       <button onClick={save} disabled={!workspace || busy}>Save workspace</button>
     </div></header>
     <div className="workspace">
