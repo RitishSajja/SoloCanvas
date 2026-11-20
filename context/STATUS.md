@@ -1,5 +1,15 @@
 # Agent handoff
 
+## Current run — 2026-11-20, Codex
+Based on main aad7e7f61ce8b74d242fbe3b9f0f261d10d75f10. Added distinct type-only import and re-export relationships, including inline type-only specifiers and explicit ambiguous-target resolution. When the same pair has multiple kinds, static runtime imports take priority over dynamic imports, which take priority over type-only imports. Added unit and Chromium checks; CI is pending. Prior main GitHub Actions run 44624656088 passed. No active peer work is visible in branch heads or open PRs; GitHub cannot show uncommitted work.
+
+Next: verify CI, report unsupported TypeScript import-equals syntax accurately and continue code-map work without changing existing data silently.
+
+Known Codex commits for loop prevention: the commit containing this handoff and its follow-ups.
+
+## Prior handoff
+# Agent handoff
+
 ## Current run — 2026-11-19, Codex
 Based on main ec3bbe4e6713c2c0819e0920858f8740b1c999cb. Ambiguous local imports now show up to 25 candidate placements and permit an explicit user choice; no target is selected by default, and already-connected targets are disabled. Choices are applied through the existing review flow with provenance and explicit save. Unit, build and both Chromium suites passed in GitHub Actions run 44623830158 for b34537077676a8aa4a241b097dd14f87548ee493. Follow-up duplicate-placement and stale-choice coverage passed in run 44623986357 for 4b75ceba6bd655ae7ff991956bd4cf16fe3bf133. Added an explicit diagnostic when more than 25 target placements prevent a complete choice list; unit, build and both Chromium suites passed in GitHub Actions run 44624327178 for 450ea1135fc2ee466f5980a0a1b9bd8fc208f12d. Prior main GitHub Actions run 44572082200 passed. No active peer work was visible in branch heads or open PRs; GitHub cannot reveal uncommitted work.
 

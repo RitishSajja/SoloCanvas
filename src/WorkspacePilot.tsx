@@ -312,7 +312,7 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
                 <input type="checkbox" checked={selectedSuggestions.has(suggestionKey(item))} disabled={busy} onChange={event => {
                   const checked = event.target.checked;
                   setSelectedSuggestions(previous => { const next = new Set(previous); if (checked) next.add(suggestionKey(item)); else next.delete(suggestionKey(item)); return next; });
-                }} /> {item.sourcePath}:{item.line} {item.importKind === 'dynamic' ? 'dynamically imports' : 'imports'} {item.specifier} → {item.targetPath}
+                }} /> {item.sourcePath}:{item.line} {item.importKind === 'dynamic' ? 'dynamically imports' : item.importKind === 'type' ? 'imports type from' : 'imports'} {item.specifier} → {item.targetPath}
               </label><button onClick={() => openPlacement(boardId, item.sourceNodeId)} aria-label={`Inspect source ${item.sourcePath} line ${item.line} for ${item.specifier}`}>Inspect source</button></li>)}</ul>
               {analysis.diagnostics.length > 0 && <><p>Some imports or files could not be resolved:</p><ul>{analysis.diagnostics.map((item, index) => <li key={index}>
                 {item.path}{item.line ? ':' + item.line : ''}{item.specifier ? ' ' + item.specifier : ''}: {item.reason}

@@ -145,3 +145,50 @@ test('too many ambiguous placements are reported without a truncated choice list
  assert.equal(result.diagnostics[0].candidates, undefined);
  assert.equal(result.suggestions.length, 0);
 });
+
+test('type-only imports and re-exports are labeled separately from runtime imports', () => {
+ const workspace = fixture();
+ workspace.cards.push({ id: 'only', data: { kind: 'file', path: 'repo/src/only.js', label: 'only.js' } });
+ workspace.boards[0].nodes.push({ id: 'only-node', cardId: 'only', position: { x: 1, y: 2 } });
+ workspace.cards[0].data.sourceText = [
+   "import type { A } from './a';",
+   "export { type B } from './b.js';",
+   "import { type X, value } from './only.js';",
+ ].join('\n');
+ const result = suggestDependencies(workspace, 'b');
+ assert.deepEqual(result.suggestions.map(item => [item.targetPath, item.importKind]), [
+   ['repo/src/a.ts', 'type'],
+   ['repo/src/b.js', 'type'],
+   ['repo/src/only.js', 'static'],
+ ]);
+ let id = 0;
+ const updated = addSuggestedDependencies(workspace, 'b', result.suggestions, () => 'e-' + ++id);
+ assert.deepEqual(updated.boards[0].edges.map(edge => edge.label), ['type import', 'type import', 'imports']);
+ assert.equal(updated.boards[0].edges[0].data.importKind, 'type');
+});
+
+test('runtime relationships take precedence over type-only relationships for the same pair', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = [
+   "import type { A } from './a';",
+   "const deferred = import('./a');",
+   "import { value } from './a';",
+ ].join('\n');
+ const result = suggestDependencies(workspace, 'b');
+ assert.equal(result.suggestions.length, 1);
+ assert.equal(result.suggestions[0].importKind, 'static');
+ assert.equal(result.suggestions[0].line, 3);
+ workspace.cards[0].data.sourceText = "import type { A } from './a';\nconst deferred = import('./a');";
+ const dynamic = suggestDependencies(workspace, 'b');
+ assert.equal(dynamic.suggestions.length, 1);
+ assert.equal(dynamic.suggestions[0].importKind, 'dynamic');
+});
+
+test('ambiguous type-only imports preserve their kind for explicit resolution', () => {
+ const workspace = fixture();
+ workspace.cards[0].data.sourceText = "import type { D } from './dup';";
+ const result = suggestDependencies(workspace, 'b');
+ assert.equal(result.suggestions.length, 0);
+ assert.equal(result.diagnostics[0].importKind, 'type');
+ assert.equal(result.diagnostics[0].candidates.length, 2);
+});

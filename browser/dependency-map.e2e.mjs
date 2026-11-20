@@ -242,3 +242,29 @@ test('duplicate placements remain distinct and stale choices cannot be applied',
  expect(saved.boards[0].edges[0].target).toBe('two');
  expect(saved.cards.find(card => card.id === 'main').data.label).toBe('new main name');
 });
+
+test('type-only imports are reviewed and saved as type relationships', async ({ page }) => {
+ test.setTimeout(60000);
+ const workspace = { version: 2, cards: [
+   { id: 'a', data: { kind: 'file', path: 'repo/main.ts', label: 'main.ts', sourceText: "import type { Service } from './service';" } },
+   { id: 'b', data: { kind: 'file', path: 'repo/service.ts', label: 'service.ts' } },
+ ], boards: [{ id: 'board', title: 'Files', extra: {}, nodes: [
+   { id: 'a-node', cardId: 'a', position: { x: 0, y: 0 } },
+   { id: 'b-node', cardId: 'b', position: { x: 400, y: 0 } },
+ ], edges: [] }] };
+ await page.addInitScript(value => {
+   if (!localStorage.getItem('solocanvas.workspace.v2')) localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value));
+ }, workspace);
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
+ await panel.getByRole('button', { name: 'Analyze board imports' }).click();
+ await expect(panel).toContainText('imports type from ./service', { timeout: 20000 });
+ await panel.getByRole('button', { name: 'Add suggested relationships' }).click();
+ await expect(page.getByText('type import', { exact: true })).toBeVisible();
+ await page.getByRole('button', { name: 'Save workspace' }).click();
+ await expect(page.getByRole('status')).toContainText('Workspace saved');
+ const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
+ expect(saved.boards[0].edges[0].data.importKind).toBe('type');
+ await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await expect(page.getByText('type import', { exact: true })).toBeVisible();
+});

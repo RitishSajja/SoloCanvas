@@ -36,6 +36,22 @@ function relativeCandidates(from, specifier) {
   return candidates;
 }
 
+// Type-only imports do not imply a runtime dependency.
+function isTypeOnly(statement) {
+  if (ts.isImportDeclaration(statement)) {
+    const clause = statement.importClause;
+    if (!clause) return false;
+    if (clause.isTypeOnly) return true;
+    const bindings = clause.namedBindings;
+    return !clause.name && !!bindings && ts.isNamedImports(bindings) &&
+      bindings.elements.length > 0 && bindings.elements.every(item => item.isTypeOnly);
+  }
+  if (statement.isTypeOnly) return true;
+  const clause = statement.exportClause;
+  return !!clause && ts.isNamedExports(clause) && clause.elements.length > 0 &&
+    clause.elements.every(item => item.isTypeOnly);
+}
+
 // Does not read files or execute source. Only top-level static ESM imports and
 // re-exports, plus literal dynamic imports, from selected JS/TS paths are considered.
 export function suggestDependencies(workspace, boardId) {
@@ -56,7 +72,8 @@ export function suggestDependencies(workspace, boardId) {
   const bytes = sources.reduce((sum, [, items]) => sum + items.reduce((n, item) => n + (typeof item.data.sourceText === 'string' ? encoder.encode(item.data.sourceText).length : 0), 0), 0);
   if (bytes > 512 * 1024) throw new Error('Analyze at most 512 KiB of source text at a time.');
   const existing = new Set(board.edges.map(edge => JSON.stringify([edge.source, edge.target])));
-  const seen = new Set(existing);
+  const suggestionIndex = new Map();
+  const priority = { type: 0, dynamic: 1, static: 2 };
   const suggestions = [];
   const diagnostics = [];
   const report = item => {
@@ -84,17 +101,23 @@ export function suggestDependencies(workspace, boardId) {
       }
       const target = paths.get(matches[0])[0].node;
       const key = JSON.stringify([node.id, target.id]);
-      if (seen.has(key)) return;
-      seen.add(key);
-      suggestions.push({ sourceNodeId: node.id, targetNodeId: target.id, sourcePath: path, targetPath: matches[0], specifier, line, importKind });
+      if (existing.has(key)) return;
+      const suggestion = { sourceNodeId: node.id, targetNodeId: target.id, sourcePath: path, targetPath: matches[0], specifier, line, importKind };
+      const previous = suggestionIndex.get(key);
+      if (previous !== undefined) {
+        if (priority[importKind] > priority[suggestions[previous].importKind]) suggestions[previous] = suggestion;
+        return;
+      }
+      suggestionIndex.set(key, suggestions.length);
+      suggestions.push(suggestion);
       if (suggestions.length > 250) throw new Error('Too many suggested relationships; reduce the selected files.');
     };
-    // Prefer a static relationship if both forms refer to the same pair.
+    // Keep one relationship per pair, preferring runtime imports over type-only imports.
     for (const statement of source.statements) {
       if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement))) continue;
       if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
       const line = source.getLineAndCharacterOfPosition(statement.moduleSpecifier.getStart(source)).line + 1;
-      consider(statement.moduleSpecifier.text, line, 'static');
+      consider(statement.moduleSpecifier.text, line, isTypeOnly(statement) ? 'type' : 'static');
     }
     const scanCalls = current => {
       if (ts.isCallExpression(current) && current.expression.kind === ts.SyntaxKind.ImportKeyword) {
