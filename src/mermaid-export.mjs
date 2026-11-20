@@ -18,6 +18,7 @@ export function exportBoardMermaid(workspace, boardId) {
   if (!validateWorkspace(workspace)) throw new Error('Invalid workspace.');
   const board = workspace.boards.find(item => item.id === boardId);
   if (!board) throw new Error('Board not found.');
+  if (board.nodes.length === 0) throw new Error('Add a component before exporting Mermaid.');
   if (board.nodes.length > MAX_NODES || board.edges.length > MAX_EDGES) throw new Error('Mermaid export supports at most 1000 components and 3000 relationships.');
   const cards = new Map(workspace.cards.map(card => [card.id, card]));
   const ids = new Map(board.nodes.map((node, index) => [node.id, 'n' + index]));

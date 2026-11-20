@@ -24,7 +24,7 @@ test('exports board placements and directed labels without source or metadata', 
  assert.equal(result, 'flowchart LR\n  n0["API #34;public#34;"]\n  n1["API #34;public#34;"]\n  n2["DB #124; cache"]\n  n1 -->|reads #124; writes| n2\n');
  assert.equal(result.includes('PRIVATE SOURCE'), false);
  assert.deepEqual(workspace, before);
- assert.equal(exportBoardMermaid(workspace, 'other'), 'flowchart LR\n');
+ assert.throws(() => exportBoardMermaid(workspace, 'other'), /Add a component/);
 });
 
 test('escapes directive and newline injection and rejects oversized labels', () => {

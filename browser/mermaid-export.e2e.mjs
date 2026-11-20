@@ -23,3 +23,10 @@ test('Mermaid export downloads the current board without saving or including sou
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBe(savedBefore);
  await expect(page.getByRole('status')).toContainText('Mermaid export started');
 });
+
+test('an empty board does not produce an empty flowchart', async ({ page }) => {
+ await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.getByRole('button', { name: 'Export board as Mermaid' }).click();
+ await expect(page.getByRole('status')).toContainText('Add a component before exporting Mermaid');
+ expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
+});
