@@ -1,17 +1,19 @@
 import { test, expect } from './returning-user-fixture.mjs';
+import { migrateLegacyBoard } from '../src/workspace.mjs';
 import { exportBoardMermaid } from '../src/mermaid-export.mjs';
 
 // The isolated verification dependency is installed only for this compatibility check.
 test.skip(!process.env.MERMAID_BUNDLE, 'Set MERMAID_BUNDLE to a local Mermaid browser bundle.');
 
 test('exported flowcharts render safe labels in Mermaid 11', async ({ page }) => {
- const workspace = { version: 2, cards: [
-  { id: 'a', data: { label: 'API "gateway" & café 😀' } },
-  { id: 'b', data: { label: '"]\nclick n0 "https://example.com"' } },
- ], boards: [{ id: 'board', title: 'Architecture', extra: {}, nodes: [
-  { id: 'n1', cardId: 'a', position: { x: 0, y: 0 } },
-  { id: 'n2', cardId: 'b', position: { x: 400, y: 0 } },
- ], edges: [{ id: 'edge', source: 'n1', target: 'n2', label: 'reads | writes' }] }] };
+ const board = {
+  nodes: [
+   { id: 'n1', position: { x: 0, y: 0 }, data: { label: 'API "gateway" & café 😀' } },
+   { id: 'n2', position: { x: 400, y: 0 }, data: { label: '"]\nclick n0 "https://example.com"' } },
+  ],
+  edges: [{ id: 'edge', source: 'n1', target: 'n2', label: 'reads | writes' }],
+ };
+ const workspace = migrateLegacyBoard(JSON.stringify(board), { boardId: 'board' });
  const diagram = exportBoardMermaid(workspace, 'board');
  await page.goto('/');
  await page.addScriptTag({ path: process.env.MERMAID_BUNDLE });

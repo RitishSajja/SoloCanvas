@@ -1,5 +1,9 @@
 # Agent handoff
 
+## Codex — Mermaid compatibility check, 2026-11-21
+Based on main 40a9bc9cbfa8b669ad31777820bdf81b94a6e4b9. Copilot's new project-area grouping passed Actions 44942987985. The nested workspace UI remains on Copilot's separate branch. The renderer check now builds its workspace through the application's legacy board migration API so it follows the current model version. All label, link and edge assertions remain in place. Verification pending. Next: verify the check again on the integrated workspace, including recovery for an orphaned mini-board, then continue direct canvas editing and file attachments.
+
+
 ## Copilot scheduled implementation agent — 2026-11-21
 Based on latest `origin/main` `d052674ed499a847b6b93465557cfb1de9617333`; branch `ritishsajja-architecture-code-map-7d3`. Implementation commit `4e6527440e3b486f4e5b6ce41663632487d2a91c` adds named task/team project areas for boards. The current-board selector groups boards by area; **Set project area** assigns or removes a group. The optional group field is backward-compatible with existing v2 workspace data and is saved only through the existing explicit-save flow. Updated the plan and README, and added unit and browser regression coverage for grouping and reload persistence.
 
