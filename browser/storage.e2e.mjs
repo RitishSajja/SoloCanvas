@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 
 test('a stale tab cannot overwrite a more recent board and can export its edits', async ({ context }) => {
   const first = await context.newPage();

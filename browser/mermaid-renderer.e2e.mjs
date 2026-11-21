@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 import { exportBoardMermaid } from '../src/mermaid-export.mjs';
 
 // The isolated verification dependency is installed only for this compatibility check.

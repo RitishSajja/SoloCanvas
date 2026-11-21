@@ -9,21 +9,25 @@ const savedDataKeys = [BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_BACKUP_KE
 const blank = () => ({ nodes: [], edges: [] });
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
-export function isFirstRun(storage) {
+export function getFirstRunStatus(storage) {
   try {
     const source = storage ?? globalThis.localStorage;
-    return source.getItem(BOARD_KEY) === null && source.getItem(WORKSPACE_KEY) === null &&
-      [BACKUP_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY, ONBOARDING_KEY].every(key => source.getItem(key) === null);
+    if (source.getItem(ONBOARDING_KEY) !== null) return 'already-complete';
+    return savedDataKeys.some(key => source.getItem(key) !== null) ? 'existing-data' : 'first-run';
   } catch {
-    return false;
+    return 'unavailable';
   }
 }
 
+export function isFirstRun(storage) {
+  return getFirstRunStatus(storage) === 'first-run';
+}
+
 export function completeOnboarding(storage) {
+  const status = getFirstRunStatus(storage);
+  if (status !== 'first-run') return status === 'already-complete' ? 'already-complete' : status;
   try {
     const target = storage ?? globalThis.localStorage;
-    if (target.getItem(ONBOARDING_KEY) !== null) return 'already-complete';
-    if (savedDataKeys.some(key => target.getItem(key) !== null)) return 'existing-data';
     target.setItem(ONBOARDING_KEY, 'complete');
     return 'saved';
   } catch {

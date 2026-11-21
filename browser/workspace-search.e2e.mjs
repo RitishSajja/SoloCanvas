@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 
 test('search locates and opens shared components across boards', async ({ page }) => {
   await page.goto('/');

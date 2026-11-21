@@ -4,7 +4,7 @@ import { ReactFlow, Background, Controls, addEdge, applyNodeChanges, applyEdgeCh
 import WorkspaceRecovery from './WorkspaceRecovery';
 import WorkspacePilot from './WorkspacePilot';
 import Onboarding from './Onboarding';
-import { completeOnboarding, loadBoard, parseBoard, restoreBackupSafely, saveBoardSafely } from './storage.mjs';
+import { completeOnboarding, getFirstRunStatus, loadBoard, parseBoard, restoreBackupSafely, saveBoardSafely } from './storage.mjs';
 import { createExampleBoard } from './example-board.mjs';
 export default function App() {
   const [initial] = useState(() => loadBoard());
@@ -26,6 +26,15 @@ export default function App() {
   const editVersion = useRef(0);
   const markChanged = useCallback(() => { editVersion.current += 1; setHasUnsavedChanges(true); }, []);
   const exploreExample = () => {
+    const status = getFirstRunStatus();
+    if (status !== 'first-run') {
+      setOnboardingNotice(status === 'unavailable'
+        ? 'Browser storage is unavailable. Restore access and reload to continue safely.'
+        : status === 'existing-data'
+          ? 'Saved work appeared in another tab. Reload to open it safely.'
+          : 'Onboarding changed in another tab. Reload to continue safely.');
+      return;
+    }
     const example = createExampleBoard();
     setNodes(example.nodes.map((node) => ({ ...node, selected: false })));
     setEdges(example.edges.map((edge) => ({ ...edge, selected: false })));

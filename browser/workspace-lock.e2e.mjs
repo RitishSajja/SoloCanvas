@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 
 test('cooperating tabs serialize v2 saves and reject a stale snapshot', async ({ context }) => {
  const first = await context.newPage();

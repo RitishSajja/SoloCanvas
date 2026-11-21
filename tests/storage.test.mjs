@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { completeOnboarding, loadBoard, saveBoard, saveBoardSafely, restoreBackup, restoreBackupSafely, parseBoard, BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY, WORKSPACE_LOCK, ONBOARDING_KEY } from '../src/storage.mjs';
+import { completeOnboarding, getFirstRunStatus, loadBoard, saveBoard, saveBoardSafely, restoreBackup, restoreBackupSafely, parseBoard, BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY, WORKSPACE_LOCK, ONBOARDING_KEY } from '../src/storage.mjs';
 function memory(initial = null) {
  const values = new Map(initial === null ? [] : [[BOARD_KEY, initial]]);
  return {
@@ -20,6 +20,7 @@ test('new storage opens an editable empty board', () => {
 });
 test('onboarding is limited to empty storage and remembers a blank start without altering boards', () => {
  const store = memory();
+ assert.equal(getFirstRunStatus(store), 'first-run');
  assert.equal(loadBoard(store).firstRun, true);
  assert.equal(completeOnboarding(store), 'saved');
  assert.equal(store.getItem(ONBOARDING_KEY), 'complete');
@@ -27,15 +28,18 @@ test('onboarding is limited to empty storage and remembers a blank start without
  assert.equal(store.getItem(WORKSPACE_KEY), null);
  assert.equal(loadBoard(store).firstRun, false);
  assert.equal(completeOnboarding(store), 'already-complete');
+ assert.equal(getFirstRunStatus(store), 'already-complete');
 
  for (const key of [BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY]) {
    const saved = memory();
    saved.setItem(key, 'existing local data');
+   assert.equal(getFirstRunStatus(saved), 'existing-data');
    assert.equal(loadBoard(saved).firstRun, false, `${key} must suppress first-run onboarding`);
    assert.equal(completeOnboarding(saved), 'existing-data');
    assert.equal(saved.getItem(key), 'existing local data');
    assert.equal(saved.getItem(ONBOARDING_KEY), null);
  }
+ assert.equal(getFirstRunStatus({ getItem() { throw Error('blocked'); } }), 'unavailable');
 });
 test('corrupt or malformed data disables save without replacing the stored value', () => {
  for (const raw of ['{', '{"nodes":[null],"edges":[]}', '{"nodes":[],"edges":[{}]}']) {

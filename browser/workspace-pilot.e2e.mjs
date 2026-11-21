@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 
 test('workspace preview creates boards and shares card names without deleting the legacy board', async ({ page }) => {
  await page.goto('/');

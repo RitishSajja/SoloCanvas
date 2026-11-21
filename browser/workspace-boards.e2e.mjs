@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 
 test('renaming and deleting boards preserves shared cards and requires an explicit save', async ({ page }) => {
   await page.goto('/');

@@ -7,6 +7,7 @@ export const WORKSPACE_DAMAGED_KEY: string;
 export const WORKSPACE_LOCK: string;
 export const BACKUP_KEY: string;
 export const ONBOARDING_KEY: string;
+export function getFirstRunStatus(storage?: Storage): 'first-run' | 'existing-data' | 'already-complete' | 'unavailable';
 export function parseBoard(raw: string): Board | null;
 export function isFirstRun(storage?: Storage): boolean;
 export function completeOnboarding(storage?: Storage): 'saved' | 'already-complete' | 'existing-data' | 'unavailable';

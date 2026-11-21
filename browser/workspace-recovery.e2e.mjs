@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 
 test('exports damaged raw data and restores only after confirmation', async ({ page }) => {
   await page.addInitScript(() => {

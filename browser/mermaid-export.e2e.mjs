@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 
 test('Mermaid export downloads the current board without saving or including source text', async ({ page }) => {
  const workspace = { version: 2, cards: [

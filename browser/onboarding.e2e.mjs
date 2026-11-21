@@ -63,6 +63,22 @@ test('blank choice is remembered without creating or replacing a board', async (
   await expect(page.locator('.react-flow__node')).toHaveCount(0);
 });
 
+test('sample choice is blocked if saved work appears in another tab after onboarding loads', async ({ page }) => {
+  await prepareFreshInstall(page);
+  await page.goto('/');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  const raw = JSON.stringify({
+    nodes: [{ id: 'later', position: { x: 20, y: 30 }, data: { label: 'Newer saved work' } }],
+    edges: [],
+  });
+  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: BOARD_KEY, value: raw });
+  await page.getByRole('button', { name: 'Explore the sample board' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('Saved work appeared in another tab');
+  expect(await page.evaluate(key => localStorage.getItem(key), BOARD_KEY)).toBe(raw);
+  await expect(page.locator('.react-flow__node')).toHaveCount(0);
+});
+
 test('saved v1 data bypasses onboarding and remains unchanged', async ({ page }) => {
   const raw = JSON.stringify({
     nodes: [{ id: 'legacy', position: { x: 20, y: 30 }, data: { label: 'Saved v1 component' } }],
