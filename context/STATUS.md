@@ -1,5 +1,15 @@
 # Agent handoff
 
+## Current run — 2026-11-21, Codex
+Based on main 8ab66b319c891cc83d3d696592c5b37a98491ca8. Added a separate Chromium compatibility check that renders exported diagrams in Mermaid 11.4.1, installed in an isolated GitHub Actions temporary directory. It checks node and edge counts, label fidelity and injection resistance; the normal application does not depend on Mermaid. This is a checkpoint: CI results are pending and no compatibility claim has yet been made. The isolated verification dependency is pinned at the top level, while its transitive dependencies are not lockfile-pinned. No active peer work was visible in branch heads or open PRs; GitHub cannot show uncommitted work.
+
+Next: inspect this commit's GitHub Actions run, correct any failures, document actual results, and then plan loss-aware import without overwriting workspace data. Run the special renderer check locally by providing MERMAID_BUNDLE pointing to the Mermaid 11.4.1 browser bundle.
+
+Known Codex commits for loop prevention: this checkpoint and its verification handoff follow-up.
+
+## Prior handoff
+# Agent handoff
+
 ## Current run — 2026-11-20, Codex
 Based on main bdad109c067036fa34244e2447b9833c00cdfe2e. Folder selection now optionally excludes common generated subdirectories before applying the 100-file map limit; the filter is on by default, shows excluded counts and sample paths, can be turned off, and never filters individually selected files. Unit, build and both Chromium suites passed in GitHub Actions run 44763686810 for b2a37e0e86f6718fc08f84dfabce63d1514299ea. Added bounded one-way Mermaid flowchart export for the current board with escaped labels and a browser download test; external Mermaid rendering has not been verified. Unit, build and development Chromium checks passed for b711f239950dcef6dbee6f921bb9d84506943c77; the production suite was limited to the earlier dependency analyzer. Added an empty-board guard and expanded production-browser coverage for export; unit, build and both Chromium suites passed in GitHub Actions run 44764578408 for 641b9fb2f1e61382b0da300688b8c6135111f1af. No external Mermaid renderer was executed; export compatibility beyond the documented syntax remains unverified. Prior main GitHub Actions run 44714896329 passed. No active peer work is visible in branch heads or open PRs; GitHub cannot show uncommitted work.
 

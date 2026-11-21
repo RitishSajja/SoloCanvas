@@ -16,3 +16,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: npx playwright test --config=playwright.production.config.mjs
+      # Verify actual renderer compatibility with an isolated, pinned Mermaid release.
+      - run: npm install --prefix "$RUNNER_TEMP/solocanvas-mermaid-test" --no-save --no-package-lock mermaid@11.4.1
+      - run: npx playwright test browser/mermaid-renderer.e2e.mjs
+        env:
+          MERMAID_BUNDLE: ${{ runner.temp }}/solocanvas-mermaid-test/node_modules/mermaid/dist/mermaid.min.js
