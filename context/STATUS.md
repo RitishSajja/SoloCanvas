@@ -3,11 +3,11 @@
 ## Current run — 2026-11-21, Codex
 Based on main 8ab66b319c891cc83d3d696592c5b37a98491ca8. Added a separate browser compatibility check rendering an exported flowchart in Mermaid 11.4.1. GitHub Actions run 44923740357 passed unit, build, development and production browser checks but failed the renderer test because it used an obsolete edge selector; follow-up commit 2c88c557f59645ab4ea220f88d1896d4588580ea corrected it. Unit, build, both browser suites and the real Mermaid renderer check all passed in GitHub Actions run 44923964265. Verified labels include quotes, ampersand, Unicode and a pipe, and an attempted click directive produced no link. This covers a small example in one renderer version, not every Mermaid version or the maximum export size. Mermaid is installed only for verification; the isolated top-level version is pinned, but its transitive dependencies are not lockfile-pinned.
 
-Updated the README's compatibility statement and added context/MERMAID-IMPORT-PLAN.md with a proposed restricted, explicitly reviewed import. The follow-up adds an assertion that the attempted directive remains visible as text; its CI is pending. No active peer work was visible in branch heads or open PRs; GitHub cannot show uncommitted work.
+Updated the README's compatibility statement and added context/MERMAID-IMPORT-PLAN.md with a proposed restricted, explicitly reviewed import. Follow-up 247b38c6496b3db7c53342cfa75f2e49a5bf04fb adds an assertion that the attempted directive remains visible as text; unit, build, both browser suites and the real renderer check passed in GitHub Actions run 44924168253. No active peer work was visible in branch heads or open PRs; GitHub cannot show uncommitted work.
 
-Next: check the latest GitHub Actions result. If successful, implement and test the restricted parser/import preview described in context/MERMAID-IMPORT-PLAN.md, preserving all workspace data and coordinating with the other agent. Check agent ownership before editing.
+Next: implement and test the restricted parser/import preview described in context/MERMAID-IMPORT-PLAN.md, preserving all workspace data and coordinating with the other agent. Check agent ownership before editing.
 
-Known Codex commits for loop prevention: 824714524fcfd74f1d87651c76ebcb75fff06566, 2c88c557f59645ab4ea220f88d1896d4588580ea, and this handoff follow-up.
+Known Codex commits for loop prevention: 824714524fcfd74f1d87651c76ebcb75fff06566, 2c88c557f59645ab4ea220f88d1896d4588580ea, 247b38c6496b3db7c53342cfa75f2e49a5bf04fb, and this verification handoff.
 
 ## Prior handoff
 # Agent handoff
