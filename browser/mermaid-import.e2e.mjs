@@ -94,3 +94,33 @@ test('keeps escaped HTML-like component labels as inert text', async ({ page }) 
  await expect(page.getByText('<img src=bad onerror=alert(1)>', { exact: true })).toBeVisible();
  expect(await page.locator('img[src="bad"]').count()).toBe(0);
 });
+
+test('quota failure after Mermaid import keeps saved bytes unchanged and imported edits exportable', async ({ page }) => {
+ await openWorkspace(page);
+ const savedBefore = await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'));
+ await page.getByLabel('Mermaid flowchart').fill(diagram);
+ await page.getByRole('button', { name: 'Preview Mermaid import' }).click();
+ page.once('dialog', dialog => dialog.accept());
+ await page.getByRole('button', { name: 'Create new board from preview' }).click();
+
+ await page.evaluate(() => {
+  window.restoreWorkspaceStorage = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(key, value) {
+   if (key === 'solocanvas.workspace.v2') throw new DOMException('Quota exceeded', 'QuotaExceededError');
+   return window.restoreWorkspaceStorage.call(this, key, value);
+  };
+ });
+ await page.getByRole('button', { name: 'Save workspace' }).click();
+ await expect(page.getByRole('status')).toContainText('could not be saved');
+ expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBe(savedBefore);
+ expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.backup.v2'))).toBe(savedBefore);
+
+ const pending = page.waitForEvent('download');
+ await page.getByRole('button', { name: 'Export workspace' }).click();
+ const download = await pending;
+ const stream = await download.createReadStream(); const chunks = [];
+ for await (const chunk of stream) chunks.push(chunk);
+ const exported = JSON.parse(Buffer.concat(chunks).toString());
+ expect(exported.boards.map(board => board.title)).toContain('Imported Mermaid diagram');
+ expect(exported.cards.map(card => card.data.label)).toContain('Gateway | API');
+});

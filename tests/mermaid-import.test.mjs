@@ -29,18 +29,31 @@ test('parses the exact exported syntax and preserves escaped label text', () => 
   assert.deepEqual(parseMermaidFlowchart(diagram.replace(/\n/g, '\r\n')), parseMermaidFlowchart(diagram));
 });
 
-test('accepts unlabeled and repeated directed relationships but requires defined nodes first', () => {
+test('preserves repeated directed relationships in input order and requires defined nodes first', () => {
   const diagram = parseMermaidFlowchart([
     'flowchart LR',
     '  n0["A"]',
     '  n1["B"]',
+    '  n0 -->|first| n1',
     '  n0 --> n1',
-    '  n0 --> n1',
+    '  n0 -->|last| n1',
   ].join('\n'));
   assert.deepEqual(diagram.edges, [
+    { source: 'n0', target: 'n1', label: 'first' },
     { source: 'n0', target: 'n1', label: '' },
-    { source: 'n0', target: 'n1', label: '' },
+    { source: 'n0', target: 'n1', label: 'last' },
   ]);
+});
+
+test('preserves escaped NUL and newline code points as inert label text', () => {
+  const diagram = parseMermaidFlowchart([
+    'flowchart LR',
+    '  n0["before#0;middle#10;after"]',
+    '  n1["target"]',
+    '  n0 -->|line#10;break| n1',
+  ].join('\n'));
+  assert.equal(diagram.nodes[0].label, 'before\u0000middle\nafter');
+  assert.equal(diagram.edges[0].label, 'line\nbreak');
 });
 
 test('rejects unsupported syntax, duplicate or nonsequential IDs, and unknown references with line numbers', () => {

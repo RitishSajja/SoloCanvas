@@ -16,11 +16,12 @@ function fail(line, reason) {
 }
 
 function decodeLabel(encoded, line) {
-  let decoded = '';
+  const characters = [];
+  let codePointCount = 0;
   for (let index = 0; index < encoded.length;) {
     const character = encoded[index];
     if (SAFE_LABEL_CHAR.test(character)) {
-      decoded += character;
+      characters.push(character);
       index += 1;
     } else if (character === '#') {
       const end = encoded.indexOf(';', index + 1);
@@ -31,16 +32,17 @@ function decodeLabel(encoded, line) {
       if (codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) {
         fail(line, 'Escape is not a valid Unicode scalar value.');
       }
-      decoded += String.fromCodePoint(codePoint);
+      characters.push(String.fromCodePoint(codePoint));
       index = end + 1;
     } else {
       fail(line, 'Labels must use the exporter’s escaped character syntax.');
     }
-    if (Array.from(decoded).length > MAX_MERMAID_IMPORT_LABEL_CHARS) {
+    codePointCount += 1;
+    if (codePointCount > MAX_MERMAID_IMPORT_LABEL_CHARS) {
       fail(line, 'Labels must be at most 512 characters.');
     }
   }
-  return decoded;
+  return characters.join('');
 }
 
 function inputByteLength(text) {
@@ -114,20 +116,21 @@ export function validateMermaidImportDiagram(diagram) {
       diagram.nodes.length === 0 || diagram.nodes.length > MAX_MERMAID_IMPORT_NODES ||
       diagram.edges.length > MAX_MERMAID_IMPORT_EDGES) return false;
   const nodeIds = new Set();
+  const validLabel = label => {
+    let count = 0;
+    for (const character of label) {
+      const codePoint = character.codePointAt(0);
+      if (codePoint >= 0xd800 && codePoint <= 0xdfff) return false;
+      count += 1;
+      if (count > MAX_MERMAID_IMPORT_LABEL_CHARS) return false;
+    }
+    return true;
+  };
   for (let index = 0; index < diagram.nodes.length; index += 1) {
     const node = diagram.nodes[index];
-    if (!node || node.id !== `n${index}` || typeof node.label !== 'string' ||
-        Array.from(node.label).length > MAX_MERMAID_IMPORT_LABEL_CHARS ||
-        Array.from(node.label).some(character => {
-          const codePoint = character.codePointAt(0);
-          return codePoint >= 0xd800 && codePoint <= 0xdfff;
-        })) return false;
+    if (!node || node.id !== `n${index}` || typeof node.label !== 'string' || !validLabel(node.label)) return false;
     nodeIds.add(node.id);
   }
   return diagram.edges.every(edge => edge && nodeIds.has(edge.source) && nodeIds.has(edge.target) &&
-    typeof edge.label === 'string' && Array.from(edge.label).length <= MAX_MERMAID_IMPORT_LABEL_CHARS &&
-    !Array.from(edge.label).some(character => {
-      const codePoint = character.codePointAt(0);
-      return codePoint >= 0xd800 && codePoint <= 0xdfff;
-    }));
+    typeof edge.label === 'string' && validLabel(edge.label));
 }
