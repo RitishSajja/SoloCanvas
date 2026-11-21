@@ -27,5 +27,6 @@ test('exported flowcharts render safe labels in Mermaid 11', async ({ page }) =>
  expect(rendered.edges).toBe(1);
  expect(rendered.text).toContain('API "gateway" & café 😀');
  expect(rendered.text).toContain('reads | writes');
+ expect(rendered.text).toContain('click n0');
  expect(rendered.links).toBe(0);
 });
