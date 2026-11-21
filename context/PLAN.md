@@ -12,7 +12,7 @@ System Architecture & Code Map: a local-first spatial workspace for developers t
 ## Milestones
 1. Define MVP and architecture decisions; scaffold and run the application with meaningful checks.
 2. Create, edit, move and connect component cards on a board; persist and restore the board locally. Verify the full workflow after reload.
-3. Support multiple boards and reusable atomic cards with shared edits, search and backlinks; test persistence and cross-board behavior.
+3. Support multiple boards organized into task or team project areas, and reusable atomic cards with shared edits, search and backlinks; test persistence and cross-board behavior.
 4. Add user-selected repository import and an inspectable code map within the chosen runtime's access limits; document supported languages and import limitations.
 5. Add Mermaid interoperability with explicit supported syntax and round-trip limitations.
 6. Add spatial context serialization, a narrow AI workflow and MCP integration; verify permission boundaries and handle credentials safely.

@@ -12,7 +12,9 @@ export function validateWorkspace(workspace) {
   if (!object(workspace) || workspace.version !== 2 || !Array.isArray(workspace.cards) || !Array.isArray(workspace.boards)) return false;
   if (!workspace.cards.every(card => object(card) && idString(card.id) && object(card.data))) return false;
   if (!unique(workspace.cards.map(card => card.id))) return false;
-  if (!workspace.boards.every(board => object(board) && idString(board.id) && typeof board.title === 'string' && object(board.extra) && Array.isArray(board.nodes) && Array.isArray(board.edges))) return false;
+  if (!workspace.boards.every(board => object(board) && idString(board.id) && typeof board.title === 'string' &&
+      (board.group === undefined || typeof board.group === 'string') &&
+      object(board.extra) && Array.isArray(board.nodes) && Array.isArray(board.edges))) return false;
   if (!unique(workspace.boards.map(board => board.id))) return false;
   const cardIds = new Set(workspace.cards.map(card => card.id));
   for (const board of workspace.boards) {
@@ -128,6 +130,17 @@ export function renameBoard(workspace, boardId, title) {
   const board = next.boards.find(item => item.id === boardId);
   if (!board) throw new Error('Board not found');
   board.title = title.trim();
+  return next;
+}
+
+export function setBoardGroup(workspace, boardId, group) {
+  if (!validateWorkspace(workspace) || typeof group !== 'string') throw new Error('Invalid board project area');
+  const next = copy(workspace);
+  const board = next.boards.find(item => item.id === boardId);
+  if (!board) throw new Error('Board not found');
+  const normalized = group.trim();
+  if (normalized) board.group = normalized;
+  else delete board.group;
   return next;
 }
 

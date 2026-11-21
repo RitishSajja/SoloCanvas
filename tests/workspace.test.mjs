@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, createMermaidBoard, placeCard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements } from '../src/workspace.mjs';
+import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, createMermaidBoard, placeCard, updateCard, renameBoard, setBoardGroup, removeBoard, findCards, findCardPlacements } from '../src/workspace.mjs';
 
 const fixture = {
   viewport: { x: 4, y: 5, zoom: 1 },
@@ -64,6 +64,18 @@ test('board rename trims names, preserves the source and rejects invalid changes
   assert.throws(() => renameBoard(before, 'missing', 'Name'));
   assert.throws(() => renameBoard(before, 'board-1', '   '));
   assert.throws(() => renameBoard(before, 'board-1', null));
+});
+
+test('board project areas trim names, can be removed and preserve existing board data', () => {
+  const before = migrateLegacyBoard(JSON.stringify(fixture));
+  const grouped = setBoardGroup(before, 'board-1', '  Platform team  ');
+  assert.equal(grouped.boards[0].group, 'Platform team');
+  assert.equal(Object.hasOwn(before.boards[0], 'group'), false);
+  assert.deepEqual(grouped.boards[0].nodes, before.boards[0].nodes);
+  assert.deepEqual(setBoardGroup(grouped, 'board-1', '   ').boards[0].group, undefined);
+  assert.throws(() => setBoardGroup(before, 'missing', 'Platform team'));
+  assert.throws(() => setBoardGroup(before, 'board-1', null));
+  assert.equal(validateWorkspace({ ...before, boards: [{ ...before.boards[0], group: 42 }] }), false);
 });
 
 test('board deletion keeps shared and unplaced cards and other boards intact', () => {

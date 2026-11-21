@@ -48,6 +48,37 @@ test('renaming and deleting boards preserves shared cards and requires an explic
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Shared API' })).toBeVisible();
 });
 
+test('boards can be grouped by project area and the grouping persists after save and reload', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open workspace' }).click();
+  const selector = page.getByLabel('Current board');
+  const firstBoardId = await selector.inputValue();
+
+  page.once('dialog', dialog => dialog.accept('Platform'));
+  await page.getByRole('button', { name: 'Set project area' }).click();
+  await expect(selector.locator('optgroup[label="Platform"] option')).toHaveCount(1);
+  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
+
+  page.once('dialog', dialog => dialog.accept('Services'));
+  await page.getByRole('button', { name: 'New board' }).click();
+  const secondBoardId = await selector.inputValue();
+  page.once('dialog', dialog => dialog.accept('Platform'));
+  await page.getByRole('button', { name: 'Set project area' }).click();
+  await expect(selector.locator('optgroup[label="Platform"] option')).toHaveCount(2);
+  expect(await selector.locator('optgroup[label="Platform"] option').allTextContents()).toEqual(['My board', 'Services']);
+
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Save workspace' }).click();
+  await expect(page.getByRole('status')).toContainText('Workspace saved');
+  await page.reload();
+  await page.getByRole('button', { name: 'Open workspace' }).click();
+  const reloadedSelector = page.getByLabel('Current board');
+  await expect(reloadedSelector).toHaveValue(firstBoardId);
+  await expect(reloadedSelector.locator('optgroup[label="Platform"] option')).toHaveCount(2);
+  await reloadedSelector.selectOption({ value: secondBoardId });
+  await expect(reloadedSelector).toHaveValue(secondBoardId);
+});
+
 test('nested mini-boards reopen from their placements after saving and reloading', async ({ page }) => {
   const button = name => page.getByRole('button', { name, exact: true });
   await page.goto('/');

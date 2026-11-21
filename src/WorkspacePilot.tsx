@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, type NodeChange, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
-import { addBoard, createMermaidBoard, placeCard, projectBoard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
+import { addBoard, createMermaidBoard, placeCard, projectBoard, updateCard, renameBoard, setBoardGroup, removeBoard, findCards, findCardPlacements, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 import { createFileMap, validateFilePaths, readSelectedSources, partitionSelectedFiles } from './file-map.mjs';
 import { exportBoardMermaid } from './mermaid-export.mjs';
@@ -51,6 +51,13 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
 
   const changed = (next: Workspace) => { editVersion.current += 1; setWorkspace(next); setDirty(true); };
   const board = workspace?.boards.find(item => item.id === boardId);
+  const groupedBoards = workspace ? [...workspace.boards.reduce((groups, item) => {
+    const group = item.group?.trim() ?? '';
+    const boards = groups.get(group) ?? [];
+    boards.push(item);
+    groups.set(group, boards);
+    return groups;
+  }, new Map<string, typeof workspace.boards>())] : [];
   const selected = board?.nodes.find(item => item.id === selectedNode);
   const selectedCard = workspace?.cards.find(item => item.id === selected?.cardId);
   const edge = board?.edges.find(item => item.id === selectedEdge);
@@ -123,6 +130,12 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     const title = window.prompt('Rename this board', board.title);
     if (title === null || !title.trim() || title.trim() === board.title) return;
     changed(renameBoard(workspace, board.id, title));
+  };
+  const organizeCurrentBoard = () => {
+    if (!workspace || !board) return;
+    const group = window.prompt('Name the task or team project area. Leave blank to remove this board from its area.', board.group ?? '');
+    if (group === null || group.trim() === (board.group ?? '')) return;
+    changed(setBoardGroup(workspace, board.id, group));
   };
   const deleteCurrentBoard = () => {
     if (!workspace || !board || workspace.boards.length <= 1) return;
@@ -393,9 +406,11 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
         <p>Drag components and connect their handles. Select a component or relationship to edit or remove it from this board.</p>
         {workspace && <>
           <label>Current board<select aria-label="Current board" value={boardId} onChange={event => { setBoardId(event.target.value); setSelectedNode(''); setSelectedEdge(''); }}>
-            {workspace.boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+            {groupedBoards.map(([group, boards]) => <optgroup key={group || 'unassigned'} label={group || 'Unassigned boards'}>
+              {boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+            </optgroup>)}
           </select></label>
-          <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={renameCurrentBoard} disabled={!board}>Rename board</button><button onClick={deleteCurrentBoard} disabled={!board || workspace.boards.length <= 1}>Delete board</button><button onClick={addComponent} disabled={!board}>Add component</button></div>
+          <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={renameCurrentBoard} disabled={!board}>Rename board</button><button onClick={organizeCurrentBoard} disabled={!board}>Set project area</button><button onClick={deleteCurrentBoard} disabled={!board || workspace.boards.length <= 1}>Delete board</button><button onClick={addComponent} disabled={!board}>Add component</button></div>
           {selected && <button onClick={openMiniBoard}>{childBoard ? 'Open mini-board' : 'Create mini-board'}</button>}
           {parent && parentBoard && <button onClick={() => openPlacement(parentBoard.id, parent.nodeId)}>Back to {parentBoard.title}</button>}
           <section aria-label="Create file map">
