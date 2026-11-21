@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { openWorkspaceBoard } from './workspace-helpers.mjs';
 const v2 = title => ({ version: 2, cards: [{ id: 'c', data: { label: title } }], boards: [{ id: 'b', title: 'Imported board', extra: {}, nodes: [{ id: 'n', cardId: 'c', position: { x: 0, y: 0 } }], edges: [] }] });
 const file = data => ({ name: 'workspace.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });
 
 test('imports an exported workspace only after confirmation and saves explicitly', async ({ page }) => {
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  page.once('dialog', dialog => dialog.dismiss());
  await page.getByLabel('Import workspace').setInputFiles(file(v2('Imported')));
@@ -11,17 +12,18 @@ test('imports an exported workspace only after confirmation and saves explicitly
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
  page.once('dialog', dialog => dialog.accept());
  await page.getByLabel('Import workspace').setInputFiles(file(v2('Imported')));
+ await page.getByRole('button', { name: 'Open board Imported board' }).click();
  await expect(page.locator('.react-flow__node').filter({ hasText: 'Imported' })).toBeVisible();
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
  page.once('dialog', dialog => dialog.accept());
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect(page.getByRole('status')).toContainText('Workspace saved');
- await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.reload(); await openWorkspaceBoard(page);
  await expect(page.locator('.react-flow__node').filter({ hasText: 'Imported' })).toBeVisible();
 });
 
 test('invalid workspace and stale snapshots never overwrite stored data', async ({ page }) => {
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  const bad = v2('Bad'); bad.boards[0].nodes[0].cardId = 'missing';
  await page.getByLabel('Import workspace').setInputFiles(file(bad));
@@ -37,7 +39,7 @@ test('invalid workspace and stale snapshots never overwrite stored data', async 
 });
 
 test('an exported workspace can be reimported after further unsaved edits', async ({ page }) => {
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
  await page.getByLabel('Shared component name').fill('Exported name');
@@ -51,12 +53,13 @@ test('an exported workspace can be reimported after further unsaved edits', asyn
  await page.getByLabel('Shared component name').fill('Later unsaved edit');
  page.once('dialog', dialog => dialog.accept());
  await page.getByLabel('Import workspace').setInputFiles({ name: 'workspace.json', mimeType: 'application/json', buffer: data });
+ await page.getByRole('button', { name: 'Open board My board' }).click();
  await expect(page.locator('.react-flow__node').filter({ hasText: 'Exported name' })).toBeVisible();
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
 });
 
 test('oversized import is rejected without changing the workspace', async ({ page }) => {
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.getByLabel('Import workspace').setInputFiles({ name: 'large.json', mimeType: 'application/json', buffer: Buffer.alloc(5 * 1024 * 1024 + 1, 32) });
  await expect(page.getByRole('status')).toContainText('exceeds 5 MB');

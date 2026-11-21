@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { suggestDependencies, addSuggestedDependencies } from '../src/dependency-map.mjs';
+import { migrateWorkspaceV2 } from '../src/workspace.mjs';
 
 function fixture() {
  const paths = ['repo/src/main.ts', 'repo/src/a.ts', 'repo/src/b.js', 'repo/src/dup.ts', 'repo/src/dup.js'];
@@ -14,8 +15,8 @@ function fixture() {
    "import('external');",
    "const text = \"import './nope'\";",
  ].join('\n');
- return { version: 2, cards, boards: [{ id: 'b', title: 'Files', extra: {},
-   nodes: cards.map((card, i) => ({ id: 'n' + i, cardId: card.id, position: { x: i * 10, y: 0 } })), edges: [] }] };
+ return migrateWorkspaceV2({ version: 2, cards, boards: [{ id: 'b', title: 'Files', extra: {},
+   nodes: cards.map((card, i) => ({ id: 'n' + i, cardId: card.id, position: { x: i * 10, y: 0 } })), edges: [] }] });
 }
 
 test('suggests only unambiguous static local imports with source evidence', () => {
@@ -37,7 +38,7 @@ test('suggests only unambiguous static local imports with source evidence', () =
 
 test('skips ambiguous placements and syntax errors, and refuses excessive input', () => {
  const workspace = fixture();
- workspace.boards[0].nodes.push({ id: 'duplicate', cardId: 'c1', position: { x: 2, y: 2 } });
+ workspace.boards[0].nodes.push({ id: 'duplicate', cardId: 'c1', shape: 'pill', position: { x: 2, y: 2 } });
  workspace.cards[2].data.sourceText = 'import {';
  const result = suggestDependencies(workspace, 'b');
  assert.equal(result.suggestions.some(item => item.targetPath === 'repo/src/a.ts'), false);
@@ -64,7 +65,7 @@ test('TypeScript emitted extensions resolve conservatively and unsupported forms
    'non-relative import not analyzed', 'require call not analyzed',
  ]);
  workspace.cards.push({ id: 'js', data: { kind: 'file', path: 'repo/src/a.js', label: 'a.js' } });
- workspace.boards[0].nodes.push({ id: 'js-node', cardId: 'js', position: { x: 2, y: 2 } });
+ workspace.boards[0].nodes.push({ id: 'js-node', cardId: 'js', shape: 'pill', position: { x: 2, y: 2 } });
  result = suggestDependencies(workspace, 'b');
  assert.equal(result.suggestions.length, 1);
  assert.equal(result.suggestions[0].importKind, 'dynamic');
@@ -127,7 +128,7 @@ test('ambiguous imports report explicit candidates without selecting a target', 
 test('ambiguous duplicate placements distinguish already-connected targets', () => {
  const workspace = fixture();
  workspace.cards[0].data.sourceText = "import './a';";
- workspace.boards[0].nodes.push({ id: 'other-a', cardId: 'c1', position: { x: 4, y: 5 } });
+ workspace.boards[0].nodes.push({ id: 'other-a', cardId: 'c1', shape: 'pill', position: { x: 4, y: 5 } });
  workspace.boards[0].edges.push({ id: 'existing', source: 'n0', target: 'n1' });
  const result = suggestDependencies(workspace, 'b');
  assert.equal(result.suggestions.length, 0);
@@ -139,7 +140,7 @@ test('ambiguous duplicate placements distinguish already-connected targets', () 
 test('too many ambiguous placements are reported without a truncated choice list', () => {
  const workspace = fixture();
  workspace.cards[0].data.sourceText = "import './a';";
- for (let i = 0; i < 25; i++) workspace.boards[0].nodes.push({ id: 'copy-' + i, cardId: 'c1', position: { x: i, y: 0 } });
+ for (let i = 0; i < 25; i++) workspace.boards[0].nodes.push({ id: 'copy-' + i, cardId: 'c1', shape: 'pill', position: { x: i, y: 0 } });
  const result = suggestDependencies(workspace, 'b');
  assert.match(result.diagnostics[0].reason, /more than 25 candidate placements/);
  assert.equal(result.diagnostics[0].candidates, undefined);
@@ -149,7 +150,7 @@ test('too many ambiguous placements are reported without a truncated choice list
 test('type-only imports and re-exports are labeled separately from runtime imports', () => {
  const workspace = fixture();
  workspace.cards.push({ id: 'only', data: { kind: 'file', path: 'repo/src/only.js', label: 'only.js' } });
- workspace.boards[0].nodes.push({ id: 'only-node', cardId: 'only', position: { x: 1, y: 2 } });
+ workspace.boards[0].nodes.push({ id: 'only-node', cardId: 'only', shape: 'pill', position: { x: 1, y: 2 } });
  workspace.cards[0].data.sourceText = [
    "import type { A } from './a';",
    "export { type B } from './b.js';",

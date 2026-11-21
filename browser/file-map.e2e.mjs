@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { openWorkspaceBoard } from './workspace-helpers.mjs';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 test('selected files create a local map only after review and explicit save', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
   await page.getByLabel('Shared component name').fill('Existing');
@@ -37,7 +38,7 @@ test('selected files create a local map only after review and explicit save', as
   expect(workspace.boards[1].edges).toHaveLength(0);
   expect(workspace.cards.map(card => card.data.path).filter(Boolean).sort()).toEqual(['client.js', 'server.ts']);
   await page.reload();
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByLabel('Current board').selectOption({ label: 'Code files' });
   await expect(page.locator('.react-flow__node')).toHaveCount(2);
   await page.getByLabel('Current board').selectOption({ label: 'My board' });
@@ -46,7 +47,7 @@ test('selected files create a local map only after review and explicit save', as
 
 test('duplicate selected names do not create a map', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByLabel('Choose files for map').setInputFiles([
     { name: 'same.js', mimeType: 'text/plain', buffer: Buffer.from('a') },
     { name: 'same.js', mimeType: 'text/plain', buffer: Buffer.from('b') },
@@ -63,7 +64,7 @@ test('folder selection preserves relative paths in the generated board', async (
     await writeFile(join(folder, 'src', 'alpha.ts'), 'private source text');
     await writeFile(join(folder, 'README.md'), 'private documentation');
     await page.goto('/');
-    await page.getByRole('button', { name: 'Open workspace' }).click();
+    await openWorkspaceBoard(page);
     await page.getByLabel('Choose folder for map').setInputFiles(folder);
     const panel = page.getByRole('region', { name: 'Create file map' });
     await expect(panel).toContainText('2 file(s) selected');
@@ -85,7 +86,7 @@ test('folder selection preserves relative paths in the generated board', async (
 
 test('source text is opt-in, bounded, displayed as text and removable', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByLabel('Choose files for map').setInputFiles([
     { name: 'main.ts', mimeType: 'text/plain', buffer: Buffer.from('<script>window.sourceRan = true</script>') },
     { name: 'secret.env', mimeType: 'text/plain', buffer: Buffer.from('SHOULD_NOT_BE_IMPORTED') },
@@ -108,7 +109,7 @@ test('source text is opt-in, bounded, displayed as text and removable', async ({
   expect(saved).toContain('window.sourceRan');
   expect(saved).not.toContain('SHOULD_NOT_BE_IMPORTED');
   await page.reload();
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByLabel('Current board').selectOption({ label: 'Source map' });
   await page.locator('.react-flow__node').filter({ hasText: 'main.ts' }).click();
   await expect(source).toContainText('window.sourceRan');
@@ -120,7 +121,7 @@ test('source text is opt-in, bounded, displayed as text and removable', async ({
 
 test('edits during source reading are preserved and map creation is cancelled', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
   await page.getByLabel('Shared component name').fill('Before');
@@ -154,7 +155,7 @@ test('source content is searchable only after enabling source search', async ({ 
   };
   await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByLabel('Find components across boards').fill('findrareservice');
   const results = page.getByRole('region', { name: 'Component search results' });
   await expect(results).toContainText('No matching components');
@@ -172,7 +173,7 @@ test('folder selection can exclude generated files before applying the 100-file 
   await mkdir(join(folder, 'src')); await mkdir(join(folder, 'node_modules'));
   await writeFile(join(folder, 'src', 'main.ts'), 'selected source');
   await Promise.all(Array.from({ length: 101 }, (_, i) => writeFile(join(folder, 'node_modules', 'file' + i + '.js'), 'generated')));
-  await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+  await page.goto('/'); await openWorkspaceBoard(page);
   await page.getByLabel('Choose folder for map').setInputFiles(folder);
   const panel = page.getByRole('region', { name: 'Create file map' });
   await expect(panel).toContainText('101 file(s) excluded from generated folders');

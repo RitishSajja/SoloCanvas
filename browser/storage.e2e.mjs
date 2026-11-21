@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test('a stale tab cannot overwrite a more recent board and can export its edits', async ({ context }) => {
   const first = await context.newPage();
   const second = await context.newPage();
-  await first.goto('/');
-  await second.goto('/');
+  await first.goto('/?legacy-board=1');
+  await second.goto('/?legacy-board=1');
   await first.getByRole('button', { name: 'Add component' }).click();
   await first.getByLabel('Component name').fill('First tab');
   await first.getByRole('button', { name: 'Save board' }).click();
@@ -31,7 +31,7 @@ test('corrupted storage is not overwritten and a backup requires explicit restor
     localStorage.setItem('solocanvas.board.v1', '{broken');
     localStorage.setItem('solocanvas.board.backup.v1', JSON.stringify({ nodes: [{ id: 'backup', position: { x: 20, y: 20 }, data: { label: 'Recovered' } }], edges: [] }));
   });
-  await page.goto('/');
+  await page.goto('/?legacy-board=1');
   await expect(page.getByRole('button', { name: 'Save board' })).toBeDisabled();
   await expect(page.getByText('Recovered')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.board.v1'))).toBe('{broken');
@@ -42,7 +42,7 @@ test('corrupted storage is not overwritten and a backup requires explicit restor
 });
 
 test('invalid import does not replace the displayed or saved board', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?legacy-board=1');
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.getByLabel('Component name').fill('Original');
   await page.getByRole('button', { name: 'Save board' }).click();
@@ -55,7 +55,7 @@ test('invalid import does not replace the displayed or saved board', async ({ pa
 });
 
 test('older editor refuses to save when a newer workspace appears', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?legacy-board=1');
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.getByLabel('Component name').fill('Unsaved legacy changes');
   await page.evaluate(() => localStorage.setItem('solocanvas.workspace.v2', '{"version":2}'));
@@ -71,14 +71,14 @@ test('older editor opens a prior board read-only when v2 data exists', async ({ 
     localStorage.setItem('solocanvas.board.v1', JSON.stringify({ nodes: [{ id: 'a', position: { x: 2, y: 3 }, data: { label: 'Old board' } }], edges: [] }));
     localStorage.setItem('solocanvas.workspace.v2', '{"version":999}');
   });
-  await page.goto('/');
+  await page.goto('/?legacy-board=1');
   await expect(page.getByText('Old board')).toBeVisible();
   await expect(page.getByRole('status')).toContainText('read-only');
   await expect(page.getByRole('button', { name: 'Save board' })).toBeDisabled();
 });
 
 test('edits made while a save waits for the lock remain unsaved', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?legacy-board=1');
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.getByLabel('Component name').fill('First version');
   await page.evaluate(() => {

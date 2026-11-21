@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openWorkspaceBoard } from './workspace-helpers.mjs';
 
 test('cooperating tabs serialize v2 saves and reject a stale snapshot', async ({ context }) => {
  const first = await context.newPage();
@@ -41,7 +42,7 @@ test('cooperating v1 and v2 tabs do not both save from an empty snapshot', async
 
 test('edits made while a save waits for the lock remain unsaved and can be saved afterwards', async ({ page }) => {
  await page.goto('/');
- await page.getByRole('button', { name: 'Open workspace' }).click();
+ await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
  await page.getByLabel('Shared component name').fill('Initial');
@@ -68,7 +69,7 @@ test('edits made while a save waits for the lock remain unsaved and can be saved
 
 test('workspace quota failure preserves the saved data and permits retry', async ({ page }) => {
  await page.goto('/');
- await page.getByRole('button', { name: 'Open workspace' }).click();
+ await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
  await page.getByLabel('Shared component name').fill('Previously saved');
@@ -88,9 +89,6 @@ test('workspace quota failure preserves the saved data and permits retry', async
  await expect(page.getByRole('status')).toContainText('could not be saved');
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBe(previous);
  await expect(page.getByLabel('Shared component name')).toHaveValue('Unsaved after quota error');
- page.once('dialog', dialog => dialog.dismiss());
- await page.getByRole('button', { name: 'Back to board' }).click();
- await expect(page.getByLabel('Shared component name')).toBeVisible();
  await page.evaluate(() => { Storage.prototype.setItem = window.restoreWorkspaceStorage; });
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')).cards[0].data.label)).toBe('Unsaved after quota error');

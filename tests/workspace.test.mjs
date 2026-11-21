@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, placeCard, updateCard, renameBoard, removeBoard, findCards, findCardPlacements } from '../src/workspace.mjs';
+import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, addMiniBoard, getMiniBoard, getBoardBreadcrumbs, addNote, updateNote, removeNote, updatePlacementShape, removeBoard, removeBoardTree, removePlacementTree, placeCard, updateCard, renameBoard, findCards, findCardPlacements } from '../src/workspace.mjs';
 
 const fixture = {
   viewport: { x: 4, y: 5, zoom: 1 },
@@ -15,7 +15,9 @@ test('legacy board migration is reversible and does not mutate input', () => {
   const raw = JSON.stringify(fixture);
   const workspace = migrateLegacyBoard(raw);
   assert.equal(validateWorkspace(workspace), true);
-  assert.deepEqual(projectBoard(workspace, 'board-1'), fixture);
+  const expected = structuredClone(fixture);
+  expected.nodes.forEach(node => { node.shape = 'pill'; });
+  assert.deepEqual(projectBoard(workspace, 'board-1'), expected);
   assert.deepEqual(JSON.parse(raw), fixture);
 });
 
@@ -40,7 +42,7 @@ test('invalid legacy boards do not silently migrate', () => {
 
 test('invalid references, collisions and unsupported versions are rejected', () => {
   const workspace = migrateLegacyBoard(JSON.stringify(fixture));
-  assert.equal(validateWorkspace({ ...workspace, version: 3 }), false);
+  assert.equal(validateWorkspace({ ...workspace, version: 4 }), false);
   assert.throws(() => addBoard(workspace, 'board-1', 'Duplicate'));
   assert.throws(() => placeCard(workspace, 'board-1', 'missing', { id: 'x', position: { x: 1, y: 1 } }));
   assert.throws(() => placeCard(workspace, 'board-1', 'card:a', { id: 'a', position: { x: 1, y: 1 } }));
@@ -121,4 +123,69 @@ test('search only includes imported source when explicitly enabled', () => {
   assert.equal(findCards(workspace, 'privategateway', { includeSource: true })[0].cardId, 'card:a');
   assert.equal(findCards(workspace, 'database', { includeSource: true })[0].cardId, 'card:b');
   assert.equal(findCards(workspace, 'privategateway', { includeSource: false }).length, 0);
+});
+
+test('nested boards are unique per placement, independently chained, and breadcrumbed', () => {
+  let workspace = migrateLegacyBoard(JSON.stringify(fixture));
+  workspace = addBoard(workspace, 'second-root', 'Second root');
+  workspace = placeCard(workspace, 'second-root', 'card:a', { id: 'api-copy', position: { x: 5, y: 6 } });
+  workspace = addMiniBoard(workspace, 'board-1', 'a', 'first-mini', 'First mini');
+  workspace = addMiniBoard(workspace, 'second-root', 'api-copy', 'second-mini', 'Second mini');
+  workspace = placeCard(workspace, 'first-mini', 'card:b', { id: 'db-in-mini', position: { x: 1, y: 2 } });
+  workspace = addMiniBoard(workspace, 'first-mini', 'db-in-mini', 'third-level', 'Third level');
+  assert.equal(getMiniBoard(workspace, 'board-1', 'a').id, 'first-mini');
+  assert.equal(getMiniBoard(workspace, 'second-root', 'api-copy').id, 'second-mini');
+  assert.deepEqual(getBoardBreadcrumbs(workspace, 'third-level'), [
+    { boardId: 'board-1', title: 'My board' },
+    { boardId: 'first-mini', title: 'API', parentBoardId: 'board-1', parentNodeId: 'a' },
+    { boardId: 'third-level', title: 'Database', parentBoardId: 'first-mini', parentNodeId: 'db-in-mini' },
+  ]);
+  assert.throws(() => addMiniBoard(workspace, 'board-1', 'a', 'duplicate', 'Duplicate'));
+  assert.throws(() => addMiniBoard(workspace, 'board-1', 'a', 'blank', '   '));
+});
+
+test('notes and component shapes persist in their own board and placement', () => {
+  let workspace = migrateLegacyBoard(JSON.stringify(fixture));
+  workspace = addBoard(workspace, 'other', 'Other');
+  workspace = updatePlacementShape(workspace, 'board-1', 'a', 'diamond');
+  workspace = addNote(workspace, 'board-1', { id: 'note', text: 'Observation', position: { x: 10, y: 20 } });
+  workspace = updateNote(workspace, 'board-1', 'note', 'Updated observation');
+  const reopened = JSON.parse(JSON.stringify(workspace));
+  assert.equal(validateWorkspace(reopened), true);
+  assert.equal(reopened.boards[0].nodes[0].shape, 'diamond');
+  assert.deepEqual(reopened.boards[0].notes, [{ id: 'note', text: 'Updated observation', position: { x: 10, y: 20 } }]);
+  assert.deepEqual(reopened.boards[1].notes, []);
+  assert.throws(() => updatePlacementShape(workspace, 'board-1', 'a', 'circle'));
+  assert.throws(() => addNote(workspace, 'other', { id: 'note', text: '', position: { x: NaN, y: 1 } }));
+  workspace = removeNote(workspace, 'board-1', 'note');
+  assert.equal(workspace.boards[0].notes.length, 0);
+});
+
+test('nested links fail closed for dangling placements and cycles', () => {
+  let workspace = migrateLegacyBoard(JSON.stringify(fixture));
+  workspace = addMiniBoard(workspace, 'board-1', 'a', 'child', 'Child');
+  workspace = placeCard(workspace, 'child', 'card:b', { id: 'child-node', position: { x: 0, y: 0 } });
+  const dangling = structuredClone(workspace);
+  dangling.boards[1].parentPlacement.nodeId = 'missing';
+  assert.equal(validateWorkspace(dangling), false);
+  const cycle = structuredClone(workspace);
+  cycle.boards[0].parentPlacement = { boardId: 'child', nodeId: 'child-node' };
+  assert.equal(validateWorkspace(cycle), false);
+});
+
+test('deleting placements or boards explicitly cascades nested contents without orphans', () => {
+  let workspace = migrateLegacyBoard(JSON.stringify(fixture));
+  workspace = addBoard(workspace, 'other-root', 'Other root');
+  workspace = addMiniBoard(workspace, 'board-1', 'a', 'child', 'Child');
+  workspace = placeCard(workspace, 'child', 'card:b', { id: 'child-node', position: { x: 1, y: 2 } });
+  workspace = addMiniBoard(workspace, 'child', 'child-node', 'grandchild', 'Grandchild');
+  assert.throws(() => removeBoard(workspace, 'board-1'), /nested boards/);
+  const withoutPlacement = removePlacementTree(workspace, 'board-1', 'a');
+  assert.equal(withoutPlacement.boards.some(board => ['child', 'grandchild'].includes(board.id)), false);
+  assert.equal(withoutPlacement.boards[0].nodes.some(node => node.id === 'a'), false);
+  assert.equal(validateWorkspace(withoutPlacement), true);
+  const withoutTree = removeBoardTree(workspace, 'board-1');
+  assert.deepEqual(withoutTree.boards.map(board => board.id), ['other-root']);
+  assert.equal(validateWorkspace(withoutTree), true);
+  assert.throws(() => removeBoardTree(withoutTree, 'other-root'), /last board/);
 });

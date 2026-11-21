@@ -6,9 +6,10 @@ const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const idString = (v) => typeof v === 'string' && v.length > 0;
 const unique = (items) => new Set(items).size === items.length;
 const copy = (value) => structuredClone(value);
+export const COMPONENT_SHAPES = ['rectangle', 'rounded', 'pill', 'diamond'];
 
-export function validateWorkspace(workspace) {
-  if (!object(workspace) || workspace.version !== 2 || !Array.isArray(workspace.cards) || !Array.isArray(workspace.boards)) return false;
+function validateWorkspaceV2(workspace) {
+  if (!object(workspace) || workspace.version !== 2 || !Array.isArray(workspace.cards) || !Array.isArray(workspace.boards) || workspace.boards.length === 0) return false;
   if (!workspace.cards.every(card => object(card) && idString(card.id) && object(card.data))) return false;
   if (!unique(workspace.cards.map(card => card.id))) return false;
   if (!workspace.boards.every(board => object(board) && idString(board.id) && typeof board.title === 'string' && object(board.extra) && Array.isArray(board.nodes) && Array.isArray(board.edges))) return false;
@@ -25,6 +26,66 @@ export function validateWorkspace(workspace) {
   return true;
 }
 
+export function migrateWorkspaceV2(workspace) {
+  if (!validateWorkspaceV2(workspace)) throw new Error('Invalid version 2 workspace');
+  return {
+    version: 3,
+    cards: copy(workspace.cards),
+    boards: workspace.boards.map(board => ({
+      ...copy(board),
+      parentPlacement: null,
+      notes: [],
+      nodes: board.nodes.map(node => ({ ...copy(node), shape: 'pill' })),
+    })),
+  };
+}
+
+export function validateWorkspace(workspace) {
+  if (!object(workspace) || workspace.version !== 3 || !Array.isArray(workspace.cards) || !Array.isArray(workspace.boards) || workspace.boards.length === 0) return false;
+  if (!workspace.cards.every(card => object(card) && idString(card.id) && object(card.data))) return false;
+  if (!unique(workspace.cards.map(card => card.id))) return false;
+  if (!workspace.boards.every(board => object(board) && idString(board.id) && typeof board.title === 'string' &&
+    object(board.extra) && Array.isArray(board.nodes) && Array.isArray(board.edges) &&
+    Array.isArray(board.notes) && (board.parentPlacement === null || object(board.parentPlacement)))) return false;
+  if (!unique(workspace.boards.map(board => board.id))) return false;
+  const cardIds = new Set(workspace.cards.map(card => card.id));
+  for (const board of workspace.boards) {
+    if (!board.nodes.every(node => object(node) && idString(node.id) && idString(node.cardId) && cardIds.has(node.cardId) &&
+      object(node.position) && Number.isFinite(node.position.x) && Number.isFinite(node.position.y) &&
+      COMPONENT_SHAPES.includes(node.shape))) return false;
+    if (!unique(board.nodes.map(node => node.id))) return false;
+    const nodeIds = new Set(board.nodes.map(node => node.id));
+    if (!board.edges.every(edge => object(edge) && idString(edge.id) && nodeIds.has(edge.source) && nodeIds.has(edge.target))) return false;
+    if (!unique(board.edges.map(edge => edge.id))) return false;
+    if (!board.notes.every(note => object(note) && idString(note.id) && typeof note.text === 'string' &&
+      object(note.position) && Number.isFinite(note.position.x) && Number.isFinite(note.position.y))) return false;
+    if (!unique(board.notes.map(note => note.id))) return false;
+    if (!unique([...board.nodes.map(node => node.id), ...board.notes.map(note => note.id)])) return false;
+  }
+  const boardsById = new Map(workspace.boards.map(board => [board.id, board]));
+  const parents = new Set();
+  for (const board of workspace.boards) {
+    const parent = board.parentPlacement;
+    if (parent === null) continue;
+    if (!idString(parent.boardId) || !idString(parent.nodeId)) return false;
+    const parentBoard = boardsById.get(parent.boardId);
+    if (!parentBoard || !parentBoard.nodes.some(node => node.id === parent.nodeId)) return false;
+    const key = JSON.stringify([parent.boardId, parent.nodeId]);
+    if (parents.has(key)) return false;
+    parents.add(key);
+  }
+  for (const board of workspace.boards) {
+    const ancestors = new Set([board.id]);
+    let current = board;
+    while (current.parentPlacement) {
+      current = boardsById.get(current.parentPlacement.boardId);
+      if (ancestors.has(current.id)) return false;
+      ancestors.add(current.id);
+    }
+  }
+  return true;
+}
+
 export function migrateLegacyBoard(raw, { boardId = 'board-1', title = 'My board' } = {}) {
   const legacy = parseBoard(raw);
   if (!legacy || !idString(boardId) || typeof title !== 'string') throw new Error('Invalid legacy board');
@@ -33,11 +94,11 @@ export function migrateLegacyBoard(raw, { boardId = 'board-1', title = 'My board
   if (nodes.some(node => Object.hasOwn(node, 'cardId'))) throw new Error('Legacy node contains reserved cardId');
   const cards = nodes.map(node => ({ id: 'card:' + node.id, data: copy(node.data) }));
   const workspace = {
-    version: 2,
+    version: 3,
     cards,
-    boards: [{ id: boardId, title, extra: copy(extra), nodes: nodes.map(node => {
+    boards: [{ id: boardId, title, extra: copy(extra), parentPlacement: null, notes: [], nodes: nodes.map(node => {
       const { data, ...instance } = node;
-      return { ...copy(instance), cardId: 'card:' + node.id };
+      return { ...copy(instance), cardId: 'card:' + node.id, shape: 'pill' };
     }), edges: copy(edges) }],
   };
   if (!validateWorkspace(workspace)) throw new Error('Legacy board has duplicate IDs or broken references');
@@ -58,7 +119,59 @@ export function projectBoard(workspace, boardId) {
 export function addBoard(workspace, id, title) {
   if (!validateWorkspace(workspace) || !idString(id) || typeof title !== 'string' || workspace.boards.some(board => board.id === id)) throw new Error('Invalid or duplicate board');
   const next = copy(workspace);
-  next.boards.push({ id, title, extra: {}, nodes: [], edges: [] });
+  next.boards.push({ id, title, extra: {}, parentPlacement: null, nodes: [], edges: [], notes: [] });
+  return next;
+}
+
+export function addMiniBoard(workspace, boardId, nodeId, id, title) {
+  if (!validateWorkspace(workspace) || !idString(id) || typeof title !== 'string' || !title.trim() || workspace.boards.some(board => board.id === id)) {
+    throw new Error('Invalid or duplicate mini-board');
+  }
+  const parent = workspace.boards.find(board => board.id === boardId);
+  if (!parent || !parent.nodes.some(node => node.id === nodeId)) throw new Error('Parent placement not found');
+  if (workspace.boards.some(board => board.parentPlacement?.boardId === boardId && board.parentPlacement.nodeId === nodeId)) {
+    throw new Error('This placement already has a mini-board');
+  }
+  const next = copy(workspace);
+  next.boards.push({ id, title: title.trim(), extra: {}, parentPlacement: { boardId, nodeId }, nodes: [], edges: [], notes: [] });
+  if (!validateWorkspace(next)) throw new Error('Invalid mini-board relationship');
+  return next;
+}
+
+export function getMiniBoard(workspace, boardId, nodeId) {
+  if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
+  return workspace.boards.find(board => board.parentPlacement?.boardId === boardId && board.parentPlacement.nodeId === nodeId) ?? null;
+}
+
+export function getBoardBreadcrumbs(workspace, boardId) {
+  if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
+  const byId = new Map(workspace.boards.map(board => [board.id, board]));
+  let board = byId.get(boardId);
+  if (!board) throw new Error('Board not found');
+  const crumbs = [];
+  while (board) {
+    if (!board.parentPlacement) crumbs.push({ boardId: board.id, title: board.title });
+    else {
+      const parent = board.parentPlacement;
+      const parentBoard = byId.get(parent.boardId);
+      const placement = parentBoard?.nodes.find(node => node.id === parent.nodeId);
+      const card = workspace.cards.find(item => item.id === placement?.cardId);
+      if (!parentBoard || !placement || !card) throw new Error('Invalid board ancestry');
+      crumbs.push({ boardId: board.id, title: String(card.data.label ?? 'Untitled'), parentBoardId: parentBoard.id, parentNodeId: placement.id });
+      board = parentBoard;
+      continue;
+    }
+    break;
+  }
+  return crumbs.reverse();
+}
+
+export function updatePlacementShape(workspace, boardId, nodeId, shape) {
+  if (!validateWorkspace(workspace) || !COMPONENT_SHAPES.includes(shape)) throw new Error('Invalid component shape');
+  const next = copy(workspace);
+  const placement = next.boards.find(board => board.id === boardId)?.nodes.find(node => node.id === nodeId);
+  if (!placement) throw new Error('Placement not found');
+  placement.shape = shape;
   return next;
 }
 
@@ -67,7 +180,7 @@ export function placeCard(workspace, boardId, cardId, node) {
   const next = copy(workspace);
   const board = next.boards.find(item => item.id === boardId);
   if (!board) throw new Error('Board not found');
-  board.nodes.push({ ...copy(node), cardId });
+  board.nodes.push({ ...copy(node), shape: COMPONENT_SHAPES.includes(node.shape) ? node.shape : 'pill', cardId });
   if (!validateWorkspace(next)) throw new Error('Invalid or duplicate node');
   return next;
 }
@@ -94,11 +207,84 @@ export function removeBoard(workspace, boardId) {
   if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
   if (!workspace.boards.some(board => board.id === boardId)) throw new Error('Board not found');
   if (workspace.boards.length <= 1) throw new Error('Cannot remove the last board');
+  if (workspace.boards.some(board => board.parentPlacement?.boardId === boardId)) throw new Error('Remove nested boards first');
   const next = copy(workspace);
   next.boards = next.boards.filter(board => board.id !== boardId);
   return next;
 }
 
+export function removeBoardTree(workspace, boardId) {
+  if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
+  if (!workspace.boards.some(board => board.id === boardId)) throw new Error('Board not found');
+  const removed = new Set([boardId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const board of workspace.boards) {
+      if (!removed.has(board.id) && board.parentPlacement && removed.has(board.parentPlacement.boardId)) {
+        removed.add(board.id); changed = true;
+      }
+    }
+  }
+  if (removed.size === workspace.boards.length) throw new Error('Cannot remove the last board');
+  const next = copy(workspace);
+  next.boards = next.boards.filter(board => !removed.has(board.id));
+  return next;
+}
+
+export function addNote(workspace, boardId, note) {
+  if (!validateWorkspace(workspace) || !object(note) || !idString(note.id) || typeof note.text !== 'string' ||
+      !object(note.position) || !Number.isFinite(note.position.x) || !Number.isFinite(note.position.y)) throw new Error('Invalid sticky note');
+  const next = copy(workspace);
+  const board = next.boards.find(item => item.id === boardId);
+  if (!board) throw new Error('Board not found');
+  board.notes.push(copy(note));
+  if (!validateWorkspace(next)) throw new Error('Invalid or duplicate sticky note');
+  return next;
+}
+
+export function updateNote(workspace, boardId, noteId, text) {
+  if (!validateWorkspace(workspace) || typeof text !== 'string') throw new Error('Invalid sticky note');
+  const next = copy(workspace);
+  const note = next.boards.find(board => board.id === boardId)?.notes.find(item => item.id === noteId);
+  if (!note) throw new Error('Sticky note not found');
+  note.text = text;
+  return next;
+}
+
+export function removeNote(workspace, boardId, noteId) {
+  if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
+  const next = copy(workspace);
+  const board = next.boards.find(item => item.id === boardId);
+  if (!board || !board.notes.some(note => note.id === noteId)) throw new Error('Sticky note not found');
+  board.notes = board.notes.filter(note => note.id !== noteId);
+  return next;
+}
+
+export function removePlacementTree(workspace, boardId, nodeId) {
+  if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
+  const board = workspace.boards.find(item => item.id === boardId);
+  if (!board || !board.nodes.some(node => node.id === nodeId)) throw new Error('Placement not found');
+  const removedBoards = new Set(workspace.boards
+    .filter(item => item.parentPlacement?.boardId === boardId && item.parentPlacement.nodeId === nodeId)
+    .map(item => item.id));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const child of workspace.boards) {
+      if (!removedBoards.has(child.id) && child.parentPlacement && removedBoards.has(child.parentPlacement.boardId)) {
+        removedBoards.add(child.id); changed = true;
+      }
+    }
+  }
+  const next = copy(workspace);
+  next.boards = next.boards.filter(item => !removedBoards.has(item.id));
+  const target = next.boards.find(item => item.id === boardId);
+  target.nodes = target.nodes.filter(node => node.id !== nodeId);
+  target.edges = target.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId);
+  if (!validateWorkspace(next)) throw new Error('Removing the placement would invalidate the workspace');
+  return next;
+}
 function placementsOf(workspace, cardId) {
   return workspace.boards.flatMap(board => board.nodes
     .filter(node => node.cardId === cardId)

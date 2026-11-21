@@ -1,7 +1,7 @@
 // Isolated v2 persistence adapter. The current application still uses v1.
 // A read never modifies data. A write never removes or rewrites the v1 board.
 import { BOARD_KEY, WORKSPACE_KEY, WORKSPACE_LOCK } from './storage.mjs';
-import { migrateLegacyBoard, validateWorkspace } from './workspace.mjs';
+import { migrateLegacyBoard, migrateWorkspaceV2, validateWorkspace } from './workspace.mjs';
 
 export { WORKSPACE_KEY };
 export const WORKSPACE_BACKUP_KEY = 'solocanvas.workspace.backup.v2';
@@ -30,7 +30,8 @@ function jsonSafe(value, ancestors = new Set()) {
 export function parseWorkspace(raw) {
   try {
     const parsed = JSON.parse(raw);
-    return validateWorkspace(parsed) && jsonSafe(parsed) ? parsed : null;
+    const workspace = parsed?.version === 2 ? migrateWorkspaceV2(parsed) : parsed;
+    return validateWorkspace(workspace) && jsonSafe(workspace) ? workspace : null;
   } catch {
     return null;
   }
@@ -57,7 +58,7 @@ export function openWorkspace(storage) {
     }
     return {
       ok: true,
-      workspace: { version: 2, cards: [], boards: [{ id: 'board-1', title: 'My board', extra: {}, nodes: [], edges: [] }] },
+      workspace: { version: 3, cards: [], boards: [{ id: 'board-1', title: 'My board', extra: {}, parentPlacement: null, nodes: [], edges: [], notes: [] }] },
       snapshot,
       source: 'empty',
     };
@@ -114,7 +115,7 @@ function isUnknownVersion(raw) {
   try {
     const value = JSON.parse(raw);
     return value && typeof value === 'object' && !Array.isArray(value) &&
-      Object.hasOwn(value, 'version') && value.version !== 2;
+      Object.hasOwn(value, 'version') && value.version !== 2 && value.version !== 3;
   } catch { return false; }
 }
 

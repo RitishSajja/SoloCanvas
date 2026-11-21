@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { openWorkspaceBoard } from './workspace-helpers.mjs';
 
 test('renaming and deleting boards preserves shared cards and requires an explicit save', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await expect(page.getByRole('button', { name: 'Delete board' })).toBeDisabled();
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
@@ -25,7 +26,7 @@ test('renaming and deleting boards preserves shared cards and requires an explic
   await page.getByRole('button', { name: 'Save workspace' }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).not.toBe(stored);
   await page.reload();
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByLabel('Current board').selectOption({ label: 'Architecture' });
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Shared API' })).toBeVisible();
 
@@ -42,7 +43,7 @@ test('renaming and deleting boards preserves shared cards and requires an explic
   await page.getByRole('button', { name: 'Save workspace' }).click();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).not.toBe(beforeDelete);
   await page.reload();
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await expect(page.getByRole('option', { name: 'Architecture' })).toHaveCount(0);
   await expect(page.getByRole('option', { name: 'Shared API' })).toHaveCount(1);
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Shared API' })).toBeVisible();

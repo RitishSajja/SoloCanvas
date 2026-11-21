@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openWorkspaceBoard } from './workspace-helpers.mjs';
 
 test('Mermaid export downloads the current board without saving or including source text', async ({ page }) => {
  const workspace = { version: 2, cards: [
@@ -9,7 +10,7 @@ test('Mermaid export downloads the current board without saving or including sou
    { id: 'n2', cardId: 'b', position: { x: 400, y: 0 } },
  ], edges: [{ id: 'edge', source: 'n1', target: 'n2', label: 'reads | writes' }] }] };
  await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const savedBefore = await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'));
  const pending = page.waitForEvent('download');
  await page.getByRole('button', { name: 'Export board as Mermaid' }).click();
@@ -25,7 +26,7 @@ test('Mermaid export downloads the current board without saving or including sou
 });
 
 test('an empty board does not produce an empty flowchart', async ({ page }) => {
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Export board as Mermaid' }).click();
  await expect(page.getByRole('status')).toContainText('Add a component before exporting Mermaid');
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();

@@ -13,10 +13,10 @@ export function boardAnalysisSnapshot(workspace, boardId) {
       : {} };
   });
   return {
-    version: 2,
+    version: 3,
     cards,
-    boards: [{ id: board.id, title: board.title, extra: {},
-      nodes: board.nodes.map(node => ({ id: node.id, cardId: node.cardId, position: { ...node.position } })),
+    boards: [{ id: board.id, title: board.title, extra: {}, parentPlacement: null, notes: [],
+      nodes: board.nodes.map(node => ({ id: node.id, cardId: node.cardId, shape: node.shape, position: { ...node.position } })),
       edges: board.edges.map(edge => ({ id: edge.id, source: edge.source, target: edge.target })),
     }],
   };

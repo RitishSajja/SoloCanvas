@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { openWorkspaceBoard } from './workspace-helpers.mjs';
 
 test('search locates and opens shared components across boards', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
   await page.getByLabel('Shared component name').fill('API Gateway');
@@ -29,7 +30,7 @@ test('search locates and opens shared components across boards', async ({ page }
   await page.getByRole('button', { name: 'Save workspace' }).click();
   await expect(page.getByRole('status')).toContainText('Workspace saved');
   await page.reload();
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.getByLabel('Find components across boards').fill('api');
   await expect(page.getByRole('button', { name: 'Open on My board' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open on Services' })).toBeVisible();
@@ -46,7 +47,7 @@ test('component appearances navigate to a distant placement on another board', a
   };
   await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   await page.locator('.react-flow__node').filter({ hasText: 'Shared API' }).click();
   const appearances = page.getByRole('region', { name: 'Component appearances' });
   await expect(appearances.getByRole('button', { name: 'Open on First board' })).toBeVisible();
@@ -78,7 +79,7 @@ test('keyboard selection and distinct appearances work for repeated placements',
   };
   await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Open workspace' }).click();
+  await openWorkspaceBoard(page);
   const first = page.locator('.react-flow__node').filter({ hasText: 'Shared API' }).first();
   await first.focus();
   await page.keyboard.press('Enter');

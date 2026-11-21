@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('create, move, connect, label, save, reload and delete', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?legacy-board=1');
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.getByLabel('Component name').fill('Service A');
   await page.getByRole('button', { name: 'Add component' }).click();

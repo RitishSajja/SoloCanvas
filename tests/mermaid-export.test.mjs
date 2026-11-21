@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { exportBoardMermaid } from '../src/mermaid-export.mjs';
+import { migrateWorkspaceV2 } from '../src/workspace.mjs';
 
-const workspace = {
+const workspace = migrateWorkspaceV2({
  version: 2,
  cards: [
   { id: 'shared', data: { label: 'API "public"', sourceText: 'PRIVATE SOURCE' } },
@@ -16,7 +17,7 @@ const workspace = {
   ], edges: [{ id: 'e', source: 'copy', target: 'db-node', label: 'reads | writes' }] },
   { id: 'other', title: 'Other', extra: {}, nodes: [], edges: [] },
  ],
-};
+});
 
 test('exports board placements and directed labels without source or metadata', () => {
  const before = structuredClone(workspace);

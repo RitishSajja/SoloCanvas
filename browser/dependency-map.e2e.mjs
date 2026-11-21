@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openWorkspaceBoard } from './workspace-helpers.mjs';
 
 test('static import suggestions are reviewed, applied and saved explicitly', async ({ page }) => {
  test.setTimeout(60000);
@@ -19,7 +20,7 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  await page.addInitScript(() => sessionStorage.setItem('testPageLoads', String(Number(sessionStorage.getItem('testPageLoads') || 0) + 1)));
  await page.goto('/');
  const initialPageLoads = await page.evaluate(() => Number(sessionStorage.getItem('testPageLoads')));
- await page.getByRole('button', { name: 'Open workspace' }).click();
+ await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('1 relationship(s) suggested', { timeout: 20000 });
@@ -39,20 +40,21 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  await expect(page.locator('.react-flow__edge')).toHaveCount(1);
  const beforeSave = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
  expect(beforeSave.boards[0].edges).toHaveLength(0);
- await page.locator('.react-flow__edge-interaction').click({ force: true });
+ await page.locator('.workspace-canvas').scrollIntoViewIfNeeded();
+ await page.getByRole('group', { name: /Edge from/ }).click();
  await expect(page.getByText(/Suggested from repo\/main.ts:1/)).toBeVisible();
  const evidence = page.getByRole('region', { name: 'Relationship evidence' });
  await expect(evidence).toContainText('analysis time');
  await evidence.getByRole('button', { name: 'Open target component' }).click();
  await expect(page.getByLabel('Shared component name')).toHaveValue('service.ts');
- await page.locator('.react-flow__edge-interaction').click({ force: true });
+ await page.getByRole('group', { name: /Edge from/ }).click();
  await evidence.getByRole('button', { name: 'Open source component' }).click();
  await expect(page.getByLabel('Shared component name')).toHaveValue('renamed.ts');
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect(page.getByRole('status')).toContainText('Workspace saved');
- await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.reload(); await openWorkspaceBoard(page);
  await expect(page.locator('.react-flow__edge')).toHaveCount(1);
- await page.locator('.react-flow__edge-interaction').click({ force: true });
+ await page.getByRole('group', { name: /Edge from/ }).click();
  await expect(page.getByText(/Suggested from repo\/main.ts:1/)).toBeVisible();
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('0 relationship(s) suggested', { timeout: 20000 });
@@ -74,7 +76,7 @@ test('users can choose which suggested relationships to add', async ({ page }) =
    ], edges: [] }],
  };
  await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('2 relationship(s) suggested', { timeout: 20000 });
@@ -102,7 +104,7 @@ test('an analysis can be cancelled without changing the workspace', async ({ pag
      terminate() { window.testWorkerTerminated = true; }
    };
  });
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel.getByRole('button', { name: 'Cancel import analysis' })).toBeVisible();
@@ -120,7 +122,7 @@ test('edits during worker analysis invalidate the result', async ({ page }) => {
      terminate() {}
    };
  });
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
  await page.getByLabel('Shared component name').fill('Before');
@@ -149,7 +151,7 @@ test('literal dynamic imports are reviewable and remain distinguishable after sa
  await page.addInitScript(value => {
    if (!localStorage.getItem('solocanvas.workspace.v2')) localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value));
  }, workspace);
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('1 relationship(s) suggested', { timeout: 20000 });
@@ -162,7 +164,7 @@ test('literal dynamic imports are reviewable and remain distinguishable after sa
  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
  expect(saved.boards[0].edges[0].label).toBe('dynamic import');
  expect(saved.boards[0].edges[0].data.importKind).toBe('dynamic');
- await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.reload(); await openWorkspaceBoard(page);
  await expect(page.getByText('dynamic import', { exact: true })).toBeVisible();
 });
 
@@ -184,7 +186,7 @@ test('ambiguous imports require an explicit target choice', async ({ page }) => 
  await page.addInitScript(value => {
    if (!localStorage.getItem('solocanvas.workspace.v2')) localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value));
  }, workspace);
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('ambiguous local import', { timeout: 20000 });
@@ -219,7 +221,7 @@ test('duplicate placements remain distinct and stale choices cannot be applied',
    ], edges: [] }],
  };
  await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('ambiguous local import', { timeout: 20000 });
@@ -255,7 +257,7 @@ test('type-only imports are reviewed and saved as type relationships', async ({ 
  await page.addInitScript(value => {
    if (!localStorage.getItem('solocanvas.workspace.v2')) localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value));
  }, workspace);
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('imports type from ./service', { timeout: 20000 });
@@ -265,7 +267,7 @@ test('type-only imports are reviewed and saved as type relationships', async ({ 
  await expect(page.getByRole('status')).toContainText('Workspace saved');
  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
  expect(saved.boards[0].edges[0].data.importKind).toBe('type');
- await page.reload(); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.reload(); await openWorkspaceBoard(page);
  await expect(page.getByText('type import', { exact: true })).toBeVisible();
 });
 
@@ -281,7 +283,7 @@ test('TypeScript import-equals is reviewable and remains distinct after save', a
  await page.addInitScript(value => {
    if (!localStorage.getItem('solocanvas.workspace.v2')) localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value));
  }, workspace);
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('requires ./service', { timeout: 20000 });
@@ -305,7 +307,7 @@ test('an ambiguous type-only import keeps its kind when the user chooses a targe
    { id: 'c-node', cardId: 'c', position: { x: 400, y: 200 } },
  ], edges: [] }] };
  await page.addInitScript(value => localStorage.setItem('solocanvas.workspace.v2', JSON.stringify(value)), workspace);
- await page.goto('/'); await page.getByRole('button', { name: 'Open workspace' }).click();
+ await page.goto('/'); await openWorkspaceBoard(page);
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
  await expect(panel).toContainText('ambiguous local import', { timeout: 20000 });

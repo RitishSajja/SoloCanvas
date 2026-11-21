@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFileMap, validateFilePaths, partitionSelectedFiles, readSelectedSources, MAX_SOURCE_FILE_BYTES, MAX_SOURCE_TOTAL_BYTES } from '../src/file-map.mjs';
+import { migrateWorkspaceV2 } from '../src/workspace.mjs';
 
-const initial = { version: 2, cards: [{ id: 'old', data: { label: 'Existing' } }], boards: [
+const initial = migrateWorkspaceV2({ version: 2, cards: [{ id: 'old', data: { label: 'Existing' } }], boards: [
   { id: 'original', title: 'Original', extra: {}, nodes: [{ id: 'old-node', cardId: 'old', position: { x: 1, y: 2 } }], edges: [] },
-] };
+] });
 
 test('selected filenames become a new board without altering existing work', () => {
   const saved = structuredClone(initial); let id = 0;

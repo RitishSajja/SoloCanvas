@@ -1,15 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { boardAnalysisSnapshot, startDependencyAnalysis } from '../src/analysis-client.mjs';
+import { migrateWorkspaceV2 } from '../src/workspace.mjs';
 
-const workspace = {
+const workspace = migrateWorkspaceV2({
  version: 2,
  cards: [{ id: 'shown', data: { kind: 'file', path: 'src/main.ts', sourceText: 'export {}', notes: 'private notes', label: 'Visible' } }, { id: 'hidden', data: { sourceText: 'other board' } }, { id: 'orphan', data: { label: 'Unused' } }],
  boards: [
   { id: 'one', title: 'One', extra: {}, nodes: [{ id: 'n', cardId: 'shown', position: { x: 0, y: 0 } }], edges: [] },
   { id: 'two', title: 'Two', extra: {}, nodes: [{ id: 'm', cardId: 'hidden', position: { x: 0, y: 0 } }], edges: [] },
  ],
-};
+});
 
 test('analysis receives only an independent copy of the selected board and its cards', () => {
  const result = boardAnalysisSnapshot(workspace, 'one');

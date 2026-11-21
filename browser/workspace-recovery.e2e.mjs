@@ -34,12 +34,12 @@ test('exports damaged raw data and restores only after confirmation', async ({ p
 test('unsupported workspace versions are exportable but never offered restore', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('solocanvas.workspace.v2', '{"version":99}');
-    localStorage.setItem('solocanvas.workspace.backup.v2', JSON.stringify({ version: 2, cards: [], boards: [] }));
+    localStorage.setItem('solocanvas.workspace.backup.v2', JSON.stringify({ version: 2, cards: [], boards: [{ id: 'b', title: 'Backup', extra: {}, nodes: [], edges: [] }] }));
   });
   await page.goto('/');
   await page.getByText('Workspace recovery', { exact: true }).click();
   await expect(page.getByRole('button', { name: 'Download workspace data' })).toBeVisible();
-  await expect(page.getByText(/unsupported version/)).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('unsupported version');
   await expect(page.getByRole('button', { name: 'Restore workspace backup' })).toHaveCount(0);
 });
 
@@ -61,7 +61,7 @@ test('recovery fails closed without browser locks', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true });
     localStorage.setItem('solocanvas.workspace.v2', '{damaged');
-    localStorage.setItem('solocanvas.workspace.backup.v2', JSON.stringify({ version: 2, cards: [], boards: [] }));
+    localStorage.setItem('solocanvas.workspace.backup.v2', JSON.stringify({ version: 2, cards: [], boards: [{ id: 'b', title: 'Backup', extra: {}, nodes: [], edges: [] }] }));
   });
   await page.goto('/');
   await page.getByText('Workspace recovery', { exact: true }).click();

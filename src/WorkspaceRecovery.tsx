@@ -37,13 +37,13 @@ export default function WorkspaceRecovery() {
     setBusy(true);
     try {
       const result = await restoreWorkspaceBackup(inventory.recovery);
-      setMessage(result.ok ? 'Backup restored. This editor cannot open the newer workspace yet; download a copy for safekeeping.' : result.error);
+      setMessage(result.ok ? 'Backup restored. Reload this page to open the recovered workspace.' : result.error);
       setInventory(inspect());
     } finally { setBusy(false); }
   };
   return <details className="recovery">
     <summary>Workspace recovery</summary>
-    <p>Download raw workspace copies or restore a damaged workspace from its backup. This editor cannot open newer workspaces yet.</p>
+    <p>Download a copy or restore the last saved workspace. The damaged copy is preserved separately.</p>
     {inventory.error && <p>{inventory.error}</p>}
     {!inventory.error && !inventory.primary && !inventory.backup && !inventory.damaged && <p>No workspace copies found in this browser.</p>}
     <div className="recovery-actions">

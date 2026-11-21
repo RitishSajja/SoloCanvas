@@ -1,0 +1,94 @@
+import { test, expect } from '@playwright/test';
+import { openWorkspaceBoard } from './workspace-helpers.mjs';
+
+test('openable placements create independent nested boards with persistent notes and shapes', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
+  await openWorkspaceBoard(page, { expandTools: false });
+
+  await page.getByRole('button', { name: 'Add component' }).click();
+  await page.locator('.react-flow__node').first().click();
+  await page.getByLabel('Shared component name').fill('API');
+  await page.getByLabel('Component shape').selectOption('diamond');
+  await page.getByLabel('Existing component').selectOption({ label: 'API' });
+  await page.getByRole('button', { name: 'Place component' }).click();
+
+  await page.locator('.react-flow__node').filter({ hasText: 'API' }).first().click();
+  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  const firstMiniBoard = await page.getByLabel('Current board').inputValue();
+  await expect(page.getByRole('navigation', { name: 'Workspace breadcrumbs' })).toContainText('My board');
+  await page.getByRole('button', { name: 'Add component' }).click();
+  await page.locator('.react-flow__node').first().click();
+  await page.getByLabel('Shared component name').fill('Nested task');
+  await page.getByLabel('Component shape').selectOption('rounded');
+  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.getByRole('button', { name: 'Add sticky note' }).click();
+  await page.getByLabel('Sticky note text').fill('Only in the first placement chain');
+  const deepBoard = await page.getByLabel('Current board').inputValue();
+
+  await page.getByRole('button', { name: 'Workspace overview' }).click();
+  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await page.locator('.react-flow__node').filter({ hasText: 'API' }).nth(1).click();
+  await page.getByLabel('Component shape').selectOption('rectangle');
+  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  const secondMiniBoard = await page.getByLabel('Current board').inputValue();
+  expect(secondMiniBoard).not.toBe(firstMiniBoard);
+  await expect(page.locator('.react-flow__node')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Add sticky note' }).click();
+  await page.getByLabel('Sticky note text').fill('Only in the second placement');
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Save workspace' }).click();
+  await expect(page.getByRole('status')).toContainText('Workspace saved');
+
+  await page.reload();
+  await openWorkspaceBoard(page, { expandTools: false });
+  await page.locator('.react-flow__node').filter({ hasText: 'API' }).first().click();
+  await expect(page.getByLabel('Component shape')).toHaveValue('diamond');
+  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await expect(page.getByLabel('Current board')).toHaveValue(firstMiniBoard);
+  await page.locator('.react-flow__node').filter({ hasText: 'Nested task' }).click();
+  await expect(page.getByLabel('Component shape')).toHaveValue('rounded');
+  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await expect(page.getByLabel('Current board')).toHaveValue(deepBoard);
+  await page.locator('.react-flow__node').filter({ hasText: 'Only in the first placement chain' }).click();
+  await expect(page.getByLabel('Sticky note text')).toHaveValue('Only in the first placement chain');
+  await page.getByRole('button', { name: 'Workspace overview' }).click();
+  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await page.locator('.react-flow__node').filter({ hasText: 'API' }).nth(1).click();
+  await expect(page.getByLabel('Component shape')).toHaveValue('rectangle');
+  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await expect(page.getByLabel('Current board')).toHaveValue(secondMiniBoard);
+  await page.locator('.react-flow__node').filter({ hasText: 'Only in the second placement' }).click();
+  await expect(page.getByLabel('Sticky note text')).toHaveValue('Only in the second placement');
+});
+
+test('removing a placement confirms and removes all nested boards and notes', async ({ page }) => {
+  await page.goto('/');
+  await openWorkspaceBoard(page, { expandTools: false });
+  await page.getByRole('button', { name: 'Add component' }).click();
+  await page.locator('.react-flow__node').first().click();
+  await page.getByLabel('Shared component name').fill('Parent');
+  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.getByRole('button', { name: 'Add component' }).click();
+  await page.locator('.react-flow__node').first().click();
+  await page.getByLabel('Shared component name').fill('Child');
+  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.getByRole('button', { name: 'Add sticky note' }).click();
+  await page.getByLabel('Sticky note text').fill('Nested content');
+  await page.getByRole('button', { name: 'Workspace overview' }).click();
+  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await page.locator('.react-flow__node').filter({ hasText: 'Parent' }).click();
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByRole('button', { name: 'Remove component from board' }).click();
+  await expect(page.locator('.react-flow__node').filter({ hasText: 'Parent' })).toBeVisible();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Remove component from board' }).click();
+  await expect(page.locator('.react-flow__node')).toHaveCount(0);
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Save workspace' }).click();
+  await expect(page.getByRole('status')).toContainText('Workspace saved');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')));
+  expect(saved.boards).toHaveLength(1);
+  expect(saved.boards[0].nodes).toHaveLength(0);
+  expect(saved.boards[0].notes).toHaveLength(0);
+});

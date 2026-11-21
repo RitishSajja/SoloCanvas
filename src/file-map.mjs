@@ -41,7 +41,7 @@ export function createFileMap(workspace, boardId, title, paths, makeId, contents
     const cardId = makeId();
     const nodeId = makeId();
     next.cards.push({ id: cardId, data: { label: path, kind: 'file', path, ...(contents.has(path) ? { sourceText: contents.get(path) } : {}) } });
-    board.nodes.push({ id: nodeId, cardId, position: { x: (index % 4) * 260, y: Math.floor(index / 4) * 100 } });
+    board.nodes.push({ id: nodeId, cardId, shape: 'pill', position: { x: (index % 4) * 260, y: Math.floor(index / 4) * 100 } });
   });
   if (!validateWorkspace(next)) throw new Error('Could not create unique file map IDs.');
   return next;

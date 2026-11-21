@@ -1,10 +1,11 @@
-# Workspace model: initial implementation
+# Workspace model
 
-This is a pure in-memory model for milestone 3. The UI and persistent storage still use the existing single-board v1 format; the app does not yet migrate or store v2 workspaces.
+The workspace UI and persistence use schema version 3. A workspace contains canonical shared cards and named boards. Each board contains independent component placements, relationships, and sticky notes. Component shape (`rectangle`, `rounded`, `pill`, or `diamond`) belongs to a placement, so appearances of the same shared card can look different.
 
-- A version 2 workspace contains canonical cards and multiple named boards.
-- Card data lives once in the workspace. Each board node has its own ID, placement and card reference. Edges refer to nodes on the same board.
-- The migration helper converts a v1 board to one workspace and creates one card per existing node. It preserves node data, geometry, edges and other JSON board properties and rejects duplicate IDs and dangling references rather than silently dropping data.
-- Projecting a board copies current canonical card data into canvas nodes. Updating a card creates a new workspace, so all projected instances see its new data without changing the input.
-- IDs are scoped to their collections; each node ID and edge ID is unique within its board. Cross-board edges are not supported.
-- This is a proposed model, not a persistence migration. Before connecting it to the UI, design durable atomic writes, migration rollback, validation, backup, import/export compatibility, concurrent tabs, and tests against existing data. localStorage's existing comparison is not an atomic lock.
+A top-level board has `parentPlacement: null`. A mini-board identifies its parent placement with `{ boardId, nodeId }`. Each placement can own one mini-board, including placements inside mini-boards, so chains can be nested to any depth. Validation rejects missing parent boards or placements, repeated parent references, and cycles before a workspace is opened, imported, or saved.
+
+Removing a placement with nested boards explicitly removes that placement's entire mini-board subtree and its relationships. Removing a board explicitly removes its nested board subtree. The UI confirms either cascade before changing the unsaved workspace; direct board removal rejects boards with children, and the final board cannot be removed. Shared cards remain available after their placements are removed.
+
+Legacy v1 boards migrate in memory to a single v3 top-level board. Version 2 workspaces migrate in memory by retaining boards and placements, assigning the default pill shape, and creating empty notes and top-level ancestry. Reads do not write. The original v2 raw value remains until an explicit, locked save, which stores that raw value in the existing backup key before writing v3. The v1 board is never deleted.
+
+Projecting a board copies its canonical card data into canvas nodes. Mutations return a new workspace. IDs are unique within their collections; placement references remain board-scoped, and relationships cannot cross boards.
