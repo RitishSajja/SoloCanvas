@@ -65,7 +65,7 @@ test('nested mini-boards reopen from their placements after saving and reloading
   }
   await button('Back to Platform').click();
   await expect(selector).toHaveValue(ids[0]);
-  await page.getByRole('button', { name: /^Back to / }).click();
+  await button('Back to My board').click();
   await expect(selector).toHaveValue(root);
   page.once('dialog', dialog => dialog.accept());
   await button('Save workspace').click();
