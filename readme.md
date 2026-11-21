@@ -21,6 +21,7 @@ To make an infinite canvas indispensable for an individual's day-to-day job, the
 
 * **Persistent "Daily Desk" Viewport:** Instead of launching into a blank whiteboard chooser, the default viewport opens to a structured spatial desk anchoring today's schedule, active task cards, and pinned reference frames ([Fabric Heptabase vs. Obsidian Comparison](https://fabric.so/comparison/heptabase-vs-obsidian)).
 * **Reusable Atomic Cards over Ephemeral Stickies:** Every note, task, code block, or PDF excerpt placed on a board is stored as a canonical database entity with bidirectional backlinks, so editing an item on a daily scratchpad automatically updates it inside long-term project boards ([Medium Visual Modelling Analysis](https://medium.com/@davidroliver/visual-modelling-with-heptabase-scrintal-4c0cadf83377), [Atlas Visual Research Alternatives](https://www.atlasworkspace.ai/blog/heptabase-alternatives)).
+* **Hierarchical Project Workspace:** A project's opening view should act as a workspace for organizing areas such as tasks or teams. Components should be openable into focused mini-boards, with further openable components allowing nested chains. The resulting boards should bring architecture components and sticky-note observations together, with selectable component shapes rather than a single default silhouette.
 * **Local-First Zero-Latency Storage:** Board state lives locally in the user's browser or desktop shell via [SQLite WASM](https://sqlite.org/wasm) and [Yjs](https://yjs.dev/) conflict-free replicated data types (CRDTs), guaranteeing instant offline load times and near-zero server hosting costs for free-tier users ([GitHub Yjs-SQLite Project](https://github.com/samwillis/yjs-sqlite-test)).
 * **Spatial RAG & Visual Agent Chaining:** Users can lasso any cluster of cards on the canvas—or connect nodes with directed edges—to pass spatial context directly into an LLM agent pipeline or an external tool via the **Model Context Protocol (MCP)** ([tldraw Creative Design Use Cases](https://tldraw.dev/use-cases/creative-design), [Miro Platform Overview](https://miro.com/products/platform-overview/)).
 * **One-Click Read-Only Publishing:** While editing is strictly optimized for one person, any frame on the canvas can be published as a clean, interactive web link or exported deck for clients, managers, or audiences ([Miro Pricing](https://miro.com/pricing/), [Salesdorado Miro Review](https://salesdorado.com/en/automation/project-management-software/review-miro/)).
@@ -210,9 +211,11 @@ A user can create a board, add and edit architecture component cards, move them,
 ### Priorities after the first milestone
 
 1. Support multiple boards and reusable atomic cards, search, and backlinks.
-2. Add a reviewable codebase import and architecture map, within the chosen runtime's file access limits.
-3. Add Mermaid interoperability with documented limitations.
-4. Add spatial AI context and an MCP bridge, followed by optional desktop, sync, and publishing features.
+2. Evolve the project-opening view into a workspace for task or team groupings, with components that open into mini-boards and can lead to further nested boards.
+3. Bring architecture components and sticky-note observations together on those boards, and offer a choice of component shapes.
+4. Add a reviewable codebase import and architecture map, within the chosen runtime's file access limits.
+5. Add Mermaid interoperability with documented limitations.
+6. Add spatial AI context and an MCP bridge, followed by optional desktop, sync, and publishing features.
 
 The detailed development plan and agent handoff live in [context/PLAN.md](context/PLAN.md) and [context/STATUS.md](context/STATUS.md). Agents work in turns on the shared branch, inspect the latest state before editing, and update the handoff with changes, actual checks, blockers, and next steps. The handoff is not a locking mechanism.
 
