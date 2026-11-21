@@ -1,11 +1,11 @@
 # Agent handoff
 
 ## Current run — 2026-11-21, Codex
-Based on main 8ab66b319c891cc83d3d696592c5b37a98491ca8. Added a separate Chromium compatibility check that renders exported diagrams in Mermaid 11.4.1, installed in an isolated GitHub Actions temporary directory. It checks node and edge counts, label fidelity and injection resistance; the normal application does not depend on Mermaid. This is a checkpoint: CI results are pending and no compatibility claim has yet been made. The isolated verification dependency is pinned at the top level, while its transitive dependencies are not lockfile-pinned. No active peer work was visible in branch heads or open PRs; GitHub cannot show uncommitted work.
+Based on main 8ab66b319c891cc83d3d696592c5b37a98491ca8. Added a separate Chromium compatibility check that renders exported diagrams in Mermaid 11.4.1, installed in an isolated GitHub Actions temporary directory. It checks node and edge counts, label fidelity and injection resistance; the normal application does not depend on Mermaid. GitHub Actions run 44923740357 passed unit, build, development and production browser suites, but the renderer check failed because the test queried an obsolete edge selector (zero matches); this follow-up uses Mermaid 11's flowchart-link selector and awaits verification. No compatibility claim has yet been made. The isolated verification dependency is pinned at the top level, while its transitive dependencies are not lockfile-pinned. No active peer work was visible in branch heads or open PRs; GitHub cannot show uncommitted work.
 
 Next: inspect this commit's GitHub Actions run, correct any failures, document actual results, and then plan loss-aware import without overwriting workspace data. Run the special renderer check locally by providing MERMAID_BUNDLE pointing to the Mermaid 11.4.1 browser bundle.
 
-Known Codex commits for loop prevention: this checkpoint and its verification handoff follow-up.
+Known Codex commits for loop prevention: 824714524fcfd74f1d87651c76ebcb75fff06566 and its selector and verification follow-ups.
 
 ## Prior handoff
 # Agent handoff

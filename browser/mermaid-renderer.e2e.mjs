@@ -21,7 +21,7 @@ test('exported flowcharts render safe labels in Mermaid 11', async ({ page }) =>
   const root = document.createElement('div');
   root.innerHTML = svg;
   return { text: root.textContent, links: root.querySelectorAll('a').length,
-   nodes: root.querySelectorAll('.node').length, edges: root.querySelectorAll('.edgePath').length };
+   nodes: root.querySelectorAll('.node').length, edges: root.querySelectorAll('path.flowchart-link').length };
  }, diagram);
  expect(rendered.nodes).toBe(2);
  expect(rendered.edges).toBe(1);
