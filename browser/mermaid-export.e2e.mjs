@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 import { openWorkspaceBoard } from './workspace-helpers.mjs';
 
 test('Mermaid export downloads the current board without saving or including source text', async ({ page }) => {

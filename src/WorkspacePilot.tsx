@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { ReactFlow, Background, Controls, Handle, Position, type Node as FlowNode, type NodeChange, type NodeProps, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
-import { addBoard, addMiniBoard, addNote, placeCard, projectBoard, updateCard, updateNote, removeNote, updatePlacementShape, renameBoard, removeBoardTree, removePlacementTree, getMiniBoard, getBoardBreadcrumbs, findCards, findCardPlacements, type ComponentShape, type Workspace } from './workspace.mjs';
+import { addBoard, addMiniBoard, addNote, createMermaidBoard, placeCard, projectBoard, updateCard, updateNote, removeNote, updatePlacementShape, renameBoard, removeBoardTree, removePlacementTree, getMiniBoard, getBoardBreadcrumbs, findCards, findCardPlacements, type ComponentShape, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 import { createFileMap, validateFilePaths, readSelectedSources, partitionSelectedFiles } from './file-map.mjs';
 import { exportBoardMermaid } from './mermaid-export.mjs';
+import { MAX_MERMAID_IMPORT_BYTES, parseMermaidFlowchart, type MermaidImportDiagram } from './mermaid-import.mjs';
 import type { Suggestion, Diagnostic } from './dependency-map.mjs';
 import { startDependencyAnalysis } from './analysis-client.mjs';
 import { addSuggestedDependencies } from './dependency-apply.mjs';
@@ -27,11 +28,15 @@ function StickyNoteNode({ data }: NodeProps<FlowNode<StickyNodeData, typeof stic
 }
 const nodeTypes = { [componentNodeType]: WorkspaceComponentNode, [stickyNodeType]: StickyNoteNode };
 
-export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean) => void }) {
+export default function WorkspacePilot({ onClose, initialWorkspace, initialMessage }: {
+  onClose?: (saved: boolean) => void;
+  initialWorkspace?: Workspace | null;
+  initialMessage?: string;
+}) {
   const [initial] = useState(() => openWorkspace());
-  const [workspace, setWorkspace] = useState<Workspace | null>(initial.ok ? initial.workspace : null);
+  const [workspace, setWorkspace] = useState<Workspace | null>(initialWorkspace ?? (initial.ok ? initial.workspace : null));
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(initial.ok ? initial.snapshot : null);
-  const [boardId, setBoardId] = useState(initial.ok ? initial.workspace.boards.find(item => !item.parentPlacement)?.id ?? '' : '');
+  const [boardId, setBoardId] = useState(() => (initialWorkspace ?? (initial.ok ? initial.workspace : null))?.boards.find(item => !item.parentPlacement)?.id ?? '');
   const [workspaceView, setWorkspaceView] = useState<'overview' | 'board'>('overview');
   const [cardId, setCardId] = useState('');
   const [search, setSearch] = useState('');
@@ -46,6 +51,11 @@ export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean)
   const [mapError, setMapError] = useState('');
   const [analysis, setAnalysis] = useState<{ boardId: string; version: number; suggestions: Suggestion[]; diagnostics: Diagnostic[] } | null>(null);
   const [analysisError, setAnalysisError] = useState('');
+  const [mermaidText, setMermaidText] = useState('');
+  const [mermaidFileName, setMermaidFileName] = useState('');
+  const [mermaidPreview, setMermaidPreview] = useState<{ diagram: MermaidImportDiagram; version: number } | null>(null);
+  const [mermaidBoardTitle, setMermaidBoardTitle] = useState('Imported Mermaid diagram');
+  const [mermaidError, setMermaidError] = useState('');
   const analysisTask = useRef<ReturnType<typeof startDependencyAnalysis> | null>(null);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(() => new Set());
   const [candidateChoices, setCandidateChoices] = useState<Record<number, string>>({});
@@ -54,8 +64,8 @@ export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean)
   const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
   const [selectedNode, setSelectedNode] = useState('');
   const [selectedEdge, setSelectedEdge] = useState('');
-  const [message, setMessage] = useState(initial.ok ? 'Workspace opened. Changes are not saved automatically.' : initial.error);
-  const [dirty, setDirty] = useState(false);
+  const [message, setMessage] = useState(initial.ok ? initialWorkspace ? initialMessage ?? 'Example board loaded. Select Save workspace to keep it on this device.' : 'Workspace opened. Changes are not saved automatically.' : initial.error);
+  const [dirty, setDirty] = useState(Boolean(initialWorkspace));
   const [busy, setBusy] = useState(false);
   const editVersion = useRef(0);
   const inFlight = useRef(false);
@@ -82,6 +92,9 @@ export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean)
     return [{ sourceNodeId: item.sourceNodeId, targetNodeId: candidate.targetNodeId, sourcePath: item.path,
       targetPath: candidate.targetPath, specifier: item.specifier, line: item.line, importKind: item.importKind }];
   }) : [];
+  const mermaidLabels = mermaidPreview
+    ? new Map(mermaidPreview.diagram.nodes.map(item => [item.id, item.label]))
+    : null;
   useEffect(() => {
     if (!navigation || !flow || !workspace || navigation.boardId !== boardId) return;
     const target = workspace.boards.find(item => item.id === boardId)?.nodes.find(node => node.id === navigation.nodeId);
@@ -276,7 +289,7 @@ export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean)
     const positions = changes.filter(change => change.type === 'position' && change.position);
     const dimensions = changes.filter(change => change.type === 'dimensions' && change.dimensions);
     if (!positions.length && !dimensions.length) return;
-    if (positions.length) { editVersion.current += 1; setDirty(true); }
+    if (positions.length) { editVersion.current += 1; savedSinceOpen.current = false; setDirty(true); }
     setWorkspace(previous => {
       if (!previous) return previous;
       const next = structuredClone(previous);
@@ -343,6 +356,11 @@ export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean)
       else setMessage('Saved an earlier version. Newer changes remain unsaved.');
     } finally { inFlight.current = false; setBusy(false); }
   };
+  const close = () => {
+    if (!onClose || busy) return;
+    if (dirty && !window.confirm('Leave the workspace? Unsaved changes will remain only in this workspace session.')) return;
+    onClose(savedSinceOpen.current);
+  };
 
   const importWorkspace = async (event: ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
@@ -371,6 +389,62 @@ export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean)
       setMessage('Mermaid export started. Layout, source text and metadata are not included.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Mermaid export failed.');
+    }
+  };
+  const selectMermaidFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    setMermaidError('');
+    setMermaidPreview(null);
+    if (file.size > MAX_MERMAID_IMPORT_BYTES) {
+      setMermaidError('Import failed: diagram exceeds 5 MiB.');
+      return;
+    }
+    const version = editVersion.current;
+    inFlight.current = true; setBusy(true);
+    try {
+      const text = await file.text();
+      if (version !== editVersion.current) {
+        setMermaidError('The workspace changed while reading the file. Your edits were kept; select the file again.');
+        return;
+      }
+      setMermaidText(text); setMermaidFileName(file.name);
+    } catch (error) {
+      setMermaidError(error instanceof Error ? `Import failed: ${error.message}` : 'Import failed: the file could not be read.');
+    } finally { inFlight.current = false; setBusy(false); }
+  };
+  const previewMermaid = () => {
+    if (!workspace || !mermaidText) return;
+    try {
+      const diagram = parseMermaidFlowchart(mermaidText);
+      setMermaidPreview({ diagram, version: editVersion.current });
+      setMermaidError('');
+    } catch (error) {
+      setMermaidPreview(null);
+      setMermaidError(error instanceof Error ? error.message : 'Import failed: could not parse the diagram.');
+    }
+  };
+  const createBoardFromMermaid = () => {
+    if (!workspace || !mermaidPreview) return;
+    if (mermaidPreview.version !== editVersion.current) {
+      setMermaidPreview(null);
+      setMermaidError('The workspace changed after preview. Review the diagram again before creating a board.');
+      return;
+    }
+    if (!mermaidBoardTitle.trim()) {
+      setMermaidError('Enter a name for the imported board.');
+      return;
+    }
+    if (!window.confirm('Create a separate board from this preview? Existing boards and unsaved edits will be kept. Nothing is saved until you select Save workspace.')) return;
+    try {
+      const result = createMermaidBoard(workspace, mermaidBoardTitle, mermaidPreview.diagram);
+      changed(result.workspace); setBoardId(result.boardId); setSelectedNode(''); setSelectedEdge('');
+      setMermaidPreview(null); setMermaidError('');
+      setMessage('Mermaid board created. Select Save workspace to keep it on this device.');
+    } catch (error) {
+      setMermaidError(error instanceof Error ? error.message : 'Could not create the imported board.');
     }
   };
   const exportWorkspace = () => {
@@ -410,11 +484,11 @@ export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean)
 
   return <main className="workspace-app">
     <header className="workspace-header"><div className="workspace-brand"><span className="workspace-brand-mark" aria-hidden="true">S</span><div><strong>SoloCanvas</strong><small>Project workspace</small></div></div><div className="actions">
-      {onClose && <button onClick={() => onClose(savedSinceOpen.current)}>Back to board</button>}
+      {onClose && <button onClick={close}>Back to board</button>}
       <details className="workspace-header-tools"><summary>Import / export</summary><div>
         <button onClick={exportWorkspace} disabled={!workspace}>Export workspace</button><button onClick={exportMermaid} disabled={!board}>Export board as Mermaid</button><label className="import-button">Import workspace<input type="file" accept=".json,application/json" aria-label="Import workspace" onChange={importWorkspace} disabled={!snapshot || busy} /></label>
       </div></details>
-      <button className="primary" onClick={save} disabled={!workspace || busy}>Save workspace</button>
+      <button className="primary" onClick={save} disabled={!workspace || !snapshot || busy}>Save workspace</button>
     </div></header>
     {workspaceView === 'overview' ? <section className="workspace-overview" aria-label="Workspace overview">
       <div className="workspace-overview-hero"><div><p className="workspace-eyebrow">YOUR PROJECT, ORGANIZED</p><h1>Pick up where your ideas live.</h1><p>Boards hold components, notes, and the work nested inside each placement.</p></div><button className="primary" onClick={createBoard} disabled={!workspace}>Create a board</button></div>
@@ -468,6 +542,32 @@ export default function WorkspacePilot({ onClose }: { onClose?: (saved: boolean)
             {mapError && <p role="alert">{mapError}</p>}
             {mapReport.length > 0 && <section aria-label="Files without source text"><p>These files were added by path only:</p><ul>{mapReport.map(item => <li key={item.path}>{item.path}: {item.reason}</li>)}</ul></section>}
             {filePaths.length > 0 && <><p>{filePaths.length} file(s) selected:</p><ul>{filePaths.map(path => <li key={path}>{path}</li>)}</ul><button onClick={addFileMap} disabled={busy}>Create file map board</button></>}
+          </section>
+          </details>
+          <details className="workspace-tool">
+          <summary>Mermaid import</summary>
+          <section aria-label="Import Mermaid diagram">
+            <h2>Import Mermaid diagram</h2>
+            <p>Paste a SoloCanvas Mermaid export or choose a local text file (up to 5 MiB). Only the exact escaped <code>flowchart LR</code> format exported by SoloCanvas is accepted. Import creates a new board with separate components; it does not render Mermaid or run directives. Review the preview before creating the board. Nothing is saved until you select Save workspace.</p>
+            <label>Choose Mermaid text file<input type="file" accept=".mmd,.mermaid,.txt,text/plain" aria-label="Choose Mermaid file" onChange={selectMermaidFile} disabled={busy} /></label>
+            {mermaidFileName && <p>Loaded {mermaidFileName}. Edit the text below or preview it.</p>}
+            <label>Mermaid flowchart<textarea aria-label="Mermaid flowchart" rows={8} maxLength={MAX_MERMAID_IMPORT_BYTES} value={mermaidText} disabled={busy} onChange={event => {
+              setMermaidText(event.target.value); setMermaidFileName(''); setMermaidPreview(null); setMermaidError('');
+            }} /></label>
+            <button onClick={previewMermaid} disabled={busy || !mermaidText}>Preview Mermaid import</button>
+            {mermaidError && <p role="alert">{mermaidError}</p>}
+            {mermaidPreview && <>
+              {mermaidPreview.version !== editVersion.current
+                ? <p role="alert">Workspace changed after preview. Preview the diagram again before creating a board.</p>
+                : <>
+                  <p>{mermaidPreview.diagram.nodes.length} component(s) and {mermaidPreview.diagram.edges.length} relationship(s) will be imported. Layout and shared-card identity are not preserved.</p>
+                  <details><summary>Review components</summary><ol>{mermaidPreview.diagram.nodes.map(item => <li key={item.id}>{item.label || 'Untitled'}</li>)}</ol></details>
+                  <details><summary>Review relationships</summary><ol>{mermaidPreview.diagram.edges.map((item, index) => <li key={index}>{mermaidLabels?.get(item.source)} → {mermaidLabels?.get(item.target)}{item.label ? ` — ${item.label}` : ''}</li>)}</ol></details>
+                  <label>New board name<input aria-label="New Mermaid board name" value={mermaidBoardTitle} onChange={event => setMermaidBoardTitle(event.target.value)} /></label>
+                  <button onClick={createBoardFromMermaid} disabled={busy || !mermaidBoardTitle.trim()}>Create new board from preview</button>
+                  <button onClick={() => setMermaidPreview(null)} disabled={busy}>Cancel preview</button>
+                </>}
+            </>}
           </section>
           </details>
           <details className="workspace-tool">

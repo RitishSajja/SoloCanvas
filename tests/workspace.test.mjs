@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateLegacyBoard, projectBoard, validateWorkspace, addBoard, addMiniBoard, getMiniBoard, getBoardBreadcrumbs, addNote, updateNote, removeNote, updatePlacementShape, removeBoard, removeBoardTree, removePlacementTree, placeCard, updateCard, renameBoard, findCards, findCardPlacements } from '../src/workspace.mjs';
+import { migrateLegacyBoard, migrateWorkspaceV2, projectBoard, validateWorkspace, addBoard, addMiniBoard, getMiniBoard, getBoardBreadcrumbs, addNote, updateNote, removeNote, updatePlacementShape, removeBoard, removeBoardTree, removePlacementTree, placeCard, updateCard, renameBoard, findCards, findCardPlacements, createMermaidBoard } from '../src/workspace.mjs';
 
 const fixture = {
   viewport: { x: 4, y: 5, zoom: 1 },
@@ -48,6 +48,37 @@ test('invalid references, collisions and unsupported versions are rejected', () 
   assert.throws(() => placeCard(workspace, 'board-1', 'card:a', { id: 'a', position: { x: 1, y: 1 } }));
   assert.throws(() => updateCard(workspace, 'missing', {}));
   assert.throws(() => projectBoard(workspace, 'missing'));
+});
+
+test('version 2 migration preserves valid placement ancestry and rejects broken trees', () => {
+  const legacy = {
+    version: 2,
+    cards: [{ id: 'card', data: { label: 'API' } }],
+    boards: [
+      { id: 'root', title: 'Root', extra: {}, nodes: [{ id: 'placement', cardId: 'card', position: { x: 0, y: 0 } }], edges: [] },
+      { id: 'child', title: 'Child', extra: {}, parentPlacement: { boardId: 'root', nodeId: 'placement' }, nodes: [], edges: [] },
+    ],
+  };
+  const migrated = migrateWorkspaceV2(legacy);
+  assert.equal(validateWorkspace(migrated), true);
+  assert.deepEqual(migrated.boards.map(board => board.parentPlacement), [
+    null, { boardId: 'root', nodeId: 'placement' },
+  ]);
+  assert.deepEqual(migrated.boards.map(board => board.notes), [[], []]);
+
+  const dangling = structuredClone(legacy);
+  dangling.boards[1].parentPlacement.nodeId = 'missing';
+  assert.throws(() => migrateWorkspaceV2(dangling), /Invalid version 2/);
+
+  const duplicate = structuredClone(legacy);
+  duplicate.boards.push({ id: 'second-child', title: 'Second child', extra: {},
+    parentPlacement: { boardId: 'root', nodeId: 'placement' }, nodes: [], edges: [] });
+  assert.throws(() => migrateWorkspaceV2(duplicate), /Invalid version 2/);
+
+  const cyclic = structuredClone(legacy);
+  cyclic.boards[0].parentPlacement = { boardId: 'child', nodeId: 'child-placement' };
+  cyclic.boards[1].nodes.push({ id: 'child-placement', cardId: 'card', position: { x: 1, y: 1 } });
+  assert.throws(() => migrateWorkspaceV2(cyclic), /Invalid version 2/);
 });
 
 test('projected data is detached from the underlying workspace', () => {
@@ -114,6 +145,44 @@ test('component appearances include all placements and update after a board is d
   assert.deepEqual(findCardPlacements(workspace, 'card:b'), []);
   assert.equal(findCardPlacements(workspace, 'card:a').length, 1);
   assert.throws(() => findCardPlacements(workspace, 'unknown'));
+});
+
+test('Mermaid import creates a separate board with fresh cards, placements and relationships', () => {
+  const before = migrateLegacyBoard(JSON.stringify(fixture));
+  const original = structuredClone(before);
+  const diagram = {
+    nodes: [{ id: 'n0', label: 'API' }, { id: 'n1', label: 'Database' }],
+    edges: [{ source: 'n0', target: 'n1', label: 'reads' }],
+  };
+  let nextId = 0;
+  const imported = createMermaidBoard(before, '  Imported map  ', diagram, () => `new-${++nextId}`);
+  assert.deepEqual(before, original);
+  assert.equal(imported.workspace.boards[1].title, 'Imported map');
+  assert.deepEqual(imported.workspace.boards[1].nodes.map(node => node.position), [
+    { x: 60, y: 60 }, { x: 300, y: 60 },
+  ]);
+  assert.deepEqual(projectBoard(imported.workspace, imported.boardId), {
+    nodes: [
+      { id: 'new-3', position: { x: 60, y: 60 }, shape: 'pill', data: { label: 'API' } },
+      { id: 'new-5', position: { x: 300, y: 60 }, shape: 'pill', data: { label: 'Database' } },
+    ],
+    edges: [{ id: 'new-6', source: 'new-3', target: 'new-5', label: 'reads' }],
+  });
+  assert.equal(imported.workspace.cards.some(card => card.id === 'card:a' && card.data.label === 'API'), true);
+  assert.equal(validateWorkspace(imported.workspace), true);
+});
+
+test('Mermaid import rejects invalid diagrams and generated ID collisions without mutating workspace', () => {
+  const before = migrateLegacyBoard(JSON.stringify(fixture));
+  const original = structuredClone(before);
+  assert.throws(() => createMermaidBoard(before, 'Imported', { nodes: [], edges: [] }), /Invalid Mermaid/);
+  assert.throws(() => createMermaidBoard(before, 'Imported', {
+    nodes: [{ id: 'n0', label: 'bad\uD800' }], edges: [],
+  }), /Invalid Mermaid/);
+  assert.throws(() => createMermaidBoard(before, 'Imported', {
+    nodes: [{ id: 'n0', label: 'API' }], edges: [],
+  }, () => 'card:a'), /unique IDs/);
+  assert.deepEqual(before, original);
 });
 
 test('search only includes imported source when explicitly enabled', () => {

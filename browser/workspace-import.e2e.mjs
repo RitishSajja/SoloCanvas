@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 import { openWorkspaceBoard } from './workspace-helpers.mjs';
 const v2 = title => ({ version: 2, cards: [{ id: 'c', data: { label: title } }], boards: [{ id: 'b', title: 'Imported board', extra: {}, nodes: [{ id: 'n', cardId: 'c', position: { x: 0, y: 0 } }], edges: [] }] });
 const file = data => ({ name: 'workspace.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });

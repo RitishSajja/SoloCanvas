@@ -1,9 +1,40 @@
 export const BOARD_KEY = 'solocanvas.board.v1';
 export const BACKUP_KEY = 'solocanvas.board.backup.v1';
 export const WORKSPACE_KEY = 'solocanvas.workspace.v2';
+export const WORKSPACE_BACKUP_KEY = 'solocanvas.workspace.backup.v2';
+export const WORKSPACE_DAMAGED_KEY = 'solocanvas.workspace.damaged.v2';
 export const WORKSPACE_LOCK = 'solocanvas.workspace.v2.write';
+export const ONBOARDING_KEY = 'solocanvas.onboarding.v1';
+const savedDataKeys = [BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY];
 const blank = () => ({ nodes: [], edges: [] });
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+export function getFirstRunStatus(storage) {
+  try {
+    const source = storage ?? globalThis.localStorage;
+    if (source.getItem(ONBOARDING_KEY) !== null) return 'already-complete';
+    return savedDataKeys.some(key => source.getItem(key) !== null) ? 'existing-data' : 'first-run';
+  } catch {
+    return 'unavailable';
+  }
+}
+
+export function isFirstRun(storage) {
+  return getFirstRunStatus(storage) === 'first-run';
+}
+
+export function completeOnboarding(storage) {
+  const status = getFirstRunStatus(storage);
+  if (status !== 'first-run') return status === 'already-complete' ? 'already-complete' : status;
+  try {
+    const target = storage ?? globalThis.localStorage;
+    target.setItem(ONBOARDING_KEY, 'complete');
+    return 'saved';
+  } catch {
+    return 'unavailable';
+  }
+}
+
 function validBoard(value) {
   return isRecord(value) && Array.isArray(value.nodes) && Array.isArray(value.edges) &&
     value.nodes.every(n => isRecord(n) && typeof n.id === 'string' && isRecord(n.position) &&
@@ -23,13 +54,16 @@ export function loadBoard(storage) {
   try {
     const source = storage ?? globalThis.localStorage;
     const raw = source.getItem(BOARD_KEY);
+    const workspaceRaw = source.getItem(WORKSPACE_KEY);
+    const firstRun = raw === null && workspaceRaw === null &&
+      [BACKUP_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY, ONBOARDING_KEY].every(key => source.getItem(key) === null);
     // A newer-format workspace may contain edits that the v1 editor cannot see.
-    if (source.getItem(WORKSPACE_KEY) !== null) {
-      return { board: (raw === null ? null : parseBoard(raw)) ?? blank(), raw, canSave: false, canRestoreBackup: false, message: 'A newer workspace exists. This older board is read-only; export it if needed.' };
+    if (workspaceRaw !== null) {
+      return { board: (raw === null ? null : parseBoard(raw)) ?? blank(), raw, canSave: false, canRestoreBackup: false, firstRun, message: 'A newer workspace exists. This older board is read-only; export it if needed.' };
     }
-    if (raw === null) return { board: blank(), raw: null, canSave: true, canRestoreBackup: false, message: 'Not saved yet' };
+    if (raw === null) return { board: blank(), raw: null, canSave: true, canRestoreBackup: false, firstRun, message: 'Not saved yet' };
     const board = parseBoard(raw);
-    if (board) return { board, raw, canSave: true, canRestoreBackup: false, message: 'Loaded saved board' };
+    if (board) return { board, raw, canSave: true, canRestoreBackup: false, firstRun, message: 'Loaded saved board' };
     const backup = parseBoard(source.getItem(BACKUP_KEY) ?? '');
     if (backup) {
       return {
@@ -37,6 +71,7 @@ export function loadBoard(storage) {
         raw: null,
         canSave: false,
         canRestoreBackup: true,
+        firstRun,
         message: 'The saved board is unreadable. A previous backup is available; restore it to replace the unreadable data.',
       };
     }
@@ -47,6 +82,7 @@ export function loadBoard(storage) {
       raw: null,
       canSave: false,
       canRestoreBackup: false,
+      firstRun: false,
       message: 'The saved board could not be read. Saving is disabled to protect existing data. Check browser storage or recover the saved data before reloading.',
     };
   }

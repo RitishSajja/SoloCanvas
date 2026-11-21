@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 import { openWorkspaceBoard } from './workspace-helpers.mjs';
 
 test('renaming and deleting boards preserves shared cards and requires an explicit save', async ({ page }) => {
@@ -47,4 +47,35 @@ test('renaming and deleting boards preserves shared cards and requires an explic
   await expect(page.getByRole('option', { name: 'Architecture' })).toHaveCount(0);
   await expect(page.getByRole('option', { name: 'Shared API' })).toHaveCount(1);
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Shared API' })).toBeVisible();
+});
+
+test('nested mini-boards reopen from their placements after saving and reloading', async ({ page }) => {
+  const button = name => page.getByRole('button', { name, exact: true });
+  await page.goto('/');
+  await openWorkspaceBoard(page, { expandTools: false });
+  const selector = page.getByLabel('Current board');
+  const root = await selector.inputValue();
+  const ids = [];
+  for (const label of ['Platform', 'Billing']) {
+    await button('Add component').click();
+    await page.locator('.react-flow__node').last().click();
+    await page.getByLabel('Shared component name').fill(label);
+    await button('Open mini-board').click();
+    await expect(selector.locator('option:checked')).toHaveText(`${label} board`);
+    ids.push(await selector.inputValue());
+  }
+  await page.getByRole('navigation', { name: 'Workspace breadcrumbs' }).getByRole('button', { name: 'Platform' }).click();
+  await expect(selector).toHaveValue(ids[0]);
+  await page.getByRole('navigation', { name: 'Workspace breadcrumbs' }).getByRole('button', { name: 'My board' }).click();
+  await expect(selector).toHaveValue(root);
+  page.once('dialog', dialog => dialog.accept());
+  await button('Save workspace').click();
+  await expect(page.getByRole('status')).toContainText('Workspace saved');
+  await page.reload();
+  await openWorkspaceBoard(page, { expandTools: false });
+  for (const [index, label] of ['Platform', 'Billing'].entries()) {
+    await page.locator('.react-flow__node').filter({ hasText: label }).click();
+    await button('Open mini-board').click();
+    await expect(selector).toHaveValue(ids[index]);
+  }
 });

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 import { openWorkspaceBoard } from './workspace-helpers.mjs';
 test('workspace canvas moves, connects, labels and removes components with persistence', async ({ page }) => {
  await page.goto('/');

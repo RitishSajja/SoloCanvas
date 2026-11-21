@@ -41,7 +41,7 @@ test('stale legacy or workspace snapshots block the write', () => {
  assert.match(writeWorkspace(first.workspace, stale, store).error, /changed/);
 });
 
-test('existing v2 is backed up before replacement and legacy is preserved', () => {
+test('existing workspace is backed up before replacement and legacy is preserved', () => {
  const store = memory({ [BOARD_KEY]: legacy }); const first = openWorkspace(store);
  assert.equal(writeWorkspace(first.workspace, first.snapshot, store).ok, true);
  const previous = store.getItem(WORKSPACE_KEY); const next = openWorkspace(store);
@@ -58,21 +58,26 @@ test('corrupt or future workspace never silently falls back to legacy', () => {
  }
 });
 
-test('version 2 workspaces migrate on read and preserve raw recovery data until an explicit save', () => {
+test('version 2 workspaces migrate on read and preserve nested links and raw recovery data until save', () => {
  const old = JSON.stringify({ version: 2, cards: [{ id: 'card', data: { label: 'API' } }],
-   boards: [{ id: 'board', title: 'Board', extra: {}, nodes: [{ id: 'node', cardId: 'card', position: { x: 2, y: 3 } }], edges: [] }] });
+   boards: [
+     { id: 'board', title: 'Board', extra: {}, nodes: [{ id: 'node', cardId: 'card', position: { x: 2, y: 3 } }], edges: [] },
+     { id: 'child', title: 'Child', extra: {}, parentPlacement: { boardId: 'board', nodeId: 'node' }, nodes: [], edges: [] },
+   ] });
  const store = memory({ [WORKSPACE_KEY]: old, [BOARD_KEY]: legacy });
  const opened = openWorkspace(store);
  assert.equal(opened.ok, true);
  assert.equal(opened.workspace.version, 3);
  assert.equal(opened.workspace.boards[0].nodes[0].shape, 'pill');
  assert.deepEqual(opened.workspace.boards[0].notes, []);
+ assert.deepEqual(opened.workspace.boards[1].parentPlacement, { boardId: 'board', nodeId: 'node' });
  assert.equal(store.getItem(WORKSPACE_KEY), old);
  const saved = writeWorkspace(opened.workspace, opened.snapshot, store);
  assert.equal(saved.ok, true);
  assert.equal(store.getItem(WORKSPACE_BACKUP_KEY), old);
  assert.equal(JSON.parse(store.getItem(WORKSPACE_KEY)).version, 3);
  assert.equal(openWorkspace(store).workspace.boards[0].nodes[0].shape, 'pill');
+ assert.deepEqual(openWorkspace(store).workspace.boards[1].parentPlacement, { boardId: 'board', nodeId: 'node' });
  assert.equal(store.getItem(BOARD_KEY), legacy);
 });
 
@@ -150,9 +155,12 @@ test('explicit recovery preserves the damaged workspace and legacy board', async
  assert.equal(store.getItem(BOARD_KEY), legacy); assert.equal(store.getItem(WORKSPACE_BACKUP_KEY), valid);
 });
 
-test('recovery upgrades a version 2 backup in memory without discarding the raw backup', async () => {
+test('recovery upgrades a version 2 backup in memory without discarding raw nested links', async () => {
  const oldBackup = JSON.stringify({ version: 2, cards: [{ id: 'card', data: { label: 'API' } }],
-   boards: [{ id: 'board', title: 'Board', extra: {}, nodes: [{ id: 'node', cardId: 'card', position: { x: 0, y: 0 } }], edges: [] }] });
+   boards: [
+     { id: 'board', title: 'Board', extra: {}, nodes: [{ id: 'node', cardId: 'card', position: { x: 0, y: 0 } }], edges: [] },
+     { id: 'child', title: 'Child', extra: {}, parentPlacement: { boardId: 'board', nodeId: 'node' }, nodes: [], edges: [] },
+   ] });
  const store = memory({ [BOARD_KEY]: legacy, [WORKSPACE_KEY]: '{broken', [WORKSPACE_BACKUP_KEY]: oldBackup });
  const inspection = inspectWorkspaceRecovery(store);
  assert.equal(inspection.ok, true);
@@ -160,10 +168,12 @@ test('recovery upgrades a version 2 backup in memory without discarding the raw 
  assert.equal(restored.ok, true);
  assert.equal(restored.workspace.version, 3);
  assert.equal(restored.workspace.boards[0].nodes[0].shape, 'pill');
+ assert.deepEqual(restored.workspace.boards[1].parentPlacement, { boardId: 'board', nodeId: 'node' });
  assert.equal(store.getItem(WORKSPACE_KEY), oldBackup);
  assert.equal(store.getItem(WORKSPACE_BACKUP_KEY), oldBackup);
  assert.equal(store.getItem(BOARD_KEY), legacy);
  assert.equal(openWorkspace(store).workspace.version, 3);
+ assert.deepEqual(openWorkspace(store).workspace.boards[1].parentPlacement, { boardId: 'board', nodeId: 'node' });
 });
 
 test('recovery refuses stale data, unknown versions, or existing different archive', async () => {

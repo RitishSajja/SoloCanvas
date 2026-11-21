@@ -1,5 +1,6 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { Board } from './storage.mjs';
+import type { MermaidImportDiagram } from './mermaid-import.mjs';
 export type Card = { id: string; data: Record<string, unknown> };
 export type ComponentShape = 'rectangle' | 'rounded' | 'pill' | 'diamond';
 export type Placement = Omit<Node, 'data'> & { cardId: string; shape: ComponentShape };
@@ -15,7 +16,9 @@ export type WorkspaceBoard = {
 };
 export type Workspace = { version: 3; cards: Card[]; boards: WorkspaceBoard[] };
 export const COMPONENT_SHAPES: ComponentShape[];
+export function migrateLegacyBoard(raw: string, options?: { boardId?: string; title?: string }): Workspace;
 export function migrateWorkspaceV2(workspace: unknown): Workspace;
+export function validateWorkspace(workspace: unknown): workspace is Workspace;
 export function projectBoard(workspace: Workspace, boardId: string): Board;
 export function addBoard(workspace: Workspace, id: string, title: string): Workspace;
 export function addMiniBoard(workspace: Workspace, boardId: string, nodeId: string, id: string, title: string): Workspace;
@@ -23,6 +26,12 @@ export function getMiniBoard(workspace: Workspace, boardId: string, nodeId: stri
 export function getBoardBreadcrumbs(workspace: Workspace, boardId: string): { boardId: string; title: string; parentBoardId?: string; parentNodeId?: string }[];
 export function updatePlacementShape(workspace: Workspace, boardId: string, nodeId: string, shape: ComponentShape): Workspace;
 export function placeCard(workspace: Workspace, boardId: string, cardId: string, node: Omit<Placement, 'cardId' | 'shape'> & { shape?: ComponentShape }): Workspace;
+export function createMermaidBoard(
+  workspace: Workspace,
+  title: string,
+  diagram: MermaidImportDiagram,
+  idFactory?: () => string,
+): { workspace: Workspace; boardId: string };
 export function updateCard(workspace: Workspace, cardId: string, data: Record<string, unknown>): Workspace;
 export function renameBoard(workspace: Workspace, boardId: string, title: string): Workspace;
 export function removeBoard(workspace: Workspace, boardId: string): Workspace;

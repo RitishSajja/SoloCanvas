@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 import { openWorkspaceBoard } from './workspace-helpers.mjs';
 
-test('cooperating tabs serialize v2 saves and reject a stale snapshot', async ({ context }) => {
+test('cooperating tabs serialize workspace saves and reject a stale snapshot', async ({ context }) => {
  const first = await context.newPage();
  const second = await context.newPage();
  await first.goto('/');

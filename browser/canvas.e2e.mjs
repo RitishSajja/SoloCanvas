@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './returning-user-fixture.mjs';
 
 test('create, move, connect, label, save, reload and delete', async ({ page }) => {
   await page.goto('/?legacy-board=1');

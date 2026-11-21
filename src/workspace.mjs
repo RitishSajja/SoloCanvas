@@ -1,6 +1,6 @@
 // This module is a pure, in-memory model. It does not write browser storage.
-// Keep v1 data untouched until a future persistence migration is designed and tested.
 import { parseBoard } from './storage.mjs';
+import { validateMermaidImportDiagram } from './mermaid-import.mjs';
 
 const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const idString = (v) => typeof v === 'string' && v.length > 0;
@@ -23,6 +23,27 @@ function validateWorkspaceV2(workspace) {
     if (!board.edges.every(edge => object(edge) && idString(edge.id) && nodeIds.has(edge.source) && nodeIds.has(edge.target))) return false;
     if (!unique(board.edges.map(edge => edge.id))) return false;
   }
+  const boardsById = new Map(workspace.boards.map(board => [board.id, board]));
+  const parents = new Set();
+  for (const board of workspace.boards) {
+    const parent = board.parentPlacement ?? null;
+    if (parent === null) continue;
+    if (!object(parent) || !idString(parent.boardId) || !idString(parent.nodeId)) return false;
+    const parentBoard = boardsById.get(parent.boardId);
+    if (!parentBoard || !parentBoard.nodes.some(node => node.id === parent.nodeId)) return false;
+    const key = JSON.stringify([parent.boardId, parent.nodeId]);
+    if (parents.has(key)) return false;
+    parents.add(key);
+  }
+  for (const board of workspace.boards) {
+    const ancestors = new Set([board.id]);
+    let current = board;
+    while (current.parentPlacement) {
+      current = boardsById.get(current.parentPlacement.boardId);
+      if (ancestors.has(current.id)) return false;
+      ancestors.add(current.id);
+    }
+  }
   return true;
 }
 
@@ -33,7 +54,7 @@ export function migrateWorkspaceV2(workspace) {
     cards: copy(workspace.cards),
     boards: workspace.boards.map(board => ({
       ...copy(board),
-      parentPlacement: null,
+      parentPlacement: board.parentPlacement ?? null,
       notes: [],
       nodes: board.nodes.map(node => ({ ...copy(node), shape: 'pill' })),
     })),
@@ -173,6 +194,46 @@ export function updatePlacementShape(workspace, boardId, nodeId, shape) {
   if (!placement) throw new Error('Placement not found');
   placement.shape = shape;
   return next;
+}
+
+export function createMermaidBoard(workspace, title, diagram, idFactory = () => crypto.randomUUID()) {
+  if (!validateWorkspace(workspace) || typeof title !== 'string' || !title.trim() ||
+      !validateMermaidImportDiagram(diagram) || typeof idFactory !== 'function') {
+    throw new Error('Invalid Mermaid board import');
+  }
+  const next = copy(workspace);
+  const existingIds = new Set([
+    ...next.cards.map(card => card.id),
+    ...next.boards.flatMap(board => [
+      board.id,
+      ...board.nodes.map(node => node.id),
+      ...board.edges.map(edge => edge.id),
+    ]),
+  ]);
+  const allocateId = () => {
+    const id = idFactory();
+    if (!idString(id) || existingIds.has(id)) throw new Error('Could not generate unique IDs for the imported board');
+    existingIds.add(id);
+    return id;
+  };
+  const boardId = allocateId();
+  const importedNodes = new Map();
+  const nodes = diagram.nodes.map((item, index) => {
+    const cardId = allocateId();
+    const nodeId = allocateId();
+    importedNodes.set(item.id, nodeId);
+    next.cards.push({ id: cardId, data: { label: item.label } });
+    return { id: nodeId, cardId, position: { x: 60 + (index % 4) * 240, y: 60 + Math.floor(index / 4) * 140 } };
+  });
+  const edges = diagram.edges.map(item => ({
+    id: allocateId(),
+    source: importedNodes.get(item.source),
+    target: importedNodes.get(item.target),
+    label: item.label,
+  }));
+  next.boards.push({ id: boardId, title: title.trim(), extra: {}, parentPlacement: null, nodes: nodes.map(node => ({ ...node, shape: 'pill' })), edges, notes: [] });
+  if (!validateWorkspace(next)) throw new Error('Imported Mermaid board failed workspace validation');
+  return { workspace: next, boardId };
 }
 
 export function placeCard(workspace, boardId, cardId, node) {
