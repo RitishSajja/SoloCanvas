@@ -113,11 +113,37 @@ test('saved v1 data bypasses onboarding and remains unchanged', async ({ page })
   expect(await page.evaluate(key => localStorage.getItem(key), ONBOARDING_KEY)).toBeNull();
 });
 
-test('saved v2 workspace and its v1/v2 recovery records bypass onboarding unchanged', async ({ page }) => {
-  const legacyRaw = JSON.stringify({
-    nodes: [{ id: 'old', position: { x: 20, y: 30 }, data: { label: 'Saved legacy component' } }],
+test('default workspace offers v1 backup recovery only after explicit restore', async ({ page }) => {
+  const damagedRaw = '{broken legacy board}';
+  const backupRaw = JSON.stringify({
+    nodes: [{ id: 'recovered', position: { x: 20, y: 30 }, data: { label: 'Recovered component' } }],
     edges: [],
   });
+  const token = `__legacy_recovery_${randomUUID()}`;
+  await page.addInitScript(({ boardKey, backupKey, damaged, backup, token: once }) => {
+    if (sessionStorage.getItem(once) === 'done') return;
+    localStorage.setItem(boardKey, damaged);
+    localStorage.setItem(backupKey, backup);
+    sessionStorage.setItem(once, 'done');
+  }, { boardKey: BOARD_KEY, backupKey: BACKUP_KEY, damaged: damagedRaw, backup: backupRaw, token });
+
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Restore previous board backup' })).toBeVisible();
+  expect(await page.evaluate(keys => keys.map(key => localStorage.getItem(key)), [BOARD_KEY, BACKUP_KEY]))
+    .toEqual([damagedRaw, backupRaw]);
+
+  await page.getByRole('button', { name: 'Restore previous board backup' }).click();
+  await expect.poll(() => page.evaluate(key => localStorage.getItem(key), BOARD_KEY)).toBe(backupRaw);
+  await expect(page.getByRole('button', { name: 'Open board My board' })).toBeVisible();
+  expect(await page.evaluate(key => localStorage.getItem(key), BACKUP_KEY)).toBe(backupRaw);
+  expect(await page.evaluate(key => localStorage.getItem(key), WORKSPACE_KEY)).toBeNull();
+  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await expect(page.locator('.react-flow__node').filter({ hasText: 'Recovered component' })).toBeVisible();
+});
+
+test('saved v2 workspace and its v1/v2 recovery records bypass onboarding unchanged', async ({ page }) => {
+  const legacyRaw = '{preserved unreadable legacy board}';
   const backupRaw = JSON.stringify({ nodes: [], edges: [] });
   const workspaceSourceRaw = JSON.stringify({
     nodes: [{ id: 'v2', position: { x: 40, y: 50 }, data: { label: 'Saved v2 component' } }],
@@ -138,6 +164,7 @@ test('saved v2 workspace and its v1/v2 recovery records bypass onboarding unchan
   await page.goto('/');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Restore previous board backup' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Open board Saved v2 board' }).click();
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Saved v2 component' })).toBeVisible();
   const stored = await page.evaluate(keys => Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])), [

@@ -9,6 +9,7 @@ import type { Suggestion, Diagnostic } from './dependency-map.mjs';
 import { startDependencyAnalysis } from './analysis-client.mjs';
 import { addSuggestedDependencies } from './dependency-apply.mjs';
 import WorkspaceRecovery from './WorkspaceRecovery';
+import LegacyBoardRecovery from './LegacyBoardRecovery';
 
 const suggestionKey = (item: Suggestion) => JSON.stringify([item.sourceNodeId, item.targetNodeId]);
 const stickyNodeType = 'stickyNote';
@@ -501,6 +502,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
         </article>)}
       </div>}
       {!workspace && <p role="alert">{message}</p>}
+      <LegacyBoardRecovery />
       <WorkspaceRecovery />
       <p role="status">{message}</p>
     </section> : <div className="workspace">

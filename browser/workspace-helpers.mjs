@@ -1,10 +1,12 @@
+import { expect } from '@playwright/test';
+
 export async function openWorkspaceBoard(page, { expandTools = true } = {}) {
-  if (await page.getByRole('button', { name: 'Open workspace' }).count()) {
-    await page.getByRole('button', { name: 'Open workspace' }).click();
-  }
-  if (await page.getByRole('button', { name: /^Open board / }).count()) {
-    await page.getByRole('button', { name: /^Open board / }).first().click();
-  }
+  const legacyWorkspaceButton = page.getByRole('button', { name: 'Open workspace' });
+  const boardButtons = page.getByRole('button', { name: /^Open board / });
+  await expect(legacyWorkspaceButton.or(boardButtons.first())).toBeVisible();
+  if (await legacyWorkspaceButton.isVisible()) await legacyWorkspaceButton.click();
+  await expect(boardButtons.first()).toBeVisible();
+  await boardButtons.first().click();
   if (expandTools) {
     const header = page.locator('details.workspace-header-tools');
     if (await header.count() && !(await header.getAttribute('open'))) await header.locator('summary').click();
