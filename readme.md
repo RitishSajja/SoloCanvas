@@ -243,3 +243,35 @@ On a file-map board containing imported source, **Analyze board imports** can su
 **Export board as Mermaid** downloads a one-way Mermaid flowchart for the current workspace board. It includes component names and directed relationship labels. It does not include layout, source text, card sharing, styles, metadata or other boards; it cannot be imported back into SoloCanvas. The board must contain at least one component. The export supports up to 1,000 components, 3,000 relationships and 512 characters per label. A Chromium check renders a small export with Mermaid 11.4.1, including special characters and an attempted directive injection; other Mermaid versions and larger diagrams have not been verified.
 
 In the multi-board workspace, **Import workspace** opens an exported SoloCanvas v2 JSON file of up to 5 MB. It replaces the in-memory workspace after confirmation; it does not merge and does not alter stored data until **Save workspace** succeeds. Export unsaved work first. The existing v1 **Import board** action remains separate.
+
+## 9. License, Release, and Verification
+
+### License and third-party packages
+
+SoloCanvas is licensed under the Apache License, Version 2.0 (SPDX: `Apache-2.0`); see [LICENSE](LICENSE). The copyright notice identifies Ritish-Sajja, matching the repository's recorded maintainer name.
+
+The direct dependencies' license identifiers, as recorded in `package-lock.json`, are MIT for `@xyflow/react`, `react`, `react-dom`, `@types/react`, `@types/react-dom`, and Vite; and Apache-2.0 for TypeScript and `@playwright/test`. This is a summary of direct package metadata, not a complete audit of transitive dependencies or a legal compliance review.
+
+### Release and certification status
+
+This repository contains an early prototype, not a production release. `package.json` keeps the package marked `private`; the repository's workflow verifies builds and tests but does not publish or deploy the app. No hosted URL is documented here. No product, security, privacy, accessibility, or regulatory certification is documented or claimed. A software license is not a certification, and no certification badge is displayed.
+
+### Verification and prior CI failures
+
+The GitHub Actions workflow runs on pushes and pull requests with Node.js 22. It installs from the lockfile, runs `npm test` and `npm run build`, then runs development and production Chromium checks plus a Mermaid 11.4.1 renderer compatibility check.
+
+Local verification for this update (2026-11-21): `npm test` passed (67 tests), `npm run build` passed, and `npm run test:browser` passed 48 tests with its optional Mermaid renderer test skipped because no bundle was configured. Running that renderer test separately with Mermaid 11.4.1 also passed.
+
+The latest recorded renderer-check failure (run [44923740357](https://github.com/RitishSajja/SoloCanvas/actions/runs/44923740357)) was caused by the test querying an obsolete Mermaid edge selector, so it found no rendered edges. The selector was corrected; subsequent runs [44923964265](https://github.com/RitishSajja/SoloCanvas/actions/runs/44923964265) and [44924168253](https://github.com/RitishSajja/SoloCanvas/actions/runs/44924168253) passed the unit, build, browser, and renderer checks.
+
+Earlier worker-analysis checks also failed: run [44410372795](https://github.com/RitishSajja/SoloCanvas/actions/runs/44410372795) timed out while the browser worker was starting; run [44410741342](https://github.com/RitishSajja/SoloCanvas/actions/runs/44410741342) lost the editor page during Vite dependency optimization and separately lost rendered nodes after reload. The handoff records the page reload as consistent with Vite re-optimizing a newly discovered dependency, but does not claim that cause was independently proven. Worker readiness handling and dependency prebundling followed, and run [44411177317](https://github.com/RitishSajja/SoloCanvas/actions/runs/44411177317) passed unit, build, development-browser, and production-browser checks.
+
+## 10. 3–5 Minute Demo Script
+
+Have a small JavaScript or TypeScript project folder with a few relative imports ready. This walkthrough demonstrates the existing local architecture-mapping workflow; it does not demonstrate the AI/RAG, MCP, cloud sync, desktop, authentication, billing, or publishing roadmap.
+
+1. **0:00–0:30 — Set expectations.** Describe SoloCanvas as an early, local-first architecture-map prototype. The app runs in the browser and saves only when asked; there is no cloud account or sync.
+2. **0:30–1:20 — Map a project.** Open **Open workspace**, create a board, and select the prepared folder for a file map. Keep source-text import off to show the default path-only behavior. Review the selected and excluded file counts before creating the board.
+3. **1:20–2:35 — Review relationships.** Choose **Analyze board imports**. Show that the app proposes supported relative JavaScript/TypeScript imports for review rather than silently changing the graph. Inspect a suggestion and its source evidence, then add only the relationships you want.
+4. **2:35–3:30 — Edit and save.** Move a component, edit its name, or add and label a relationship. Save the workspace explicitly, then point out that saved data belongs to this browser origin and is not synced or backed up remotely.
+5. **3:30–4:00 — Export and close honestly.** Export the current board as a Mermaid flowchart. Explain that this is a one-way diagram export, not an import or a hosted share link, and distinguish implemented mapping from the longer-term AI, MCP, sync, desktop, and publishing roadmap.
