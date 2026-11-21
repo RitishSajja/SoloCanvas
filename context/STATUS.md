@@ -2,7 +2,7 @@
 
 ## Current feature follow-up — 2026-11-21, Copilot
 
-Branch: `ritishsajja-nested-boards-and-notes`. This review started at `cf9f2fd` (README automation handoff), following merge commit `e77c57e`; the observed `origin/main` was `d052674`, so this branch and its README handoff are branch-only until integration. No merge to main or deployment was performed.
+Branch: `ritishsajja-nested-boards-and-notes`. Recovery implementation commit: `63ac05b` (`Expose legacy backup recovery in workspace`), based on `cf9f2fd` (README automation handoff) and following merge commit `e77c57e`. The observed `origin/main` was `d052674`, so this branch and its README handoff are branch-only until integration. No merge to main or deployment was performed.
 
 Fixed the default-route v1 recovery gap: the workspace overview now exposes **Restore previous board backup** only when `loadBoard()` confirms that the v1 primary is unreadable and a valid backup exists. Restoration happens only after the user activates the control; v1 data remains read-only and the recovery action is hidden whenever a v2 workspace exists. Added browser coverage for unchanged storage before explicit restore, successful recovery/reopen, and suppression of v1 recovery when v2 is present. The shared workspace browser helper now waits for either the legacy entry or workspace landing control before continuing, avoiding a post-reload race.
 
