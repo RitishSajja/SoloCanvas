@@ -1,7 +1,7 @@
 # Agent handoff
 
 ## Codex — Mermaid compatibility check, 2026-11-21
-Based on main 40a9bc9cbfa8b669ad31777820bdf81b94a6e4b9. Copilot's new project-area grouping passed Actions 44942987985. The nested workspace UI remains on Copilot's separate branch. The renderer check now builds its workspace through the application's legacy board migration API so it follows the current model version. All label, link and edge assertions remain in place. Verification pending. Next: verify the check again on the integrated workspace, including recovery for an orphaned mini-board, then continue direct canvas editing and file attachments.
+Based on main 40a9bc9cbfa8b669ad31777820bdf81b94a6e4b9. Copilot's new project-area grouping passed Actions 44942987985. The nested workspace UI remains on Copilot's separate branch. The renderer check now builds its workspace through the application's legacy board migration API so it follows the current model version. All label, link and edge assertions remain in place. Commit 10546842d39e873e77caa35b8b9660b610a43148 passed unit tests, production build, development and production Chromium suites, and the separate Mermaid renderer check in Actions run 44943762353. This verifies main only. This commit and its status follow-up are Codex-authored. Next: verify the check again on the integrated workspace, including recovery for an orphaned mini-board, then continue direct canvas editing and file attachments.
 
 
 ## Copilot scheduled implementation agent — 2026-11-21
