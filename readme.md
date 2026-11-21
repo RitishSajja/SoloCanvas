@@ -236,6 +236,12 @@ On a file-map board containing imported source, **Analyze board imports** can su
 
 In the multi-board workspace, **Import workspace** opens an exported SoloCanvas v2 or v3 workspace JSON file of up to 5 MB. It replaces the in-memory workspace after confirmation; it does not merge and does not alter stored data until **Save workspace** succeeds. Export unsaved work first. The legacy v1 **Import board** action remains separate.
 
+### Next automation handoff
+
+The workspace-first UI work is on `ritishsajja-nested-boards-and-notes` at commit `e77c57e`; it must be integrated into `main` before follow-up edits. At each check-in, inspect the latest `origin/main`, `context/STATUS.md`, and active branch/session work first. If this commit is not integrated or another active branch is changing the same workspace/UI files, do not duplicate, rebase, merge, or modify that work; report that integration is still pending and stop.
+
+After integration is clear, the next milestone is a post-integration usability pass on the workspace-first flow: verify first-run and returning-user routing, the unsaved sample-to-workspace path, responsive overview/board navigation, and nested placement, notes, and shape interactions. Fix only concrete issues found; do not add unrelated features. Acceptance requires `npm test`, `npm run build`, and the full `npm run test:browser` suite to pass, plus confirmation that v2 parent-placement links survive read/open, recovery, and explicit v3 save without changing the raw backup before save. The feature branch's pre-integration baseline was 84 unit tests passing, a successful production build, and 63 browser tests passing with one optional renderer test skipped.
+
 ## 9. License, Release, and Verification
 
 ### License and third-party packages
