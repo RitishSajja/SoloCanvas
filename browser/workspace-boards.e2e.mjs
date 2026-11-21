@@ -47,3 +47,34 @@ test('renaming and deleting boards preserves shared cards and requires an explic
   await expect(page.getByRole('option', { name: 'Shared API' })).toHaveCount(1);
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Shared API' })).toBeVisible();
 });
+
+test('nested mini-boards reopen from their placements after saving and reloading', async ({ page }) => {
+  const button = name => page.getByRole('button', { name, exact: true });
+  await page.goto('/');
+  await button('Open workspace').click();
+  const selector = page.getByLabel('Current board');
+  const root = await selector.inputValue();
+  const ids = [];
+  for (const label of ['Platform', 'Billing']) {
+    await button('Add component').click();
+    await page.locator('.react-flow__node').last().click();
+    await page.getByLabel('Shared component name').fill(label);
+    await button('Create mini-board').click();
+    await expect(selector.locator('option:checked')).toHaveText(label);
+    ids.push(await selector.inputValue());
+  }
+  await button('Back to Platform').click();
+  await expect(selector).toHaveValue(ids[0]);
+  await page.getByRole('button', { name: /^Back to / }).click();
+  await expect(selector).toHaveValue(root);
+  page.once('dialog', dialog => dialog.accept());
+  await button('Save workspace').click();
+  await expect(page.getByRole('status')).toContainText('Workspace saved');
+  await page.reload();
+  await button('Open workspace').click();
+  for (const [index, label] of ['Platform', 'Billing'].entries()) {
+    await page.locator('.react-flow__node').filter({ hasText: label }).click();
+    await button('Open mini-board').click();
+    await expect(selector).toHaveValue(ids[index]);
+  }
+});

@@ -1,5 +1,9 @@
 # Agent handoff
 
+## Codex — nested board navigation, 2026-11-21
+Started from main 71ab77e692c36a2c4bfcdc38fbcf884968559a40 after Copilot integrated the revised README, onboarding, licensing and Mermaid import. Integrated main passed Actions run 44936711106. This checkpoint adds explicit creation and opening of a mini-board per component placement, recursive nesting and return to the parent placement. Existing boards remain accessible from the board selector. Removing a parent leaves descendants accessible independently. Changes use the existing explicit workspace save. Added a two-level browser regression covering returning, saving and reopening both levels. Checkpoint verification pending. Next: project-level organization by task or team, followed by sticky notes and shape selection. Pages and context-review remain deferred.
+
+
 ## Current integration — 2026-11-21, Copilot
 Based on `origin/main` `decd1e76a0a09ca03a10c84744b8a745bf14e335`. This integration combines the onboarding/seed-board branch (`d26cb66`, `23578eb`), architecture code-map/Mermaid import (`db35eaf`, `c09b496`, `1b9fb69`, `604b61c`), Apache licensing/release docs (`2de7f54`), and nested-boards README direction (`1509cbc`). Main was fast-forwarded to the verified integrated tree; the feature ref was synchronized as well. A final status-only commit records the result.
 

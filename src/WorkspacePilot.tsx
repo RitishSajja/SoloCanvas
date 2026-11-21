@@ -98,6 +98,26 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
     const id = crypto.randomUUID();
     changed(addBoard(workspace, id, title.trim())); setBoardId(id); setSelectedNode(''); setSelectedEdge('');
   };
+  const childBoard = selected && workspace?.boards.find(item =>
+    item.parentPlacement?.boardId === boardId && item.parentPlacement.nodeId === selected.id);
+  const parent = board?.parentPlacement;
+  const parentBoard = parent && workspace?.boards.find(item =>
+    item.id === parent.boardId && item.nodes.some(node => node.id === parent.nodeId));
+
+  const openMiniBoard = () => {
+    if (!workspace || !board || !selected) return;
+    let target = childBoard;
+    if (!target) {
+      const id = crypto.randomUUID();
+      const next = addBoard(workspace, id, String(selectedCard?.data.label || 'Mini-board'));
+      target = next.boards[next.boards.length - 1];
+      target.parentPlacement = { boardId: board.id, nodeId: selected.id };
+      changed(next);
+    }
+    setBoardId(target.id);
+    setSelectedNode('');
+    setSelectedEdge('');
+  };
   const renameCurrentBoard = () => {
     if (!workspace || !board) return;
     const title = window.prompt('Rename this board', board.title);
@@ -376,6 +396,8 @@ export default function WorkspacePilot({ onClose }: { onClose: (saved: boolean) 
             {workspace.boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
           </select></label>
           <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={renameCurrentBoard} disabled={!board}>Rename board</button><button onClick={deleteCurrentBoard} disabled={!board || workspace.boards.length <= 1}>Delete board</button><button onClick={addComponent} disabled={!board}>Add component</button></div>
+          {selected && <button onClick={openMiniBoard}>{childBoard ? 'Open mini-board' : 'Create mini-board'}</button>}
+          {parent && parentBoard && <button onClick={() => openPlacement(parentBoard.id, parent.nodeId)}>Back to {parentBoard.title}</button>}
           <section aria-label="Create file map">
             <h2>Create file map</h2>
             <p>Choose up to 100 files or a folder. By default only paths are used. Optional source text is saved in your browser and workspace exports; review it for secrets. No relationships are inferred.</p>
