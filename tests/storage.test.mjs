@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadBoard, saveBoard, saveBoardSafely, restoreBackup, restoreBackupSafely, parseBoard, BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_LOCK } from '../src/storage.mjs';
+import { completeOnboarding, loadBoard, saveBoard, saveBoardSafely, restoreBackup, restoreBackupSafely, parseBoard, BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY, WORKSPACE_LOCK, ONBOARDING_KEY } from '../src/storage.mjs';
 function memory(initial = null) {
  const values = new Map(initial === null ? [] : [[BOARD_KEY, initial]]);
  return {
@@ -16,7 +16,26 @@ test('saves and reloads nodes and labeled edges', () => {
 });
 test('new storage opens an editable empty board', () => {
  const result = loadBoard(memory());
- assert.equal(result.canSave, true); assert.deepEqual(result.board, { nodes: [], edges: [] });
+ assert.equal(result.canSave, true); assert.equal(result.firstRun, true); assert.deepEqual(result.board, { nodes: [], edges: [] });
+});
+test('onboarding is limited to empty storage and remembers a blank start without altering boards', () => {
+ const store = memory();
+ assert.equal(loadBoard(store).firstRun, true);
+ assert.equal(completeOnboarding(store), 'saved');
+ assert.equal(store.getItem(ONBOARDING_KEY), 'complete');
+ assert.equal(store.getItem(BOARD_KEY), null);
+ assert.equal(store.getItem(WORKSPACE_KEY), null);
+ assert.equal(loadBoard(store).firstRun, false);
+ assert.equal(completeOnboarding(store), 'already-complete');
+
+ for (const key of [BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY]) {
+   const saved = memory();
+   saved.setItem(key, 'existing local data');
+   assert.equal(loadBoard(saved).firstRun, false, `${key} must suppress first-run onboarding`);
+   assert.equal(completeOnboarding(saved), 'existing-data');
+   assert.equal(saved.getItem(key), 'existing local data');
+   assert.equal(saved.getItem(ONBOARDING_KEY), null);
+ }
 });
 test('corrupt or malformed data disables save without replacing the stored value', () => {
  for (const raw of ['{', '{"nodes":[null],"edges":[]}', '{"nodes":[],"edges":[{}]}']) {

@@ -1,10 +1,9 @@
 // Isolated v2 persistence adapter. The current application still uses v1.
 // A read never modifies data. A write never removes or rewrites the v1 board.
-import { BOARD_KEY, WORKSPACE_KEY, WORKSPACE_LOCK } from './storage.mjs';
+import { BOARD_KEY, WORKSPACE_KEY, WORKSPACE_LOCK, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY } from './storage.mjs';
 import { migrateLegacyBoard, validateWorkspace } from './workspace.mjs';
 
-export { WORKSPACE_KEY };
-export const WORKSPACE_BACKUP_KEY = 'solocanvas.workspace.backup.v2';
+export { WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY };
 
 // Reject values JSON would silently drop or change, including cycles and non-finite numbers.
 function jsonSafe(value, ancestors = new Set()) {
@@ -107,8 +106,6 @@ export async function writeWorkspaceLocked(workspace, snapshot, storage, locks =
     return { ok: false, error: 'Could not obtain the workspace save lock. Export your changes.' };
   }
 }
-
-export const WORKSPACE_DAMAGED_KEY = 'solocanvas.workspace.damaged.v2';
 
 function isUnknownVersion(raw) {
   try {

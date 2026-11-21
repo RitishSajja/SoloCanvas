@@ -3,9 +3,14 @@ import { ReactFlow, Background, Controls, addEdge, applyNodeChanges, applyEdgeCh
 
 import WorkspaceRecovery from './WorkspaceRecovery';
 import WorkspacePilot from './WorkspacePilot';
-import { loadBoard, parseBoard, restoreBackupSafely, saveBoardSafely } from './storage.mjs';
+import Onboarding from './Onboarding';
+import { completeOnboarding, loadBoard, parseBoard, restoreBackupSafely, saveBoardSafely } from './storage.mjs';
+import { createExampleBoard } from './example-board.mjs';
 export default function App() {
   const [initial] = useState(() => loadBoard());
+  const [showOnboarding, setShowOnboarding] = useState(initial.firstRun);
+  const [onboardingNotice, setOnboardingNotice] = useState('');
+  const [isExampleBoard, setIsExampleBoard] = useState(false);
   const [showWorkspace, setShowWorkspace] = useState(false);
   const savedRaw = useRef<string | null>(initial.raw);
   const [nodes, setNodes] = useState<Node[]>(() => initial.board.nodes.map((node) => ({ ...node, selected: false })));
@@ -20,6 +25,28 @@ export default function App() {
   const operationInProgress = useRef(false);
   const editVersion = useRef(0);
   const markChanged = useCallback(() => { editVersion.current += 1; setHasUnsavedChanges(true); }, []);
+  const exploreExample = () => {
+    const example = createExampleBoard();
+    setNodes(example.nodes.map((node) => ({ ...node, selected: false })));
+    setEdges(example.edges.map((edge) => ({ ...edge, selected: false })));
+    setSelected(null);
+    setSelectedEdge(null);
+    setIsExampleBoard(true);
+    markChanged();
+    setSaveMessage('Example board loaded. It stays in memory until you choose Save board.');
+    setShowOnboarding(false);
+  };
+  const startBlank = () => {
+    const result = completeOnboarding();
+    if (result === 'existing-data') {
+      setOnboardingNotice('Saved work appeared in another tab. Reload to open it safely.');
+      return;
+    }
+    setShowOnboarding(false);
+    setSaveMessage(result === 'unavailable'
+      ? 'Blank board ready. This choice could not be remembered; it may appear again next time.'
+      : 'Blank board ready. Add a component to get started.');
+  };
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((old) => applyNodeChanges(changes, old));
     if (changes.some((change) => change.type !== 'select' && change.type !== 'dimensions')) markChanged();
@@ -89,6 +116,7 @@ export default function App() {
       setEdges(board.edges);
       setSelected(null);
       setSelectedEdge(null);
+      setIsExampleBoard(false);
       markChanged();
       setSaveMessage('Board imported. Select Save board to keep it on this device.');
     } catch {
@@ -115,12 +143,13 @@ export default function App() {
     window.addEventListener('beforeunload', warnBeforeUnload);
     return () => window.removeEventListener('beforeunload', warnBeforeUnload);
   }, [hasUnsavedChanges]);
+  if (showOnboarding) return <Onboarding notice={onboardingNotice} onExploreExample={exploreExample} onStartBlank={startBlank} />;
   if (showWorkspace) return <WorkspacePilot onClose={(saved) => { setShowWorkspace(false); if (saved) { setCanSave(false); setSaveMessage('A newer workspace exists. Export this older board if needed.'); } }} />;
   return <main>
     <header><div><strong>SoloCanvas</strong><span> Architecture map</span></div><div className="actions"><button onClick={addNode}>Add component</button><button onClick={() => { if (!hasUnsavedChanges || window.confirm('Workspace preview uses the last saved board. Unsaved edits will stay here but will not appear in the preview. Continue?')) setShowWorkspace(true); }}>Open workspace</button><button onClick={exportBoard}>Export board</button><label className="import-button">Import board<input type="file" accept=".json,application/json" onChange={importBoard} /></label>{canRestoreBackup && <button onClick={restore} disabled={saving}>Restore previous backup</button>}<button onClick={save} disabled={!canSave || saving}>Save board</button></div></header>
     <div className="workspace">
       <section className="canvas" aria-label="Architecture canvas"><ReactFlow deleteKeyCode={['Backspace', 'Delete']} nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onConnect={onConnect} onNodeClick={(_, node) => { setSelected(node.id); setSelectedEdge(null); }} onEdgeClick={(_, edge) => { setSelected(null); setSelectedEdge(edge.id); }} onPaneClick={() => { setSelected(null); setSelectedEdge(null); }} fitView><Background /><Controls /></ReactFlow></section>
-      <aside><h1>Architecture map</h1><p>Add components, drag them into place, and connect the handles to map relationships.</p>
+      <aside><h1>{isExampleBoard ? 'Example architecture' : 'Architecture map'}</h1><p>{isExampleBoard ? 'A local-first product flow, from editing and storage to recovery and export.' : 'Add components, drag them into place, and connect the handles to map relationships.'}</p>
         {activeEdge ? <label>Relationship label<input aria-label="Relationship label" placeholder="e.g. calls, depends on" value={String(activeEdge.label ?? '')} onChange={(event) => { const label = event.target.value; setEdges((old) => old.map((edge) => edge.id === activeEdge.id ? { ...edge, label } : edge)); markChanged(); }} /></label> : active ? <label>Component name<input value={String(active.data.label ?? '')} onChange={(event) => { const label = event.target.value; setNodes((old) => old.map((node) => node.id === active.id ? { ...node, data: { ...node.data, label } } : node)); markChanged(); }} /></label> : <p>Select a component or relationship to edit it.</p>}
         <p className="hint">Select a node or connection and press Delete to remove it. Save after making changes.</p><p role="status">{saveMessage}</p><WorkspaceRecovery />
       </aside>
