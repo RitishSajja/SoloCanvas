@@ -1,6 +1,7 @@
 // This module is a pure, in-memory model. It does not write browser storage.
 // Keep v1 data untouched until a future persistence migration is designed and tested.
 import { parseBoard } from './storage.mjs';
+import { validateMermaidImportDiagram } from './mermaid-import.mjs';
 
 const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const idString = (v) => typeof v === 'string' && v.length > 0;
@@ -60,6 +61,46 @@ export function addBoard(workspace, id, title) {
   const next = copy(workspace);
   next.boards.push({ id, title, extra: {}, nodes: [], edges: [] });
   return next;
+}
+
+export function createMermaidBoard(workspace, title, diagram, idFactory = () => crypto.randomUUID()) {
+  if (!validateWorkspace(workspace) || typeof title !== 'string' || !title.trim() ||
+      !validateMermaidImportDiagram(diagram) || typeof idFactory !== 'function') {
+    throw new Error('Invalid Mermaid board import');
+  }
+  const next = copy(workspace);
+  const existingIds = new Set([
+    ...next.cards.map(card => card.id),
+    ...next.boards.flatMap(board => [
+      board.id,
+      ...board.nodes.map(node => node.id),
+      ...board.edges.map(edge => edge.id),
+    ]),
+  ]);
+  const allocateId = () => {
+    const id = idFactory();
+    if (!idString(id) || existingIds.has(id)) throw new Error('Could not generate unique IDs for the imported board');
+    existingIds.add(id);
+    return id;
+  };
+  const boardId = allocateId();
+  const importedNodes = new Map();
+  const nodes = diagram.nodes.map((item, index) => {
+    const cardId = allocateId();
+    const nodeId = allocateId();
+    importedNodes.set(item.id, nodeId);
+    next.cards.push({ id: cardId, data: { label: item.label } });
+    return { id: nodeId, cardId, position: { x: 60 + (index % 4) * 240, y: 60 + Math.floor(index / 4) * 140 } };
+  });
+  const edges = diagram.edges.map(item => ({
+    id: allocateId(),
+    source: importedNodes.get(item.source),
+    target: importedNodes.get(item.target),
+    label: item.label,
+  }));
+  next.boards.push({ id: boardId, title: title.trim(), extra: {}, nodes, edges });
+  if (!validateWorkspace(next)) throw new Error('Imported Mermaid board failed workspace validation');
+  return { workspace: next, boardId };
 }
 
 export function placeCard(workspace, boardId, cardId, node) {

@@ -1,7 +1,15 @@
 import { defineConfig } from '@playwright/test';
+import { DEV_PORT } from './playwright-ports.mjs';
+
+const baseURL = `http://127.0.0.1:${DEV_PORT}`;
+
 export default defineConfig({
   testDir: './browser',
   testMatch: '**/*.e2e.mjs',
-  use: { baseURL: 'http://127.0.0.1:4173', browserName: 'chromium' },
-  webServer: { command: 'npm run dev -- --host 127.0.0.1 --port 4173', url: 'http://127.0.0.1:4173', reuseExistingServer: !process.env.CI },
+  use: { baseURL, browserName: 'chromium' },
+  webServer: {
+    command: `npm run dev -- --host 127.0.0.1 --port ${DEV_PORT} --strictPort`,
+    url: baseURL,
+    reuseExistingServer: false,
+  },
 });
