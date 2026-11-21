@@ -1,5 +1,16 @@
 # Agent handoff
 
+## Current run — 2026-11-21, GitHub Copilot App
+Based on origin/main decd1e76a0a09ca03a10c84744b8a745bf14e335, on branch ritishsajja-architecture-code-map-92e. Commit db35eaf adds a fail-closed parser for SoloCanvas's exact escaped `flowchart LR` export subset and a preview-and-confirm UI that imports into a separate board. It reads pasted text or a user-selected file locally, caps imports at 5 MiB, 1,000 components, 3,000 relationships and 512 Unicode scalar values per label, reports line-specific syntax errors, rejects malformed/non-scalar escapes and unsupported statements, and treats decoded labels as inert text. Imported placements/cards/edges receive fresh IDs and deterministic positions; existing boards and unsaved edits remain unchanged, and saving remains explicit. README now documents the supported syntax and losses.
+
+The coordinating agent's read-only critique called for a precise grammar, bounded parsing, inert labels and an atomic no-data-loss flow; these are covered by the strict parser, input/model limits, no-render UI, preview-version check and one-shot immutable workspace construction. The user later directed this run to implement. No open PRs were found. No push was made while the demo-readiness work is being reconciled.
+
+Checks: `npm ci` restored the missing local dependencies (44 packages; audit reported zero vulnerabilities); `npm test` passed 74/74; `npm run build` passed; `npm run test:browser -- --workers=1` passed 52 tests with one Mermaid renderer test skipped because `MERMAID_BUNDLE` was not supplied; `git diff --check` passed. The full browser run with default 8 workers failed broadly with `ERR_CONNECTION_REFUSED`; retrying serially passed. The build reported the existing @xyflow `"use client"` bundling warning.
+
+Known limitations: imports accept only the documented SoloCanvas-generated syntax, not general Mermaid. Layout, shared-card identity, source text and metadata are not preserved. External Mermaid renderer compatibility was not verified in this run.
+
+Next: reconcile this isolated feature branch with demo-readiness work before pushing to main; keep the grammar narrow unless separately reviewed and tested.
+
 ## Current run — 2026-11-21, Codex
 Based on main 8ab66b319c891cc83d3d696592c5b37a98491ca8. Added a separate browser compatibility check rendering an exported flowchart in Mermaid 11.4.1. GitHub Actions run 44923740357 passed unit, build, development and production browser checks but failed the renderer test because it used an obsolete edge selector; follow-up commit 2c88c557f59645ab4ea220f88d1896d4588580ea corrected it. Unit, build, both browser suites and the real Mermaid renderer check all passed in GitHub Actions run 44923964265. Verified labels include quotes, ampersand, Unicode and a pipe, and an attempted click directive produced no link. This covers a small example in one renderer version, not every Mermaid version or the maximum export size. Mermaid is installed only for verification; the isolated top-level version is pinned, but its transitive dependencies are not lockfile-pinned.
 
