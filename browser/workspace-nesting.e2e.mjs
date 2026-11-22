@@ -1,6 +1,34 @@
 import { test, expect } from './returning-user-fixture.mjs';
 import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 
+test('returning by breadcrumb restores the parent placement, pan and zoom', async ({ page }) => {
+  await page.goto('/');
+  await openWorkspaceBoard(page, { expandTools: false });
+  await page.getByRole('button', { name: 'Add component', exact: true }).click();
+  const component = page.locator('.workspace-component-node').first();
+  await component.click();
+  await renameSelectedComponent(page, 'Gateway');
+  const pane = page.locator('.react-flow__pane');
+  const bounds = await pane.boundingBox();
+  await page.mouse.move(bounds.x + 60, bounds.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + 130, bounds.y + 105, { steps: 6 });
+  await page.mouse.up();
+  const viewport = page.locator('.react-flow__viewport');
+  const transform = () => viewport.evaluate(element => element.style.transform);
+  const beforeZoom = await transform();
+  await page.getByRole('button', { name: 'Zoom Out', exact: true }).click();
+  await expect.poll(transform).not.toBe(beforeZoom);
+  await component.press('Enter');
+  await page.getByRole('textbox', { name: 'Shared component name' }).press('Escape');
+  const parentView = await transform();
+  await component.press('Control+Enter');
+  await expect(page.getByLabel('Current board').locator('option:checked')).toHaveText('Gateway board');
+  await page.getByRole('navigation', { name: 'Workspace breadcrumbs' }).getByRole('button', { name: 'My board' }).click();
+  await expect(page.locator('.workspace-component-node.selected')).toContainText('Gateway');
+  await expect.poll(transform).toBe(parentView);
+});
+
 test('openable placements create independent nested boards with persistent notes and shapes', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
@@ -10,8 +38,10 @@ test('openable placements create independent nested boards with persistent notes
   await page.locator('.react-flow__node').first().click();
   await renameSelectedComponent(page, 'API');
   await page.getByLabel('Component shape').selectOption('diamond');
+  await page.getByRole('button', { name: 'Board tools', exact: true }).click();
   await page.getByLabel('Existing component').selectOption({ label: 'API' });
   await page.getByRole('button', { name: 'Place component' }).click();
+  await page.getByRole('button', { name: 'Close board tools' }).click();
 
   await page.locator('.react-flow__node').filter({ hasText: 'API' }).first().click();
   await page.locator('.workspace-component-node.selected').press('Control+Enter');
@@ -81,10 +111,10 @@ test('removing a placement confirms and removes all nested boards and notes', as
   await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
   await page.locator('.react-flow__node').filter({ hasText: 'Parent' }).click();
   page.once('dialog', dialog => dialog.dismiss());
-  await page.getByRole('button', { name: 'Remove component from board' }).click();
+  await page.getByRole('button', { name: 'Delete component Parent', exact: true }).click();
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Parent' })).toBeVisible();
   page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Remove component from board' }).click();
+  await page.getByRole('button', { name: 'Delete component Parent', exact: true }).click();
   await expect(page.locator('.react-flow__node')).toHaveCount(0);
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Save workspace' }).click();

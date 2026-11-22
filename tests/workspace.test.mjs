@@ -146,13 +146,14 @@ test('board deletion keeps shared and unplaced cards and other boards intact', (
   before = addBoard(before, 'board-2', 'Other');
   before = placeCard(before, 'board-2', 'card:a', { id: 'copy-a', position: { x: 1, y: 2 } });
   const saved = structuredClone(before);
-  const after = removeBoard(before, 'board-1');
+  assert.throws(() => removeBoard(before, 'board-1'), /first board/);
+  const after = removeBoard(before, 'board-2');
   assert.deepEqual(before, saved);
   assert.deepEqual(after.cards, before.cards);
-  assert.deepEqual(after.boards, [before.boards[1]]);
+  assert.deepEqual(after.boards, [before.boards[0]]);
   assert.equal(validateWorkspace(JSON.parse(JSON.stringify(after))), true);
-  assert.equal(projectBoard(after, 'board-2').nodes[0].data.label, 'API');
-  assert.throws(() => removeBoard(after, 'board-2'), /last board/);
+  assert.equal(projectBoard(after, 'board-1').nodes[0].data.label, 'API');
+  assert.throws(() => removeBoard(after, 'board-1'), /first board/);
   assert.throws(() => removeBoard(before, 'missing'), /not found/);
 });
 
@@ -183,8 +184,8 @@ test('component appearances include all placements and update after a board is d
     { boardId: 'board-1', boardTitle: 'My board', nodeId: 'a' },
     { boardId: 'board-2', boardTitle: 'Other', nodeId: 'copy-a' },
   ]);
-  workspace = removeBoard(workspace, 'board-1');
-  assert.deepEqual(findCardPlacements(workspace, 'card:b'), []);
+  workspace = removeBoard(workspace, 'board-2');
+  assert.equal(findCardPlacements(workspace, 'card:b').length, 1);
   assert.equal(findCardPlacements(workspace, 'card:a').length, 1);
   assert.throws(() => findCardPlacements(workspace, 'unknown'));
 });
@@ -290,13 +291,14 @@ test('deleting placements or boards explicitly cascades nested contents without 
   workspace = addMiniBoard(workspace, 'board-1', 'a', 'child', 'Child');
   workspace = placeCard(workspace, 'child', 'card:b', { id: 'child-node', position: { x: 1, y: 2 } });
   workspace = addMiniBoard(workspace, 'child', 'child-node', 'grandchild', 'Grandchild');
-  assert.throws(() => removeBoard(workspace, 'board-1'), /nested boards/);
+  assert.throws(() => removeBoard(workspace, 'child'), /nested boards/);
+  assert.throws(() => removeBoardTree(workspace, 'board-1'), /first board/);
   const withoutPlacement = removePlacementTree(workspace, 'board-1', 'a');
   assert.equal(withoutPlacement.boards.some(board => ['child', 'grandchild'].includes(board.id)), false);
   assert.equal(withoutPlacement.boards[0].nodes.some(node => node.id === 'a'), false);
   assert.equal(validateWorkspace(withoutPlacement), true);
-  const withoutTree = removeBoardTree(workspace, 'board-1');
-  assert.deepEqual(withoutTree.boards.map(board => board.id), ['other-root']);
+  const withoutTree = removeBoardTree(workspace, 'child');
+  assert.deepEqual(withoutTree.boards.map(board => board.id), ['board-1', 'other-root']);
   assert.equal(validateWorkspace(withoutTree), true);
-  assert.throws(() => removeBoardTree(withoutTree, 'other-root'), /last board/);
+  assert.throws(() => removeBoardTree(withoutTree, 'board-1'), /first board/);
 });

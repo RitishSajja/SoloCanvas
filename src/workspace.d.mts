@@ -38,6 +38,7 @@ export function createMermaidBoard(
 export function updateCard(workspace: Workspace, cardId: string, data: Record<string, unknown>): Workspace;
 export function renameBoard(workspace: Workspace, boardId: string, title: string): Workspace;
 export function removeBoard(workspace: Workspace, boardId: string): Workspace;
+export function getBoardTree(workspace: Workspace, boardId: string): WorkspaceBoard[];
 export function removeBoardTree(workspace: Workspace, boardId: string): Workspace;
 export function addNote(workspace: Workspace, boardId: string, note: StickyNote): Workspace;
 export function updateNote(workspace: Workspace, boardId: string, noteId: string, text: string): Workspace;

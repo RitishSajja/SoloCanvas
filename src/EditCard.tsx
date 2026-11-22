@@ -12,7 +12,6 @@ type EditCardProps = {
   children: (title: ReactNode) => ReactNode;
 };
 
-// Both board tiles and canvas placements use the same draft/commit semantics.
 export default function EditCard({ label, fieldLabel, className, accessibleName, onFocus, onCommit, onOpen, children }: EditCardProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const editing = draft !== null;

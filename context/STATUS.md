@@ -1,5 +1,15 @@
 # Agent handoff
 
+## 2026-11-22 — Board opening, naming and deletion
+
+Shared branch `ritishsajja-nested-boards-and-notes`, based on `8839fb2`. A click on a home tile opens the board. Rename on the tile or beside the open board title edits that board. On the canvas, clicking a component edits its shared name and Ctrl+Enter opens its mini-board. File components show their type. Returning by breadcrumb restores the parent viewport and selects the placement used to drill down.
+
+Board tools starts closed. Breadcrumbs, board switching and naming, creation, component shape and workspace status stay available on the canvas. Advanced tools keep their state while the panel is closed. The first top-level board is protected in both deletion APIs and in the UI. Other boards, component placements and sticky notes have top-right trash controls. Warnings describe affected files and nested work. Shared components and their files survive placement removal. Persist changes with **Save workspace**.
+
+Local checks on this change passed: 86 unit tests, production build, 68 development Chromium cases and 12 production Chromium cases. The development suite skips the standalone pinned Mermaid renderer check, which runs separately in the GitHub workflow. Coverage includes mouse opening, in-place rename, cancellation before deleting content, protected first board with a second board present, save/reload, desktop canvas width and narrow-screen tools. A separate regression verifies the parent placement, pan and zoom on return.
+
+Next agent: check this commit’s Actions result and branch ownership. The next code-map increment is a folder refresh preview showing added, changed and missing files before applying selected changes. Preserve layout, notes, shared attachments and manual edges. The end-to-end refreshed import and dependency exploration journey remains open.
+
 ## 2026-11-22 — Codex, inline editing and component summaries
 
 Shared branch `ritishsajja-nested-boards-and-notes`, based on `49971a3`. On an overview tile or canvas component, a single or double click edits the title in place. Ctrl+Enter applies a draft and opens the board or placement’s mini-board. Enter applies and Escape cancels the draft. Breadcrumbs and the board selector still navigate explicitly.

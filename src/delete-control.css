@@ -1,0 +1,26 @@
+.item-delete {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border: 1px solid #ced5e0;
+  border-radius: 7px;
+  color: #5d4661;
+  background: #fff;
+  cursor: pointer;
+}
+.item-delete svg { width: 16px; height: 16px; }
+.item-delete:hover { color: #a22c39; background: #fff3f2; border-color: #c8848b; }
+.item-delete:focus-visible { outline: 2px solid #3e65ba; outline-offset: 2px; }
+.workspace-sticky-note { position: relative; }
+.workspace-board-card > .item-delete { position: absolute; top: 7px; right: 7px; z-index: 2; }
+.workspace-component-card > .item-delete-wrap, .workspace-sticky-note > .item-delete {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  z-index: 2;
+}
+.workspace-component-card:not(.shape-diamond) .workspace-component-copy { padding-right: 12px; }
+.workspace-sticky-note textarea { padding-right: 14px; }

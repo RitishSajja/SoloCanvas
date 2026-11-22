@@ -4,7 +4,7 @@ import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers
 test('renaming and deleting boards preserves shared cards and requires an explicit save', async ({ page }) => {
   await page.goto('/');
   await openWorkspaceBoard(page);
-  await expect(page.getByRole('button', { name: 'Delete board' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /^Delete board/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
   await renameSelectedComponent(page, 'Shared API');
@@ -17,8 +17,9 @@ test('renaming and deleting boards preserves shared cards and requires an explic
   await expect(page.getByRole('status')).toContainText('Workspace saved');
   const stored = await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'));
 
-  page.once('dialog', dialog => dialog.accept('  Architecture  '));
   await page.getByRole('button', { name: 'Rename board' }).click();
+  await page.getByRole('textbox', { name: 'Board name' }).fill('  Architecture  ');
+  await page.getByRole('textbox', { name: 'Board name' }).press('Enter');
   await expect(page.getByLabel('Current board')).toHaveValue(
     await page.getByRole('option', { name: 'Architecture' }).getAttribute('value') ?? ''
   );
@@ -37,7 +38,7 @@ test('renaming and deleting boards preserves shared cards and requires an explic
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Delete board' }).click();
   await expect(page.getByRole('option', { name: 'Architecture' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Delete board' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: /^Delete board/ })).toHaveCount(0);
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Shared API' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBe(beforeDelete);
   await page.getByRole('button', { name: 'Save workspace' }).click();

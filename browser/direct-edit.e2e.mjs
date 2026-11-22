@@ -19,25 +19,34 @@ const seed = {
   ],
 };
 
-test('board and component cards edit on click and double-click, then open with Ctrl+Enter', async ({ page }) => {
+test('a board opens by mouse, renames in place, and its components open with Ctrl+Enter', async ({ page }) => {
   await page.addInitScript(({ key, data }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data));
   }, { key: storageKey, data: seed });
   await page.goto('/');
 
   const board = page.getByRole('article', { name: 'Board Project', exact: true });
-  await board.click();
+  const rename = board.getByRole('button', { name: 'Rename board' });
+  await rename.click();
   const boardName = page.getByRole('textbox', { name: 'Board name', exact: true });
   await expect(boardName).toBeFocused();
   await boardName.fill('Canceled title');
   await boardName.press('Escape');
-  await board.dblclick();
+  await expect(rename).toBeFocused();
+  await rename.click();
   await expect(boardName).toHaveValue('Project');
   await boardName.fill('Services');
-  await boardName.press('Control+Enter');
+  await boardName.press('Enter');
+  const services = page.getByRole('article', { name: 'Board Services', exact: true });
+  await expect(services).toBeVisible();
+  await services.click({ position: { x: 10, y: 30 } });
   const selector = page.getByLabel('Current board');
   await expect(selector).toHaveValue('project');
   await expect(selector.locator('option:checked')).toHaveText('Services');
+  await expect(page.getByRole('heading', { name: 'Services', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Workspace overview' }).click();
+  await services.getByRole('button', { name: 'Open board Services' }).press('Enter');
+  await expect(selector).toHaveValue('project');
 
   const nodes = page.locator('.workspace-component-node');
   const api = nodes.filter({ hasText: 'Backend' });
@@ -75,6 +84,8 @@ test('board and component cards edit on click and double-click, then open with C
   await name.fill('Billing API');
   await name.press('Control+Enter');
   await expect(selector).toHaveValue('backend');
+  await expect(page.getByRole('heading', { name: 'Backend', exact: true })).toBeVisible();
+  await expect(page.locator('.workspace-component-copy > small')).toHaveText('FILE');
   await page.getByRole('navigation', { name: 'Workspace breadcrumbs' }).getByRole('button', { name: 'Services', exact: true }).click();
   await expect(api).toContainText('Billing API');
   expect(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).cards[0].data.label, storageKey)).toBe('API');

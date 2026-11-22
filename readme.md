@@ -220,13 +220,19 @@ The Vite/React app opens on the project workspace after first-run onboarding. To
 
 On first run, start with an empty workspace or try the example. The example stays in memory until you select **Save workspace**. The overview lists your top-level boards. Each board holds connected components and sticky notes.
 
-| On a board tile or canvas component | What happens |
+| Action | What happens |
 | --- | --- |
-| Click or double-click the title, or focus the card and press Enter | Edit its name in place. Renaming a shared component updates every placement. |
+| Click a board tile on the home page | Open the board. Keyboard users can focus its name and press Enter. |
+| Select **Rename** on a board tile or beside the open board’s name | Edit that board’s title in place. |
+| Click or double-click a component title, or focus the component and press Enter | Edit the shared component name on the canvas. The new name appears in every placement. |
 | Press Enter while editing, or move focus away | Apply the new name to the current workspace. Press Escape while editing to discard the draft. |
-| Press Ctrl+Enter on the card or its title editor | Apply the name and open the board. On a component, this opens its placement’s mini-board, creating one on first use. |
+| Press Ctrl+Enter on a component or its title editor | Open the placement’s mini-board, creating one on first use and applying any title edit. |
 
-Use the breadcrumbs to return to a parent board. Click inside a sticky note to write directly on the canvas. Enter adds another line, and dragging the border moves the note.
+Use the breadcrumbs to return to a parent board with its previous pan, zoom and component selection. Click inside a sticky note to write directly on the canvas. Enter adds another line, and dragging the border moves the note.
+
+The board opens with a full-width canvas. Use the toolbar to switch boards, create a board, add a component or sticky note, or change the selected component’s shape. Open **Board tools** for search, file maps, import suggestions, Mermaid, or reusing a component. Close the panel to reclaim the space.
+
+Use the trash icon in the upper-right corner of a board, component, or sticky note to remove it. The first top-level board is protected even after you create more boards. The confirmation describes affected contents when a board or placement holds nested work or files. Removing a component placement preserves the shared component and its files for its other placements. Select **Save workspace** to persist a deletion.
 
 Each placement keeps its own position, shape and mini-board. Rectangle, rounded, pill and diamond components size themselves to their contents. File components show their path and, when available, source line count. A parent component previews its mini-board’s title, component, note and connection counts, and a sample of file paths and attachment names. Removing a placement or board with descendants prompts for confirmation and removes its nested tree.
 

@@ -8,6 +8,7 @@ export async function openWorkspaceBoard(page, { expandTools = true } = {}) {
   await expect(boardCards.first()).toBeVisible();
   await boardCards.first().press('Control+Enter');
   if (expandTools) {
+    await page.getByRole('button', { name: 'Board tools', exact: true }).click();
     const header = page.locator('details.workspace-header-tools');
     if (await header.count() && await header.getAttribute('open') === null) await header.locator('summary').click();
     for (const summary of await page.locator('details.workspace-tool > summary').all()) {

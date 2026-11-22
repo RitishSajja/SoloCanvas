@@ -12,19 +12,23 @@ import WorkspaceRecovery from './WorkspaceRecovery';
 import LegacyBoardRecovery from './LegacyBoardRecovery';
 
 import EditCard from './EditCard';
+import BoardNameEditor from './BoardNameEditor';
 import { buildComponentSummaries, ComponentDetails, type ComponentSummary } from './component-summary';
 import FileAttachments from './FileAttachments';
-import { changeAttachment, type FileScope, type WorkspaceAttachment } from './workspace.mjs';
+import DeleteControl, { deletionWarning } from './DeleteControl';
+import { getBoardTree } from './workspace.mjs';
+import { changeAttachment, type FileScope, type WorkspaceAttachment, type WorkspaceBoard } from './workspace.mjs';
 
 const suggestionKey = (item: Suggestion) => JSON.stringify([item.sourceNodeId, item.targetNodeId]);
 const stickyNodeType = 'stickyNote';
-type StickyNodeData = { label: string; edit: (text: string) => void; select: () => void };
+type StickyNodeData = { label: string; edit: (text: string) => void; select: () => void; remove: () => void };
 const componentNodeType = 'workspaceComponent';
 type ComponentNodeData = {
   label: string;
   shape: ComponentShape;
   summary?: ComponentSummary;
   files?: ReactNode;
+  remove: () => void;
   select: () => void;
   rename: (label: string) => void;
   open: (label: string) => void;
@@ -35,9 +39,10 @@ function WorkspaceComponentNode({ data, selected }: NodeProps<FlowNode<Component
     fieldLabel="Shared component name" onFocus={data.select} onCommit={data.rename} onOpen={data.open}>
     {title => <>
     <Handle type="target" position={Position.Left} />
+    <span className="item-delete-wrap" data-card-control><DeleteControl label={`Delete component ${data.label || 'Untitled component'}`} onDelete={data.remove} /></span>
     <span className="workspace-component-mark" aria-hidden="true" />
     <div className="workspace-component-copy">
-      <small>COMPONENT</small><strong>{title || 'Untitled component'}</strong>
+      <small>{data.summary?.filePath ? 'FILE' : 'COMPONENT'}</small><strong>{title || 'Untitled component'}</strong>
       <ComponentDetails summary={data.summary} />
       {data.files && <div className="nodrag nopan" data-card-control>{data.files}</div>}
     </div>
@@ -47,6 +52,7 @@ function WorkspaceComponentNode({ data, selected }: NodeProps<FlowNode<Component
 }
 function StickyNoteNode({ data }: NodeProps<FlowNode<StickyNodeData, typeof stickyNodeType>>) {
   return <article className="workspace-sticky-note" aria-label="Sticky note">
+    <DeleteControl label="Delete sticky note" onDelete={data.remove} />
     <textarea aria-label="Sticky note text" className="nodrag nopan nowheel" placeholder="Write a note…"
       value={data.label} onFocus={data.select} onChange={event => data.edit(event.target.value)}
       onKeyDown={event => event.stopPropagation()} />
@@ -64,6 +70,16 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(initial.ok ? initial.snapshot : null);
   const [boardId, setBoardId] = useState(() => (initialWorkspace ?? (initial.ok ? initial.workspace : null))?.boards.find(item => !item.parentPlacement)?.id ?? '');
   const [workspaceView, setWorkspaceView] = useState<'overview' | 'board'>('overview');
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const toolsToggle = useRef<HTMLButtonElement>(null);
+  const toolsClose = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (toolsOpen) toolsClose.current?.focus();
+  }, [toolsOpen]);
+  function closeTools() {
+    setToolsOpen(false);
+    toolsToggle.current?.focus();
+  }
   const [cardId, setCardId] = useState('');
   const [search, setSearch] = useState('');
   const [searchSource, setSearchSource] = useState(false);
@@ -87,6 +103,8 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
   const [candidateChoices, setCandidateChoices] = useState<Record<number, string>>({});
   const currentBoardId = useRef(boardId); currentBoardId.current = boardId;
   const [flow, setFlow] = useState<ReactFlowInstance | null>(null);
+  const parentViews = useRef(new Map<string, ReturnType<ReactFlowInstance['getViewport']>>());
+  const viewportToRestore = useRef<string | null>(null);
   const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
   const [selectedNode, setSelectedNode] = useState('');
   const [selectedEdge, setSelectedEdge] = useState('');
@@ -129,7 +147,13 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
   }, [navigation, flow, workspace, boardId]);
   useEffect(() => {
     if (workspaceView !== 'board' || !flow || !board) return;
-    window.requestAnimationFrame(() => { void flow.fitView({ padding: 0.18 }); });
+    const frame = window.requestAnimationFrame(() => {
+      const saved = viewportToRestore.current === boardId ? parentViews.current.get(boardId) : undefined;
+      viewportToRestore.current = null;
+      if (saved) void flow.setViewport(saved);
+      else void flow.fitView({ padding: 0.18 });
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [boardId, flow, workspaceView, view?.nodes.length, board?.notes.length]);
   useEffect(() => {
     if (!dirty) return;
@@ -143,9 +167,13 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     setNavigation({ boardId: targetBoardId, nodeId: targetNodeId });
   };
   const openBoard = (targetBoardId: string) => {
-    setWorkspaceView('board'); setBoardId(targetBoardId); setSelectedNode(''); setSelectedEdge('');
+    const child = workspaceView === 'board' ? breadcrumbs.find(crumb => crumb.parentBoardId === targetBoardId) : undefined;
+    viewportToRestore.current = child ? targetBoardId : null;
+    setWorkspaceView('board'); setBoardId(targetBoardId);
+    setSelectedNode(child?.parentNodeId ? `component:${child.parentNodeId}` : ''); setSelectedEdge('');
   };
   const openOverview = () => {
+    setToolsOpen(false);
     setWorkspaceView('overview'); setSelectedNode(''); setSelectedEdge('');
   };
   useEffect(() => () => { analysisTask.current?.cancel(); }, []);
@@ -157,23 +185,20 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     const id = crypto.randomUUID();
     changed(addBoard(workspace, id, title.trim())); openBoard(id);
   };
-  const renameCurrentBoard = () => {
-    if (!workspace || !board) return;
-    const title = window.prompt('Rename this board', board.title);
-    if (title === null || !title.trim() || title.trim() === board.title) return;
-    changed(renameBoard(workspace, board.id, title));
-  };
-  const deleteCurrentBoard = () => {
-    if (!workspace || !board) return;
-    if (!board.parentPlacement && topLevelBoards.length <= 1) return;
-    const hasNestedBoards = workspace.boards.some(item => item.parentPlacement?.boardId === board.id);
-    const warning = hasNestedBoards
-      ? 'Delete this board and all nested mini-boards and their contents? This cannot be undone after saving.'
-      : 'Delete this board and its contents? Shared components remain available. Select Save workspace to make this permanent.';
-    if (!window.confirm(warning)) return;
-    const parent = board.parentPlacement;
-    const next = removeBoardTree(workspace, board.id);
+  const boardNameEditor = (item: WorkspaceBoard, onOpen?: () => void) =>
+    <BoardNameEditor key={item.id} title={item.title} onOpen={onOpen}
+      onRename={name => { if (workspace) changed(renameBoard(workspace, item.id, name)); }} />;
+  const deleteBoard = (id: string) => {
+    if (!workspace || topLevelBoards[0]?.id === id) return;
+    const tree = getBoardTree(workspace, id);
+    const target = tree[0];
+    if (!target) return;
+    const warning = deletionWarning(workspace, tree, tree.length - 1);
+    if (!window.confirm([`Delete board “${target.title}”?`, warning, 'Save workspace to make this permanent.'].filter(Boolean).join('\n\n'))) return;
+    const parent = target.parentPlacement;
+    const next = removeBoardTree(workspace, id);
     changed(next);
+    if (next.boards.some(item => item.id === boardId)) return;
     if (parent) {
       setBoardId(parent.boardId); setSelectedNode(`component:${parent.nodeId}`);
     } else {
@@ -181,6 +206,11 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       setSelectedNode('');
     }
     setSelectedEdge('');
+  };
+  const boardDeleteControl = (id: string) => {
+    const target = workspace?.boards.find(item => item.id === id);
+    if (!target || id === topLevelBoards[0]?.id) return null;
+    return <DeleteControl label={`Delete board ${target.title}`} onDelete={() => deleteBoard(id)} />;
   };
   const updateFileSelection = (files: File[], exclude: boolean) => {
     const { retained, ignored } = partitionSelectedFiles(files, exclude);
@@ -288,18 +318,29 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       next = addMiniBoard(next, board.id, placementId, destination, `${title.trim() || 'Component'} board`);
     }
     if (next !== workspace) changed(next);
-    if (destination) openBoard(destination);
+    if (destination) {
+      if (flow) parentViews.current.set(board.id, flow.getViewport());
+      openBoard(destination);
+    }
   };
   const addStickyNote = () => {
     if (!workspace || !board) return;
     const note = { id: crypto.randomUUID(), text: '', position: { x: 90 + board.notes.length * 28, y: 90 + board.notes.length * 28 } };
     changed(addNote(workspace, board.id, note)); setSelectedNode(`sticky:${note.id}`); setSelectedEdge('');
   };
-  const removeSelectedPlacement = () => {
-    if (!workspace || !board || !selected) return;
-    const nested = getMiniBoard(workspace, board.id, selected.id);
-    if (nested && !window.confirm('Remove this placement and permanently delete its nested mini-board and everything inside it? Select Save workspace to make this permanent.')) return;
-    changed(removePlacementTree(workspace, board.id, selected.id)); setSelectedNode('');
+  const removePlacement = (placementId: string) => {
+    if (!workspace || !board) return;
+    const placement = board.nodes.find(node => node.id === placementId);
+    if (!placement) return;
+    const nested = getMiniBoard(workspace, board.id, placementId);
+    const tree = nested ? getBoardTree(workspace, nested.id) : [];
+    const warning = deletionWarning(workspace, tree, tree.length, placement.cardId);
+    if (warning && !window.confirm('Remove this component from the board?\n\n' + warning + '\n\nSave workspace to make this permanent.')) return;
+    changed(removePlacementTree(workspace, board.id, placementId)); setSelectedNode(''); setSelectedEdge('');
+  };
+  const deleteNote = (id: string) => {
+    if (!workspace || !board) return;
+    changed(removeNote(workspace, board.id, id)); setSelectedNode('');
   };
 
   const moveNodes = (changes: NodeChange[]) => {
@@ -352,9 +393,9 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     changed(next);
   };
   const removeNode = () => {
-    if (selected) removeSelectedPlacement();
+    if (selected) removePlacement(selected.id);
     else if (workspace && board && selectedNote) {
-      changed(removeNote(workspace, board.id, selectedNote.id)); setSelectedNode('');
+      deleteNote(selectedNote.id);
     }
   };
   const removeEdge = () => {
@@ -394,7 +435,9 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       const imported = parseWorkspace(await file.text());
       if (!imported) { setMessage('Import failed: this is not a valid SoloCanvas workspace.'); return; }
       if (!window.confirm('Replace the workspace currently shown with this file? Export unsaved changes first. Saved data changes only when you select Save workspace.')) return;
-      changed(imported); setBoardId(imported.boards.find(item => !item.parentPlacement)?.id ?? ''); setWorkspaceView('overview'); setCardId(''); setSelectedNode(''); setSelectedEdge('');
+      parentViews.current.clear();
+      viewportToRestore.current = null;
+      changed(imported); setBoardId(imported.boards.find(item => !item.parentPlacement)?.id ?? ''); setCardId(''); openOverview();
       setMessage('Workspace imported. Select Save workspace to keep it on this device.');
     } catch {
       setMessage('Import failed: the file could not be read.');
@@ -502,6 +545,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
         shape: board.nodes.find(item => item.id === node.id)?.shape ?? 'pill',
         summary: summaries.get(node.id),
         files: attachmentControls('component', cardIds.get(node.id)!, cardsById.get(cardIds.get(node.id)!)?.attachments),
+        remove: () => removePlacement(node.id),
         select: () => { setSelectedNode(`component:${node.id}`); setSelectedEdge(''); },
         rename: (label: string) => editOrOpenComponent(node.id, label, false),
         open: (label: string) => editOrOpenComponent(node.id, label, true),
@@ -515,6 +559,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       width: 184,
       height: 148,
       data: { label: note.text,
+        remove: () => deleteNote(note.id),
         edit: (text: string) => changed(updateNote(workspace, board.id, note.id, text)),
         select: () => { setSelectedNode(`sticky:${note.id}`); setSelectedEdge(''); },
       },
@@ -543,25 +588,47 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       <div className="workspace-overview-hero"><div><p className="workspace-eyebrow">YOUR PROJECT, ORGANIZED</p><h1>Pick up where your ideas live.</h1><p>Boards hold components, notes, and the work nested inside each placement.</p></div><button className="primary" onClick={createBoard} disabled={!workspace}>Create a board</button></div>
       <div className="workspace-overview-heading"><h2>Top-level boards</h2><span>{topLevelBoards.length} board(s)</span></div>
       {topLevelBoards.length === 0 ? <p>No boards yet. Create a board to get started.</p> : <div className="workspace-board-grid">
-        {topLevelBoards.map(item => {
-          const rename = (title: string) => {
-            if (workspace && title.trim() && title.trim() !== item.title) changed(renameBoard(workspace, item.id, title.trim()));
-          };
-          return <EditCard key={item.id} className="workspace-board-card" accessibleName={`Board ${item.title}`}
-            label={item.title} fieldLabel="Board name" onCommit={rename} onOpen={title => { rename(title); openBoard(item.id); }}>
-            {title => <>
-              <div className="workspace-board-card-icon" aria-hidden="true">▱</div>
-              <div className="workspace-board-card-copy"><h3>{title}</h3><p>{item.nodes.length} components <span>·</span> {item.notes.length} notes</p></div>
-              <kbd>Ctrl+Enter to open</kbd>
-            </>}
-          </EditCard>;
-        })}
+        {topLevelBoards.map(item => <article key={item.id} className="workspace-board-card"
+          aria-label={`Board ${item.title}`} tabIndex={-1}
+          onKeyDown={event => {
+            if (event.target === event.currentTarget && event.key === 'Enter') {
+              event.preventDefault();
+              openBoard(item.id);
+            }
+          }}>
+          <div className="workspace-board-card-icon" aria-hidden="true">▱</div>
+          <div className="workspace-board-card-copy">
+            {boardNameEditor(item, () => openBoard(item.id))}
+            <p>{item.nodes.length} components <span>·</span> {item.notes.length} notes</p>
+          </div>
+          {boardDeleteControl(item.id)}
+        </article>)}
       </div>}
       {!workspace && <p role="alert">{message}</p>}
       <LegacyBoardRecovery />
       <WorkspaceRecovery />
       <p role="status">{message}</p>
-    </section> : <div className="workspace">
+    </section> : <div className={'workspace board-workspace' + (toolsOpen ? ' tools-open' : '')}>
+      <div className="board-toolbar" role="group" aria-label="Board actions">
+        <nav className="workspace-breadcrumbs" aria-label="Workspace breadcrumbs">
+          <button onClick={openOverview}>Workspace overview</button>
+          {breadcrumbs.map((item, index) => <span key={item.boardId}> / <button onClick={() => openBoard(item.boardId)} aria-current={index === breadcrumbs.length - 1 ? 'page' : undefined}>{item.title}</button></span>)}
+        </nav>
+        {board && <div className="board-title-row">{boardNameEditor(board)}{boardDeleteControl(board.id)}</div>}
+        {workspace && <div className="board-commands">
+          <label className="board-choice">Switch board<select aria-label="Current board" value={boardId} onChange={event => openBoard(event.target.value)}>
+            {workspace.boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+          </select></label>
+          <button onClick={createBoard}>New board</button>
+          <button className="primary" onClick={addComponent} disabled={!board}>Add component</button>
+          <button onClick={addStickyNote} disabled={!board}>Add sticky note</button>
+          {selected && <label className="board-shape">Component shape<select aria-label="Component shape" value={selected.shape} onChange={event => changed(updatePlacementShape(workspace, boardId, selected.id, event.target.value as ComponentShape))}>
+            <option value="rectangle">Rectangle</option><option value="rounded">Rounded</option><option value="pill">Pill</option><option value="diamond">Diamond</option>
+          </select></label>}
+          <button ref={toolsToggle} aria-controls="board-tools" aria-expanded={toolsOpen}
+            onClick={() => toolsOpen ? closeTools() : setToolsOpen(true)}>Board tools</button>
+        </div>}
+      </div>
       <section className="canvas workspace-canvas" aria-label="Workspace canvas">
         {view && <ReactFlow onInit={setFlow} nodes={flowNodes} edges={flowEdges} nodeTypes={nodeTypes} onNodesChange={moveNodes} onEdgesChange={selectEdges} onConnect={connect}
           onNodeClick={(_, node) => { setSelectedNode(node.id); setSelectedEdge(''); }}
@@ -569,18 +636,12 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
           onEdgeClick={(_, item) => { setSelectedEdge(item.id); setSelectedNode(''); }}
           onPaneClick={() => { setSelectedNode(''); setSelectedEdge(''); }} fitView><Background /><Controls /></ReactFlow>}
       </section>
-      <aside>
-        <nav className="workspace-breadcrumbs" aria-label="Workspace breadcrumbs">
-          <button onClick={openOverview}>Workspace overview</button>
-          {breadcrumbs.map((item, index) => <span key={item.boardId}> / <button onClick={() => openBoard(item.boardId)} aria-current={index === breadcrumbs.length - 1 ? 'page' : undefined}>{item.title}</button></span>)}
-        </nav>
-        <h1>Board</h1>
+      <aside id="board-tools" hidden={!toolsOpen} aria-label="Board tools" onKeyDown={event => {
+        if (event.key === 'Escape' && !event.defaultPrevented) { event.stopPropagation(); closeTools(); }
+      }}>
+        <div className="board-tools-heading"><h2>Board tools</h2><button ref={toolsClose} aria-label="Close board tools" onClick={closeTools}>Close</button></div>
         <p>Click a component to edit its name. Enter applies, Escape cancels, and Ctrl+Enter opens its mini-board. Drag a component to move it.</p>
         {workspace && <>
-          <label>Current board<select aria-label="Current board" value={boardId} onChange={event => openBoard(event.target.value)}>
-            {workspace.boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-          </select></label>
-          <div className="workspace-actions"><button onClick={createBoard}>New board</button><button onClick={renameCurrentBoard} disabled={!board}>Rename board</button><button onClick={deleteCurrentBoard} disabled={!board || (!board.parentPlacement && topLevelBoards.length <= 1)}>Delete board</button><button onClick={addComponent} disabled={!board}>Add component</button><button onClick={addStickyNote} disabled={!board}>Add sticky note</button></div>
           <details className="workspace-tool">
           <summary>File map</summary>
           <section aria-label="Create file map">
@@ -678,9 +739,6 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
           <label>Existing component<select aria-label="Existing component" value={cardId} onChange={event => setCardId(event.target.value)}><option value="">Choose a component</option>{workspace.cards.map(card => <option key={card.id} value={card.id}>{String(card.data.label ?? 'Untitled')}</option>)}</select></label>
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
           {selectedCard && selected && <>
-            <label>Component shape<select aria-label="Component shape" value={selected.shape} onChange={event => changed(updatePlacementShape(workspace, boardId, selected.id, event.target.value as 'rectangle' | 'rounded' | 'pill' | 'diamond'))}>
-              <option value="rectangle">Rectangle</option><option value="rounded">Rounded</option><option value="pill">Pill</option><option value="diamond">Diamond</option>
-            </select></label>
             <button onClick={removeNode}>Remove component from board</button>
             {typeof selectedCard.data.sourceText === 'string' && <section aria-label="Imported source text">
               <h2>Imported source text</h2><p>Removing source from this card does not erase older workspace backups or exports.</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{selectedCard.data.sourceText}</pre>
@@ -698,8 +756,8 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
             <button onClick={() => openPlacement(boardId, edge.target)}>Open target component</button>
           </section>}<label>Relationship label<input value={String(edge.label ?? '')} onChange={event => { const next = structuredClone(workspace); const current = next.boards.find(item => item.id === boardId)?.edges.find(item => item.id === edge.id); if (current) { current.label = event.target.value; changed(next); } }} /></label><button onClick={removeEdge}>Remove relationship</button></>}
         </>}
-        <p role="status">{message}</p>
       </aside>
+      <p className="board-status" role="status">{message}</p>
     </div>}
   </main>;
 }

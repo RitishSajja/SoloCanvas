@@ -210,6 +210,53 @@ aside label { margin: 12px 0; }
 .hint { font-size: 13px; }
 
 .workspace-app { min-height: 100vh; }
+.workspace-app:has(> .board-workspace) {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+.workspace.board-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(280px, 1fr) auto;
+  grid-template-areas: "toolbar" "canvas" "status";
+  flex: 1 1 0;
+  gap: 8px 14px;
+  height: auto;
+  min-height: 0;
+}
+.workspace.board-workspace.tools-open {
+  grid-template-columns: minmax(0, 1fr) clamp(290px, 28vw, 370px);
+  grid-template-areas: "toolbar toolbar" "canvas tools" "status status";
+}
+.board-toolbar { grid-area: toolbar; min-width: 0; }
+.board-toolbar .workspace-breadcrumbs { margin-bottom: 2px; overflow-wrap: anywhere; }
+.board-title-row, .board-tools-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.board-title-row { position: relative; min-width: 0; }
+.board-title-row h1, .board-tools-heading h2 { margin: 0; }
+.board-commands { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-block: 6px 2px; }
+.board-commands label { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; font-size: 13px; }
+.board-commands select { width: auto; max-width: min(12rem, 65vw); min-height: 36px; }
+.board-commands button { min-height: 36px; }
+.board-commands button[aria-controls="board-tools"] { margin-inline-start: auto; }
+.board-commands button[aria-expanded="true"] { border-color: var(--blue); }
+.board-workspace > .workspace-canvas { grid-area: canvas; min-height: 0; }
+.board-workspace > aside { grid-area: tools; min-height: 0; overscroll-behavior: contain; overflow: auto; }
+.board-tools-heading { margin-bottom: 12px; }
+.board-status { grid-area: status; margin: 0; font-size: 13px; }
+@media (max-width: 760px) {
+  .workspace.board-workspace.tools-open {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "toolbar" "canvas" "status";
+  }
+  .board-workspace > aside {
+    grid-area: canvas;
+    z-index: 2;
+    justify-self: end;
+    width: min(100%, 360px);
+    box-shadow: 0 8px 28px #22324f36;
+  }
+}
 
 .workspace-overview {
   min-height: calc(100vh - 76px);

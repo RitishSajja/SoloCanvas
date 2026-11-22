@@ -324,30 +324,41 @@ export function renameBoard(workspace, boardId, title) {
   return next;
 }
 
-export function removeBoard(workspace, boardId) {
+function checkBoardRemoval(workspace, boardId) {
   if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
   if (!workspace.boards.some(board => board.id === boardId)) throw new Error('Board not found');
-  if (workspace.boards.length <= 1) throw new Error('Cannot remove the last board');
+  if (workspace.boards.find(board => !board.parentPlacement)?.id === boardId) throw new Error('Cannot remove the first board');
+}
+
+export function removeBoard(workspace, boardId) {
+  checkBoardRemoval(workspace, boardId);
   if (workspace.boards.some(board => board.parentPlacement?.boardId === boardId)) throw new Error('Remove nested boards first');
   const next = copy(workspace);
   next.boards = next.boards.filter(board => board.id !== boardId);
   return next;
 }
 
-export function removeBoardTree(workspace, boardId) {
+export function getBoardTree(workspace, boardId) {
   if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
-  if (!workspace.boards.some(board => board.id === boardId)) throw new Error('Board not found');
-  const removed = new Set([boardId]);
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const board of workspace.boards) {
-      if (!removed.has(board.id) && board.parentPlacement && removed.has(board.parentPlacement.boardId)) {
-        removed.add(board.id); changed = true;
-      }
-    }
+  const root = workspace.boards.find(board => board.id === boardId);
+  if (!root) return [];
+  const children = new Map();
+  for (const board of workspace.boards) {
+    if (!board.parentPlacement) continue;
+    const parentId = board.parentPlacement.boardId;
+    if (!children.has(parentId)) children.set(parentId, []);
+    children.get(parentId).push(board);
   }
-  if (removed.size === workspace.boards.length) throw new Error('Cannot remove the last board');
+  const tree = [root];
+  for (const board of tree) {
+    for (const child of children.get(board.id) ?? []) tree.push(child);
+  }
+  return tree;
+}
+
+export function removeBoardTree(workspace, boardId) {
+  checkBoardRemoval(workspace, boardId);
+  const removed = new Set(getBoardTree(workspace, boardId).map(board => board.id));
   const next = copy(workspace);
   next.boards = next.boards.filter(board => !removed.has(board.id));
   return next;
@@ -386,18 +397,8 @@ export function removePlacementTree(workspace, boardId, nodeId) {
   if (!validateWorkspace(workspace)) throw new Error('Invalid workspace');
   const board = workspace.boards.find(item => item.id === boardId);
   if (!board || !board.nodes.some(node => node.id === nodeId)) throw new Error('Placement not found');
-  const removedBoards = new Set(workspace.boards
-    .filter(item => item.parentPlacement?.boardId === boardId && item.parentPlacement.nodeId === nodeId)
-    .map(item => item.id));
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const child of workspace.boards) {
-      if (!removedBoards.has(child.id) && child.parentPlacement && removedBoards.has(child.parentPlacement.boardId)) {
-        removedBoards.add(child.id); changed = true;
-      }
-    }
-  }
+  const child = getMiniBoard(workspace, boardId, nodeId);
+  const removedBoards = new Set(child ? getBoardTree(workspace, child.id).map(item => item.id) : []);
   const next = copy(workspace);
   next.boards = next.boards.filter(item => !removedBoards.has(item.id));
   const target = next.boards.find(item => item.id === boardId);

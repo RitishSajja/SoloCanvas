@@ -11,10 +11,11 @@ test('workspace preview creates boards and shares card names without deleting th
  await page.getByRole('button', { name: 'Open workspace' }).click();
  await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
  await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
- await expect(page.getByRole('heading', { name: 'Board' })).toBeVisible();
+ await expect(page.getByRole('heading', { name: 'My board', exact: true })).toBeVisible();
  await expect(page.locator('.react-flow__node').filter({ hasText: 'API' })).toBeVisible();
  page.once('dialog', dialog => dialog.accept('Second board'));
  await page.getByRole('button', { name: 'New board' }).click();
+ await page.getByRole('button', { name: 'Board tools', exact: true }).click();
  await page.getByLabel('Existing component').selectOption({ label: 'API' });
  await page.getByRole('button', { name: 'Place component' }).click();
  await page.locator('.react-flow__node').filter({ hasText: 'API' }).click();
