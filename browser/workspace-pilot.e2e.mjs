@@ -1,5 +1,5 @@
 import { test, expect } from './returning-user-fixture.mjs';
-import { openWorkspaceBoard } from './workspace-helpers.mjs';
+import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 
 test('workspace preview creates boards and shares card names without deleting the legacy board', async ({ page }) => {
  await page.goto('/?legacy-board=1');
@@ -10,7 +10,7 @@ test('workspace preview creates boards and shares card names without deleting th
  const legacy = await page.evaluate(() => localStorage.getItem('solocanvas.board.v1'));
  await page.getByRole('button', { name: 'Open workspace' }).click();
  await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
- await page.getByRole('button', { name: 'Open board My board' }).click();
+ await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
  await expect(page.getByRole('heading', { name: 'Board' })).toBeVisible();
  await expect(page.locator('.react-flow__node').filter({ hasText: 'API' })).toBeVisible();
  page.once('dialog', dialog => dialog.accept('Second board'));
@@ -18,7 +18,7 @@ test('workspace preview creates boards and shares card names without deleting th
  await page.getByLabel('Existing component').selectOption({ label: 'API' });
  await page.getByRole('button', { name: 'Place component' }).click();
  await page.locator('.react-flow__node').filter({ hasText: 'API' }).click();
- await page.getByLabel('Shared component name').fill('Gateway');
+ await renameSelectedComponent(page, 'Gateway');
  await page.getByLabel('Current board').selectOption({ label: 'My board' });
  await expect(page.locator('.react-flow__node').filter({ hasText: 'Gateway' })).toBeVisible();
  page.once('dialog', dialog => dialog.accept());

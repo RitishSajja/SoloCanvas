@@ -1,5 +1,5 @@
 import { test, expect } from './returning-user-fixture.mjs';
-import { openWorkspaceBoard } from './workspace-helpers.mjs';
+import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 const v2 = title => ({ version: 2, cards: [{ id: 'c', data: { label: title } }], boards: [{ id: 'b', title: 'Imported board', extra: {}, nodes: [{ id: 'n', cardId: 'c', position: { x: 0, y: 0 } }], edges: [] }] });
 const file = data => ({ name: 'workspace.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });
 
@@ -12,7 +12,7 @@ test('imports an exported workspace only after confirmation and saves explicitly
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
  page.once('dialog', dialog => dialog.accept());
  await page.getByLabel('Import workspace').setInputFiles(file(v2('Imported')));
- await page.getByRole('button', { name: 'Open board Imported board' }).click();
+ await page.getByRole('article', { name: 'Board Imported board', exact: true }).press('Control+Enter');
  await expect(page.locator('.react-flow__node').filter({ hasText: 'Imported' })).toBeVisible();
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
  page.once('dialog', dialog => dialog.accept());
@@ -42,7 +42,7 @@ test('an exported workspace can be reimported after further unsaved edits', asyn
  await page.goto('/'); await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
- await page.getByLabel('Shared component name').fill('Exported name');
+ await renameSelectedComponent(page, 'Exported name');
  const downloadPromise = page.waitForEvent('download');
  await page.getByRole('button', { name: 'Export workspace' }).click();
  const download = await downloadPromise;
@@ -50,10 +50,10 @@ test('an exported workspace can be reimported after further unsaved edits', asyn
  const stream = await download.createReadStream(); const chunks = [];
  for await (const chunk of stream) chunks.push(chunk);
  const data = Buffer.concat(chunks);
- await page.getByLabel('Shared component name').fill('Later unsaved edit');
+ await renameSelectedComponent(page, 'Later unsaved edit');
  page.once('dialog', dialog => dialog.accept());
  await page.getByLabel('Import workspace').setInputFiles({ name: 'workspace.json', mimeType: 'application/json', buffer: data });
- await page.getByRole('button', { name: 'Open board My board' }).click();
+ await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
  await expect(page.locator('.react-flow__node').filter({ hasText: 'Exported name' })).toBeVisible();
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
 });

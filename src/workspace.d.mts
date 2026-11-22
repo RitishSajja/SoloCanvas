@@ -1,11 +1,14 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { Board } from './storage.mjs';
 import type { MermaidImportDiagram } from './mermaid-import.mjs';
-export type Card = { id: string; data: Record<string, unknown> };
+export type WorkspaceAttachment = { id: string; name: string; size: number; base64: string };
+export type FileScope = 'workspace' | 'board' | 'component';
+export type Card = { attachments?: WorkspaceAttachment[]; id: string; data: Record<string, unknown> };
 export type ComponentShape = 'rectangle' | 'rounded' | 'pill' | 'diamond';
 export type Placement = Omit<Node, 'data'> & { cardId: string; shape: ComponentShape };
 export type StickyNote = { id: string; text: string; position: { x: number; y: number } };
 export type WorkspaceBoard = {
+  attachments?: WorkspaceAttachment[];
   id: string;
   title: string;
   extra: Record<string, unknown>;
@@ -14,7 +17,7 @@ export type WorkspaceBoard = {
   edges: Edge[];
   notes: StickyNote[];
 };
-export type Workspace = { version: 3; cards: Card[]; boards: WorkspaceBoard[] };
+export type Workspace = { attachments?: WorkspaceAttachment[]; version: 3; cards: Card[]; boards: WorkspaceBoard[] };
 export const COMPONENT_SHAPES: ComponentShape[];
 export function migrateLegacyBoard(raw: string, options?: { boardId?: string; title?: string }): Workspace;
 export function migrateWorkspaceV2(workspace: unknown): Workspace;
@@ -43,3 +46,5 @@ export function removePlacementTree(workspace: Workspace, boardId: string, nodeI
 export type CardSearchResult = { cardId: string; label: string; placements: { boardId: string; boardTitle: string; nodeId: string }[] };
 export function findCards(workspace: Workspace, query: string, options?: { includeSource?: boolean }): CardSearchResult[];
 export function findCardPlacements(workspace: Workspace, cardId: string): CardSearchResult['placements'];
+export const MAX_FILE_BYTES: number;
+export function changeAttachment(workspace: Workspace, scope: FileScope, ownerId: string, change: string | WorkspaceAttachment): Workspace;

@@ -1,5 +1,5 @@
 import { test, expect } from './returning-user-fixture.mjs';
-import { openWorkspaceBoard } from './workspace-helpers.mjs';
+import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -9,7 +9,7 @@ test('selected files create a local map only after review and explicit save', as
   await openWorkspaceBoard(page);
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
-  await page.getByLabel('Shared component name').fill('Existing');
+  await renameSelectedComponent(page, 'Existing');
   const chooser = page.getByLabel('Choose files for map');
   await chooser.setInputFiles([
     { name: 'server.ts', mimeType: 'text/plain', buffer: Buffer.from('SECRET_FILE_CONTENT_A') },
@@ -124,7 +124,7 @@ test('edits during source reading are preserved and map creation is cancelled', 
   await openWorkspaceBoard(page);
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
-  await page.getByLabel('Shared component name').fill('Before');
+  await renameSelectedComponent(page, 'Before');
   await page.evaluate(() => {
     const original = File.prototype.arrayBuffer;
     File.prototype.arrayBuffer = function() {
@@ -139,10 +139,10 @@ test('edits during source reading are preserved and map creation is cancelled', 
   page.once('dialog', dialog => dialog.accept('Map'));
   await page.getByRole('button', { name: 'Create file map board' }).click();
   await expect.poll(() => page.evaluate(() => typeof window.releaseTestRead)).toBe('function');
-  await page.getByLabel('Shared component name').fill('Edit while reading');
+  await renameSelectedComponent(page, 'Edit while reading');
   await page.evaluate(() => window.releaseTestRead());
   await expect(page.getByRole('alert')).toContainText('workspace changed');
-  await expect(page.getByLabel('Shared component name')).toHaveValue('Edit while reading');
+  await expect(page.locator('.workspace-component-node.selected')).toContainText('Edit while reading');
   await expect(page.getByLabel('Current board').locator('option')).toHaveCount(1);
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
 });

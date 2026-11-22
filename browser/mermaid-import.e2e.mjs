@@ -21,7 +21,7 @@ async function openWorkspace(page) {
   }
  }, existingWorkspace);
  await page.goto('/');
- await page.getByRole('button', { name: 'Open board Existing board' }).click();
+ await page.getByRole('article', { name: 'Board Existing board', exact: true }).press('Control+Enter');
  await page.getByText('Mermaid import', { exact: true }).click();
 }
 
@@ -51,7 +51,7 @@ test('previews Mermaid as inert text, preserves unsaved edits on cancel, and sav
  await expect(page.getByRole('status')).toContainText('Workspace saved');
 
  await page.reload();
- await page.getByRole('button', { name: 'Open board Imported Mermaid diagram' }).click();
+ await page.getByRole('article', { name: 'Board Imported Mermaid diagram', exact: true }).press('Control+Enter');
  await page.getByText('Mermaid import', { exact: true }).click();
  await page.getByLabel('Current board').selectOption({ label: 'Imported Mermaid diagram' });
  await expect(page.locator('.react-flow__node').filter({ hasText: 'Database 😀' })).toBeVisible();

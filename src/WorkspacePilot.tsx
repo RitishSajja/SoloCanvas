@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { ReactFlow, Background, Controls, Handle, Position, type Node as FlowNode, type NodeChange, type NodeProps, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
 import { addBoard, addMiniBoard, addNote, createMermaidBoard, placeCard, projectBoard, updateCard, updateNote, removeNote, updatePlacementShape, renameBoard, removeBoardTree, removePlacementTree, getMiniBoard, getBoardBreadcrumbs, findCards, findCardPlacements, type ComponentShape, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
@@ -11,21 +11,46 @@ import { addSuggestedDependencies } from './dependency-apply.mjs';
 import WorkspaceRecovery from './WorkspaceRecovery';
 import LegacyBoardRecovery from './LegacyBoardRecovery';
 
+import EditCard from './EditCard';
+import { buildComponentSummaries, ComponentDetails, type ComponentSummary } from './component-summary';
+import FileAttachments from './FileAttachments';
+import { changeAttachment, type FileScope, type WorkspaceAttachment } from './workspace.mjs';
+
 const suggestionKey = (item: Suggestion) => JSON.stringify([item.sourceNodeId, item.targetNodeId]);
 const stickyNodeType = 'stickyNote';
-type StickyNodeData = { label: string };
+type StickyNodeData = { label: string; edit: (text: string) => void; select: () => void };
 const componentNodeType = 'workspaceComponent';
-type ComponentNodeData = { label: string; shape: ComponentShape };
+type ComponentNodeData = {
+  label: string;
+  shape: ComponentShape;
+  summary?: ComponentSummary;
+  files?: ReactNode;
+  select: () => void;
+  rename: (label: string) => void;
+  open: (label: string) => void;
+};
 function WorkspaceComponentNode({ data, selected }: NodeProps<FlowNode<ComponentNodeData, typeof componentNodeType>>) {
-  return <article className={`workspace-component-card shape-${data.shape}${selected ? ' is-selected' : ''}`}>
+  return <EditCard className={`workspace-component-card shape-${data.shape}${selected ? ' is-selected' : ''}`}
+    accessibleName={`Component ${data.label || 'Untitled component'}`} label={data.label}
+    fieldLabel="Shared component name" onFocus={data.select} onCommit={data.rename} onOpen={data.open}>
+    {title => <>
     <Handle type="target" position={Position.Left} />
     <span className="workspace-component-mark" aria-hidden="true" />
-    <span className="workspace-component-copy"><small>COMPONENT</small><strong>{data.label || 'Untitled component'}</strong></span>
+    <div className="workspace-component-copy">
+      <small>COMPONENT</small><strong>{title || 'Untitled component'}</strong>
+      <ComponentDetails summary={data.summary} />
+      {data.files && <div className="nodrag nopan" data-card-control>{data.files}</div>}
+    </div>
     <Handle type="source" position={Position.Right} />
-  </article>;
+    </>}
+  </EditCard>;
 }
 function StickyNoteNode({ data }: NodeProps<FlowNode<StickyNodeData, typeof stickyNodeType>>) {
-  return <article className="workspace-sticky-note">{data.label || 'Write a note…'}</article>;
+  return <article className="workspace-sticky-note" aria-label="Sticky note">
+    <textarea aria-label="Sticky note text" className="nodrag nopan nowheel" placeholder="Write a note…"
+      value={data.label} onFocus={data.select} onChange={event => data.edit(event.target.value)}
+      onKeyDown={event => event.stopPropagation()} />
+  </article>;
 }
 const nodeTypes = { [componentNodeType]: WorkspaceComponentNode, [stickyNodeType]: StickyNoteNode };
 
@@ -83,7 +108,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
   const view = workspace && board ? projectBoard(workspace, board.id) : null;
   const breadcrumbs = workspace && board ? getBoardBreadcrumbs(workspace, board.id) : [];
   const topLevelBoards = workspace?.boards.filter(item => !item.parentPlacement) ?? [];
-  const childBoard = workspace && selected ? getMiniBoard(workspace, boardId, selected.id) : null;
+  const summaries = useMemo(() => buildComponentSummaries(workspace, boardId), [workspace, boardId]);
   const results = workspace ? findCards(workspace, search, { includeSource: searchSource }) : [];
   const appearances = workspace && selectedCard ? findCardPlacements(workspace, selectedCard.id) : [];
   const manualSuggestions: Suggestion[] = analysis ? Object.entries(candidateChoices).flatMap(([index, targetNodeId]) => {
@@ -248,27 +273,22 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     const index = board.nodes.length;
     changed(placeCard(workspace, board.id, cardId, { id: crypto.randomUUID(), position: { x: 60 + (index % 4) * 260, y: 60 + Math.floor(index / 4) * 130 } }));
   };
-  const openMiniBoard = () => {
-    if (!workspace || !board || !selected) return;
-    const existing = getMiniBoard(workspace, board.id, selected.id);
-    if (existing) { openBoard(existing.id); return; }
-    const label = String(selectedCard?.data.label ?? 'Component');
-    const next = addMiniBoard(workspace, board.id, selected.id, crypto.randomUUID(), `${label} board`);
-    const created = next.boards[next.boards.length - 1];
-    changed(next); openBoard(created.id);
-  };
-  const openMiniBoardFor = (parentBoardId: string, placementId: string) => {
-    if (!workspace) return;
-    const existing = getMiniBoard(workspace, parentBoardId, placementId);
-    if (existing) { openBoard(existing.id); return; }
-    const parentBoard = workspace.boards.find(item => item.id === parentBoardId);
-    const placement = parentBoard?.nodes.find(item => item.id === placementId);
+  const editOrOpenComponent = (placementId: string, title: string, open: boolean) => {
+    if (!workspace || !board) return;
+    const placement = board.nodes.find(item => item.id === placementId);
     const card = workspace.cards.find(item => item.id === placement?.cardId);
-    if (!placement || !parentBoard) return;
-    const label = String(card?.data.label ?? 'Component');
-    const next = addMiniBoard(workspace, parentBoardId, placementId, crypto.randomUUID(), `${label} board`);
-    const created = next.boards[next.boards.length - 1];
-    changed(next); openBoard(created.id);
+    if (!placement || !card) return;
+    let next = workspace;
+    if (String(card.data.label ?? '') !== title) {
+      next = updateCard(next, card.id, { ...card.data, label: title });
+    }
+    let destination = open ? getMiniBoard(next, board.id, placementId)?.id : undefined;
+    if (open && !destination) {
+      destination = crypto.randomUUID();
+      next = addMiniBoard(next, board.id, placementId, destination, `${title.trim() || 'Component'} board`);
+    }
+    if (next !== workspace) changed(next);
+    if (destination) openBoard(destination);
   };
   const addStickyNote = () => {
     if (!workspace || !board) return;
@@ -454,15 +474,38 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     const link = document.createElement('a'); link.href = url; link.download = 'solocanvas-workspace.json'; link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
-  const flowNodes = view && board ? [
+  const cardIds = new Map(board?.nodes.map(node => [node.id, node.cardId]));
+  const cardsById = new Map(workspace?.cards.map(card => [card.id, card]));
+  const attachmentControls = (scope: FileScope, ownerId: string, items?: WorkspaceAttachment[]) => {
+    if (!workspace) return null;
+    const version = editVersion.current;
+    const change = (value: string | WorkspaceAttachment) => {
+      if (version !== editVersion.current) throw new Error('Workspace changed. Choose the file again.');
+      changed(changeAttachment(workspace, scope, ownerId, value));
+    };
+    return <FileAttachments scope={scope === 'workspace' ? 'Workspace' : scope === 'board' ? 'Board' : 'Component'}
+      items={items} onAttach={change} onRemove={change} />;
+  };
+  const flowNodes = view && board && workspace ? [
     ...view.nodes.map(node => ({
       ...node,
       id: `component:${node.id}`,
       type: componentNodeType,
-      width: 228,
-      height: 92,
+      width: undefined,
+      height: undefined,
+      initialWidth: undefined,
+      initialHeight: undefined,
+      style: { ...node.style, width: undefined, height: undefined },
       className: 'workspace-component-node',
-      data: { label: String(node.data.label ?? 'Untitled component'), shape: board?.nodes.find(item => item.id === node.id)?.shape ?? 'pill' },
+      data: {
+        label: String(node.data.label ?? ''),
+        shape: board.nodes.find(item => item.id === node.id)?.shape ?? 'pill',
+        summary: summaries.get(node.id),
+        files: attachmentControls('component', cardIds.get(node.id)!, cardsById.get(cardIds.get(node.id)!)?.attachments),
+        select: () => { setSelectedNode(`component:${node.id}`); setSelectedEdge(''); },
+        rename: (label: string) => editOrOpenComponent(node.id, label, false),
+        open: (label: string) => editOrOpenComponent(node.id, label, true),
+      },
       selected: selectedNode === `component:${node.id}`,
     })),
     ...board.notes.map(note => ({
@@ -471,7 +514,10 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       position: note.position,
       width: 184,
       height: 148,
-      data: { label: note.text },
+      data: { label: note.text,
+        edit: (text: string) => changed(updateNote(workspace, board.id, note.id, text)),
+        select: () => { setSelectedNode(`sticky:${note.id}`); setSelectedEdge(''); },
+      },
       className: 'workspace-sticky-node',
       selected: selectedNode === `sticky:${note.id}`,
     })),
@@ -486,6 +532,8 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
   return <main className="workspace-app">
     <header className="workspace-header"><div className="workspace-brand"><span className="workspace-brand-mark" aria-hidden="true">S</span><div><strong>SoloCanvas</strong><small>Project workspace</small></div></div><div className="actions">
       {onClose && <button onClick={close}>Back to board</button>}
+      {attachmentControls('workspace', '', workspace?.attachments)}
+      {workspaceView === 'board' && board && attachmentControls('board', board.id, board.attachments)}
       <details className="workspace-header-tools"><summary>Import / export</summary><div>
         <button onClick={exportWorkspace} disabled={!workspace}>Export workspace</button><button onClick={exportMermaid} disabled={!board}>Export board as Mermaid</button><label className="import-button">Import workspace<input type="file" accept=".json,application/json" aria-label="Import workspace" onChange={importWorkspace} disabled={!snapshot || busy} /></label>
       </div></details>
@@ -495,11 +543,19 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       <div className="workspace-overview-hero"><div><p className="workspace-eyebrow">YOUR PROJECT, ORGANIZED</p><h1>Pick up where your ideas live.</h1><p>Boards hold components, notes, and the work nested inside each placement.</p></div><button className="primary" onClick={createBoard} disabled={!workspace}>Create a board</button></div>
       <div className="workspace-overview-heading"><h2>Top-level boards</h2><span>{topLevelBoards.length} board(s)</span></div>
       {topLevelBoards.length === 0 ? <p>No boards yet. Create a board to get started.</p> : <div className="workspace-board-grid">
-        {topLevelBoards.map(item => <article className="workspace-board-card" key={item.id}>
-          <div className="workspace-board-card-icon" aria-hidden="true">▱</div>
-          <div className="workspace-board-card-copy"><h3>{item.title}</h3><p>{item.nodes.length} components <span>·</span> {item.notes.length} notes</p></div>
-          <button className="workspace-board-open" onClick={() => openBoard(item.id)} aria-label={`Open board ${item.title}`}>Open board <span aria-hidden="true">→</span></button>
-        </article>)}
+        {topLevelBoards.map(item => {
+          const rename = (title: string) => {
+            if (workspace && title.trim() && title.trim() !== item.title) changed(renameBoard(workspace, item.id, title.trim()));
+          };
+          return <EditCard key={item.id} className="workspace-board-card" accessibleName={`Board ${item.title}`}
+            label={item.title} fieldLabel="Board name" onCommit={rename} onOpen={title => { rename(title); openBoard(item.id); }}>
+            {title => <>
+              <div className="workspace-board-card-icon" aria-hidden="true">▱</div>
+              <div className="workspace-board-card-copy"><h3>{title}</h3><p>{item.nodes.length} components <span>·</span> {item.notes.length} notes</p></div>
+              <kbd>Ctrl+Enter to open</kbd>
+            </>}
+          </EditCard>;
+        })}
       </div>}
       {!workspace && <p role="alert">{message}</p>}
       <LegacyBoardRecovery />
@@ -509,7 +565,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       <section className="canvas workspace-canvas" aria-label="Workspace canvas">
         {view && <ReactFlow onInit={setFlow} nodes={flowNodes} edges={flowEdges} nodeTypes={nodeTypes} onNodesChange={moveNodes} onEdgesChange={selectEdges} onConnect={connect}
           onNodeClick={(_, node) => { setSelectedNode(node.id); setSelectedEdge(''); }}
-          onNodeDoubleClick={(_, node) => { if (node.id.startsWith('component:')) openMiniBoardFor(boardId, node.id.slice('component:'.length)); }}
+          zoomOnDoubleClick={false}
           onEdgeClick={(_, item) => { setSelectedEdge(item.id); setSelectedNode(''); }}
           onPaneClick={() => { setSelectedNode(''); setSelectedEdge(''); }} fitView><Background /><Controls /></ReactFlow>}
       </section>
@@ -519,7 +575,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
           {breadcrumbs.map((item, index) => <span key={item.boardId}> / <button onClick={() => openBoard(item.boardId)} aria-current={index === breadcrumbs.length - 1 ? 'page' : undefined}>{item.title}</button></span>)}
         </nav>
         <h1>Board</h1>
-        <p>Drag components and connect their handles. Double-click a component, or select it and open its mini-board.</p>
+        <p>Click a component to edit its name. Enter applies, Escape cancels, and Ctrl+Enter opens its mini-board. Drag a component to move it.</p>
         {workspace && <>
           <label>Current board<select aria-label="Current board" value={boardId} onChange={event => openBoard(event.target.value)}>
             {workspace.boards.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
@@ -621,11 +677,11 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
           </details>
           <label>Existing component<select aria-label="Existing component" value={cardId} onChange={event => setCardId(event.target.value)}><option value="">Choose a component</option>{workspace.cards.map(card => <option key={card.id} value={card.id}>{String(card.data.label ?? 'Untitled')}</option>)}</select></label>
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
-          {selectedCard && selected && <><label>Shared component name<input value={String(selectedCard.data.label ?? '')} onChange={event => changed(updateCard(workspace, selectedCard.id, { ...selectedCard.data, label: event.target.value }))} /></label>
+          {selectedCard && selected && <>
             <label>Component shape<select aria-label="Component shape" value={selected.shape} onChange={event => changed(updatePlacementShape(workspace, boardId, selected.id, event.target.value as 'rectangle' | 'rounded' | 'pill' | 'diamond'))}>
               <option value="rectangle">Rectangle</option><option value="rounded">Rounded</option><option value="pill">Pill</option><option value="diamond">Diamond</option>
             </select></label>
-            <button onClick={openMiniBoard}>Open mini-board</button><button onClick={removeNode}>Remove component from board</button>
+            <button onClick={removeNode}>Remove component from board</button>
             {typeof selectedCard.data.sourceText === 'string' && <section aria-label="Imported source text">
               <h2>Imported source text</h2><p>Removing source from this card does not erase older workspace backups or exports.</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{selectedCard.data.sourceText}</pre>
               <button onClick={() => { const data = { ...selectedCard.data }; delete data.sourceText; changed(updateCard(workspace, selectedCard.id, data)); }}>Remove source text</button>
@@ -634,10 +690,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
               <button aria-current={placement.boardId === boardId && placement.nodeId === selectedPlacementId ? 'location' : undefined} onClick={() => openPlacement(placement.boardId, placement.nodeId)}>Open on {placement.boardTitle} — placement {index + 1}</button>{placement.boardId === boardId && placement.nodeId === selectedPlacementId && ' (current)'}
             </li>)}</ul></section>
           </>}
-          {selectedNote && <section aria-label="Edit sticky note">
-            <label>Sticky note<textarea aria-label="Sticky note text" rows={6} value={selectedNote.text} onChange={event => changed(updateNote(workspace, boardId, selectedNote.id, event.target.value))} /></label>
-            <button onClick={removeNode}>Remove sticky note</button>
-          </section>}
+          {selectedNote && <button onClick={removeNode}>Remove sticky note</button>}
           {edge && <>{typeof edge.data?.specifier === 'string' && typeof edge.data?.sourcePath === 'string' && <section aria-label="Relationship evidence">
             <p>Suggested from {String(edge.data.sourcePath)}:{String(edge.data.line)} — {String(edge.data.specifier)} → {String(edge.data.targetPath)}</p>
             <p>Evidence reflects the source at analysis time.</p>
@@ -650,3 +703,4 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     </div>}
   </main>;
 }
+

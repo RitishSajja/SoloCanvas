@@ -1,5 +1,5 @@
 import { test, expect } from './returning-user-fixture.mjs';
-import { openWorkspaceBoard } from './workspace-helpers.mjs';
+import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 
 test('cooperating tabs serialize workspace saves and reject a stale snapshot', async ({ context }) => {
  const first = await context.newPage();
@@ -45,7 +45,7 @@ test('edits made while a save waits for the lock remain unsaved and can be saved
  await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
- await page.getByLabel('Shared component name').fill('Initial');
+ await renameSelectedComponent(page, 'Initial');
  page.once('dialog', dialog => dialog.accept());
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect(page.getByRole('status')).toContainText('Workspace saved');
@@ -55,10 +55,10 @@ test('edits made while a save waits for the lock remain unsaved and can be saved
      await new Promise(release => { window.releaseWorkspaceTestLock = release; resolve(); });
    });
  }));
- await page.getByLabel('Shared component name').fill('Snapshot at save');
+ await renameSelectedComponent(page, 'Snapshot at save');
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect(page.getByRole('button', { name: 'Save workspace' })).toBeDisabled();
- await page.getByLabel('Shared component name').fill('Newer unsaved edit');
+ await renameSelectedComponent(page, 'Newer unsaved edit');
  await page.evaluate(() => window.releaseWorkspaceTestLock());
  await expect(page.getByRole('status')).toContainText('Newer changes remain unsaved');
  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')).cards[0].data.label)).toBe('Snapshot at save');
@@ -72,12 +72,12 @@ test('workspace quota failure preserves the saved data and permits retry', async
  await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
- await page.getByLabel('Shared component name').fill('Previously saved');
+ await renameSelectedComponent(page, 'Previously saved');
  page.once('dialog', dialog => dialog.accept());
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect(page.getByRole('status')).toContainText('Workspace saved');
  const previous = await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'));
- await page.getByLabel('Shared component name').fill('Unsaved after quota error');
+ await renameSelectedComponent(page, 'Unsaved after quota error');
  await page.evaluate(() => {
    window.restoreWorkspaceStorage = Storage.prototype.setItem;
    Storage.prototype.setItem = function(key, value) {
@@ -88,7 +88,7 @@ test('workspace quota failure preserves the saved data and permits retry', async
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect(page.getByRole('status')).toContainText('could not be saved');
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBe(previous);
- await expect(page.getByLabel('Shared component name')).toHaveValue('Unsaved after quota error');
+ await expect(page.locator('.workspace-component-node.selected')).toContainText('Unsaved after quota error');
  await page.evaluate(() => { Storage.prototype.setItem = window.restoreWorkspaceStorage; });
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('solocanvas.workspace.v2')).cards[0].data.label)).toBe('Unsaved after quota error');

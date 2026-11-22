@@ -1,0 +1,7 @@
+.local-files { font: 0.8rem/1.4 system-ui, sans-serif; color: #263149; text-align: left; max-width: 26rem; min-width: 0; }
+.local-files summary { cursor: pointer; padding: .25rem .35rem; }
+.local-files[open] { padding: .35rem; background: #fff; border: 1px solid #cbd5e1; border-radius: .5rem; }
+.local-files label, .local-files small { display: block; }
+.local-files input { max-width: 100%; }
+.local-files > div { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .4rem; }
+.local-files button { overflow-wrap: anywhere; white-space: normal; }

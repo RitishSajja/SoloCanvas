@@ -1,5 +1,5 @@
 import { test, expect } from './returning-user-fixture.mjs';
-import { openWorkspaceBoard } from './workspace-helpers.mjs';
+import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 
 test('static import suggestions are reviewed, applied and saved explicitly', async ({ page }) => {
  test.setTimeout(60000);
@@ -31,7 +31,7 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  await panel.getByRole('button', { name: 'Inspect source repo/main.ts line 1 for ./service' }).click();
  await expect(page.getByRole('region', { name: 'Imported source text' })).toContainText("import { value } from './service'");
  await expect(panel).toContainText('1 relationship(s) suggested');
- await page.getByLabel('Shared component name').fill('renamed.ts');
+ await renameSelectedComponent(page, 'renamed.ts');
  await expect(panel).toContainText('Workspace changed');
  await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toHaveCount(0);
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
@@ -46,10 +46,10 @@ test('static import suggestions are reviewed, applied and saved explicitly', asy
  const evidence = page.getByRole('region', { name: 'Relationship evidence' });
  await expect(evidence).toContainText('analysis time');
  await evidence.getByRole('button', { name: 'Open target component' }).click();
- await expect(page.getByLabel('Shared component name')).toHaveValue('service.ts');
+ await expect(page.locator('.workspace-component-node.selected')).toContainText('service.ts');
  await page.getByRole('group', { name: /Edge from/ }).click();
  await evidence.getByRole('button', { name: 'Open source component' }).click();
- await expect(page.getByLabel('Shared component name')).toHaveValue('renamed.ts');
+ await expect(page.locator('.workspace-component-node.selected')).toContainText('renamed.ts');
  await page.getByRole('button', { name: 'Save workspace' }).click();
  await expect(page.getByRole('status')).toContainText('Workspace saved');
  await page.reload(); await openWorkspaceBoard(page);
@@ -125,13 +125,13 @@ test('edits during worker analysis invalidate the result', async ({ page }) => {
  await page.goto('/'); await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
- await page.getByLabel('Shared component name').fill('Before');
+ await renameSelectedComponent(page, 'Before');
  const panel = page.getByRole('region', { name: 'Import relationship suggestions' });
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();
- await page.getByLabel('Shared component name').fill('Kept edit');
+ await renameSelectedComponent(page, 'Kept edit');
  await page.evaluate(() => window.finishTestAnalysis());
  await expect(panel.getByRole('alert')).toContainText('workspace or board changed');
- await expect(page.getByLabel('Shared component name')).toHaveValue('Kept edit');
+ await expect(page.locator('.workspace-component-node.selected')).toContainText('Kept edit');
  await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toHaveCount(0);
 });
 
@@ -229,7 +229,7 @@ test('duplicate placements remain distinct and stale choices cannot be applied',
  await expect(choice.locator('option')).toHaveCount(3);
  await choice.selectOption('two');
  await page.locator('.react-flow__node').filter({ hasText: 'main.ts' }).click();
- await page.getByLabel('Shared component name').fill('new main name');
+ await renameSelectedComponent(page, 'new main name');
  await expect(panel).toContainText('Workspace changed');
  await expect(panel.getByRole('button', { name: 'Add suggested relationships' })).toHaveCount(0);
  await panel.getByRole('button', { name: 'Analyze board imports' }).click();

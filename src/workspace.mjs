@@ -48,6 +48,19 @@ function validateWorkspaceV2(workspace) {
 }
 
 export function migrateWorkspaceV2(workspace) {
+  // v2 kept child boards when their parent placement was removed.
+  if (workspace?.version === 2 && Array.isArray(workspace.boards)) {
+    const placements = new Map(workspace.boards.map(board => [board?.id,
+      new Set(Array.isArray(board?.nodes) ? board.nodes.map(node => node?.id) : [])]));
+    workspace = { ...workspace, boards: workspace.boards.map(board => {
+      const parent = board?.parentPlacement;
+      if (idString(parent?.boardId) && idString(parent?.nodeId) &&
+          !placements.get(parent.boardId)?.has(parent.nodeId)) {
+        return { ...board, parentPlacement: null };
+      }
+      return board;
+    }) };
+  }
   if (!validateWorkspaceV2(workspace)) throw new Error('Invalid version 2 workspace');
   return {
     version: 3,
@@ -59,6 +72,52 @@ export function migrateWorkspaceV2(workspace) {
       nodes: board.nodes.map(node => ({ ...copy(node), shape: 'pill' })),
     })),
   };
+}
+
+export const MAX_FILE_BYTES = 256 * 1024;
+const MAX_TOTAL_BYTES = 1024 * 1024;
+const MAX_FILES = 128;
+
+function attachmentTotals(workspace) {
+  let count = 0;
+  let bytes = 0;
+  for (const owner of [workspace, ...workspace.boards, ...workspace.cards]) {
+    if (owner.attachments === undefined) continue;
+    if (!Array.isArray(owner.attachments)) return null;
+    count += owner.attachments.length;
+    if (count > MAX_FILES) return null;
+    const ids = new Set();
+    for (const file of owner.attachments) {
+      if (!object(file) || !idString(file.id) || ids.has(file.id) ||
+          !idString(file.name) || file.name.length > 255 ||
+          !Number.isSafeInteger(file.size) || file.size < 0 || file.size > MAX_FILE_BYTES ||
+          typeof file.base64 !== 'string' || file.base64.length !== 4 * Math.ceil(file.size / 3)) return null;
+      ids.add(file.id);
+      bytes += file.size;
+      if (bytes > MAX_TOTAL_BYTES) return null;
+      // Only the trailing group can contain padding.
+      const padding = (3 - file.size % 3) % 3;
+      const end = file.base64.length - padding;
+      if (file.base64.slice(end) !== '='.repeat(padding) ||
+          /[^A-Za-z0-9+/]/.test(file.base64.slice(0, end))) return null;
+    }
+  }
+  return { count, bytes };
+}
+
+export function changeAttachment(workspace, scope, ownerId, change) {
+  const next = copy(workspace);
+  let owner;
+  if (scope === 'workspace') owner = next;
+  if (scope === 'board') owner = next.boards.find(board => board.id === ownerId);
+  if (scope === 'component') owner = next.cards.find(card => card.id === ownerId);
+  if (!owner) throw new Error('This item no longer exists.');
+  const files = owner.attachments ?? [];
+  owner.attachments = typeof change === 'string'
+    ? files.filter(file => file.id !== change)
+    : [...files, copy(change)];
+  if (!attachmentTotals(next)) throw new Error('Use up to 128 files and 1 MiB total per workspace, with filenames up to 255 characters.');
+  return next;
 }
 
 export function validateWorkspace(workspace) {
@@ -83,6 +142,7 @@ export function validateWorkspace(workspace) {
     if (!unique(board.notes.map(note => note.id))) return false;
     if (!unique([...board.nodes.map(node => node.id), ...board.notes.map(note => note.id)])) return false;
   }
+  if (!attachmentTotals(workspace)) return false;
   const boardsById = new Map(workspace.boards.map(board => [board.id, board]));
   const parents = new Set();
   for (const board of workspace.boards) {

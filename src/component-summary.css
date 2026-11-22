@@ -1,0 +1,67 @@
+/* React Flow observes the wrapper's actual dimensions for handles and hit testing. */
+.react-flow__node.workspace-component-node {
+  width: max-content;
+  height: auto;
+}
+
+.workspace-component-node .workspace-component-card {
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 204px;
+  max-width: 350px;
+  height: auto;
+  min-height: 92px;
+}
+
+.workspace-component-node .workspace-component-copy {
+  flex: 1 1 auto;
+  max-width: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workspace-component-node .workspace-component-copy strong {
+  max-width: none;
+  overflow: visible;
+  white-space: normal;
+}
+
+.workspace-component-node .workspace-inline-name {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+.component-details {
+  display: grid;
+  gap: 3px;
+  color: #4a566c;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* Keep content in the central half of a diamond even after the title wraps. */
+.workspace-component-node .shape-diamond {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-rows: 1fr 2fr 1fr;
+  gap: 0;
+  padding: 0;
+  min-width: 230px;
+  max-width: 450px;
+}
+
+.workspace-component-node .shape-diamond .workspace-component-copy {
+  grid-column: 2;
+  grid-row: 2;
+  max-width: none;
+  padding: 4px;
+}
+
+.workspace-component-node .shape-diamond .workspace-component-copy strong {
+  max-width: none;
+}

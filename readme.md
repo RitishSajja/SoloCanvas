@@ -218,7 +218,19 @@ The detailed development plan and agent handoff live in [context/PLAN.md](contex
 
 The Vite/React app opens on the project workspace after first-run onboarding. To run it with Node.js 22, use `npm ci` followed by `npm run dev`; run `npm test`, `npm run build`, and `npm run test:browser` for checks.
 
-On first run, users can start with an empty workspace or open an example board. The example is held in memory until **Save workspace** is selected. Workspaces open to an overview of top-level boards. Boards can contain connected component placements and sticky notes; placements can use rectangle, rounded, pill, or diamond shapes. Reusing a component shares its name and data while preserving placement-specific position, shape, and nested-board contents. Double-click a placement or select **Open mini-board** to open its own board; placements can be nested to further levels, with breadcrumbs for navigation. Removing a placement or board with descendants requires confirmation and removes the entire nested tree rather than orphaning boards.
+On first run, start with an empty workspace or try the example. The example stays in memory until you select **Save workspace**. The overview lists your top-level boards. Each board holds connected components and sticky notes.
+
+| On a board tile or canvas component | What happens |
+| --- | --- |
+| Click or double-click the title, or focus the card and press Enter | Edit its name in place. Renaming a shared component updates every placement. |
+| Press Enter while editing, or move focus away | Apply the new name to the current workspace. Press Escape while editing to discard the draft. |
+| Press Ctrl+Enter on the card or its title editor | Apply the name and open the board. On a component, this opens its placement’s mini-board, creating one on first use. |
+
+Use the breadcrumbs to return to a parent board. Click inside a sticky note to write directly on the canvas. Enter adds another line, and dragging the border moves the note.
+
+Each placement keeps its own position, shape and mini-board. Rectangle, rounded, pill and diamond components size themselves to their contents. File components show their path and, when available, source line count. A parent component previews its mini-board’s title, component, note and connection counts, and a sample of file paths and attachment names. Removing a placement or board with descendants prompts for confirmation and removes its nested tree.
+
+Expand **Workspace files** or **Board files** in the workspace header, or **Component files** on a canvas component. Use **Attach file** to add a local file, select a filename to download its original bytes, or choose **Remove** to detach it. Component files are shared across every placement of the component. Board files belong to the individual board, including a nested mini-board. You can attach up to 256 KiB per file, 128 files and 1 MiB of file content across the workspace. **Save workspace** keeps these files on this browser origin, and **Export workspace** includes the files currently in memory.
 
 Changes are not saved automatically. **Save workspace** uses browser Web Locks, checks that storage has not changed since opening, and writes a recoverable backup before replacing existing workspace data. Existing v1 board data remains untouched; v2 workspaces are migrated to v3 in memory and their raw data is retained as a backup on the first explicit save. The workspace recovery panel can export raw primary, backup, or damaged data and offers explicit restore when a valid backup exists. When no v2 workspace exists, the default workspace also exposes explicit restore for a valid previous v1 board backup; v1 recovery remains unavailable while newer workspace data exists. Storage is local to this browser origin; there is no cloud sync or remote backup.
 
@@ -238,9 +250,9 @@ In the multi-board workspace, **Import workspace** opens an exported SoloCanvas 
 
 ### Next automation handoff
 
-The workspace-first UI work is on `ritishsajja-nested-boards-and-notes` at commit `e77c57e`; it must be integrated into `main` before follow-up edits. At each check-in, inspect the latest `origin/main`, `context/STATUS.md`, and active branch/session work first. If this commit is not integrated or another active branch is changing the same workspace/UI files, do not duplicate, rebase, merge, or modify that work; report that integration is still pending and stop.
+Codex and Copilot take turns on `ritishsajja-nested-boards-and-notes`. At the start of each turn, check the branch head, recent commits, active peer work and the newest entry in [the agent handoff](context/STATUS.md). At the end, record the changes, checks and next step there.
 
-After integration is clear, the next milestone is a post-integration usability pass on the workspace-first flow: verify first-run and returning-user routing, the unsaved sample-to-workspace path, responsive overview/board navigation, and nested placement, notes, and shape interactions. Fix only concrete issues found; do not add unrelated features. Acceptance requires `npm test`, `npm run build`, and the full `npm run test:browser` suite to pass, plus confirmation that v2 parent-placement links survive read/open, recovery, and explicit v3 save without changing the raw backup before save. The feature branch's pre-integration baseline was 84 unit tests passing, a successful production build, and 63 browser tests passing with one optional renderer test skipped.
+For the workspace usability pass, verify first-run and returning-user routing, the unsaved sample, inline editing, Ctrl+Enter navigation and all four shapes on a narrow viewport. Confirm shared component files and placement-specific summaries after save and reload, and download a file from each scope. Check v2 migration and backup recovery alongside the new interactions. Run `npm test`, `npm run build` and `npm run test:browser`, then record the results against the commit tested.
 
 ## 9. License, Release, and Verification
 

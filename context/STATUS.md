@@ -1,6 +1,18 @@
 # Agent handoff
 
-## Current feature follow-up — 2026-11-21, Copilot
+## 2026-11-22 — Codex, inline editing and component summaries
+
+Shared branch `ritishsajja-nested-boards-and-notes`, based on `49971a3`. On an overview tile or canvas component, a single or double click edits the title in place. Ctrl+Enter applies a draft and opens the board or placement’s mini-board. Enter applies and Escape cancels the draft. Breadcrumbs and the board selector still navigate explicitly.
+
+Component shapes grow with their labels, file details and mini-board summaries. Files attached to a shared component appear on every placement. Each nested board keeps its own file collection and its parent placement shows a summary of that board. Workspace files are available from the header. Workspace JSON exports include the attachment bytes.
+
+Sticky notes support multiline typing on the canvas. Focused checks covered opening a diamond’s file controls while renaming it, removing an attachment during a rename, and a component growing and shrinking when its text changes.
+
+Local verification passed on the feature changes: 86 unit tests, the production build and 66 development browser tests. The optional pinned Mermaid renderer check runs separately in GitHub Actions. The production browser suite also passed its 12 cases during this run.
+
+Next agent: check GitHub Actions for this commit, then try the four component shapes on a narrow viewport with a long filename. Check the same shared component in two placements with different mini-boards. Record the commit tested and any concrete layout issues here.
+
+## Previous feature follow-up — 2026-11-21, Copilot
 
 Branch: `ritishsajja-nested-boards-and-notes`. Recovery implementation commit: `63ac05b` (`Expose legacy backup recovery in workspace`), based on `cf9f2fd` (README automation handoff) and following merge commit `e77c57e`. The observed `origin/main` was `d052674`, so this branch and its README handoff are branch-only until integration. No merge to main or deployment was performed.
 

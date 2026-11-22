@@ -1,5 +1,5 @@
 import { test, expect } from './returning-user-fixture.mjs';
-import { openWorkspaceBoard } from './workspace-helpers.mjs';
+import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 
 test('renaming and deleting boards preserves shared cards and requires an explicit save', async ({ page }) => {
   await page.goto('/');
@@ -7,7 +7,7 @@ test('renaming and deleting boards preserves shared cards and requires an explic
   await expect(page.getByRole('button', { name: 'Delete board' })).toBeDisabled();
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
-  await page.getByLabel('Shared component name').fill('Shared API');
+  await renameSelectedComponent(page, 'Shared API');
   page.once('dialog', dialog => dialog.accept('Second board'));
   await page.getByRole('button', { name: 'New board' }).click();
   await page.getByLabel('Existing component').selectOption({ label: 'Shared API' });
@@ -59,8 +59,8 @@ test('nested mini-boards reopen from their placements after saving and reloading
   for (const label of ['Platform', 'Billing']) {
     await button('Add component').click();
     await page.locator('.react-flow__node').last().click();
-    await page.getByLabel('Shared component name').fill(label);
-    await button('Open mini-board').click();
+    await renameSelectedComponent(page, label);
+    await page.locator('.workspace-component-node.selected').press('Control+Enter');
     await expect(selector.locator('option:checked')).toHaveText(`${label} board`);
     ids.push(await selector.inputValue());
   }
@@ -75,7 +75,7 @@ test('nested mini-boards reopen from their placements after saving and reloading
   await openWorkspaceBoard(page, { expandTools: false });
   for (const [index, label] of ['Platform', 'Billing'].entries()) {
     await page.locator('.react-flow__node').filter({ hasText: label }).click();
-    await button('Open mini-board').click();
+    await page.locator('.workspace-component-node.selected').press('Control+Enter');
     await expect(selector).toHaveValue(ids[index]);
   }
 });

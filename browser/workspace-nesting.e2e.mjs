@@ -1,5 +1,5 @@
 import { test, expect } from './returning-user-fixture.mjs';
-import { openWorkspaceBoard } from './workspace-helpers.mjs';
+import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 
 test('openable placements create independent nested boards with persistent notes and shapes', async ({ page }) => {
   await page.goto('/');
@@ -8,29 +8,33 @@ test('openable placements create independent nested boards with persistent notes
 
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
-  await page.getByLabel('Shared component name').fill('API');
+  await renameSelectedComponent(page, 'API');
   await page.getByLabel('Component shape').selectOption('diamond');
   await page.getByLabel('Existing component').selectOption({ label: 'API' });
   await page.getByRole('button', { name: 'Place component' }).click();
 
   await page.locator('.react-flow__node').filter({ hasText: 'API' }).first().click();
-  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.locator('.workspace-component-node.selected').press('Control+Enter');
   const firstMiniBoard = await page.getByLabel('Current board').inputValue();
   await expect(page.getByRole('navigation', { name: 'Workspace breadcrumbs' })).toContainText('My board');
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
-  await page.getByLabel('Shared component name').fill('Nested task');
+  await renameSelectedComponent(page, 'Nested task');
   await page.getByLabel('Component shape').selectOption('rounded');
-  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.locator('.workspace-component-node.selected').press('Control+Enter');
   await page.getByRole('button', { name: 'Add sticky note' }).click();
-  await page.getByLabel('Sticky note text').fill('Only in the first placement chain');
+  const firstNote = page.locator('.workspace-sticky-node').getByRole('textbox', { name: 'Sticky note text' });
+  await firstNote.fill('Only in the first placement chain');
+  await firstNote.press('End');
+  await firstNote.press('Enter');
+  await firstNote.pressSequentially('Second line');
   const deepBoard = await page.getByLabel('Current board').inputValue();
 
   await page.getByRole('button', { name: 'Workspace overview' }).click();
-  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
   await page.locator('.react-flow__node').filter({ hasText: 'API' }).nth(1).click();
   await page.getByLabel('Component shape').selectOption('rectangle');
-  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.locator('.workspace-component-node.selected').press('Control+Enter');
   const secondMiniBoard = await page.getByLabel('Current board').inputValue();
   expect(secondMiniBoard).not.toBe(firstMiniBoard);
   await expect(page.locator('.react-flow__node')).toHaveCount(0);
@@ -44,22 +48,20 @@ test('openable placements create independent nested boards with persistent notes
   await openWorkspaceBoard(page, { expandTools: false });
   await page.locator('.react-flow__node').filter({ hasText: 'API' }).first().click();
   await expect(page.getByLabel('Component shape')).toHaveValue('diamond');
-  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.locator('.workspace-component-node.selected').press('Control+Enter');
   await expect(page.getByLabel('Current board')).toHaveValue(firstMiniBoard);
   await page.locator('.react-flow__node').filter({ hasText: 'Nested task' }).click();
   await expect(page.getByLabel('Component shape')).toHaveValue('rounded');
-  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.locator('.workspace-component-node.selected').press('Control+Enter');
   await expect(page.getByLabel('Current board')).toHaveValue(deepBoard);
-  await page.locator('.react-flow__node').filter({ hasText: 'Only in the first placement chain' }).click();
-  await expect(page.getByLabel('Sticky note text')).toHaveValue('Only in the first placement chain');
+  await expect(firstNote).toHaveValue('Only in the first placement chain\nSecond line');
   await page.getByRole('button', { name: 'Workspace overview' }).click();
-  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
   await page.locator('.react-flow__node').filter({ hasText: 'API' }).nth(1).click();
   await expect(page.getByLabel('Component shape')).toHaveValue('rectangle');
-  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await page.locator('.workspace-component-node.selected').press('Control+Enter');
   await expect(page.getByLabel('Current board')).toHaveValue(secondMiniBoard);
-  await page.locator('.react-flow__node').filter({ hasText: 'Only in the second placement' }).click();
-  await expect(page.getByLabel('Sticky note text')).toHaveValue('Only in the second placement');
+  await expect(page.locator('.workspace-sticky-node').getByRole('textbox')).toHaveValue('Only in the second placement');
 });
 
 test('removing a placement confirms and removes all nested boards and notes', async ({ page }) => {
@@ -67,16 +69,16 @@ test('removing a placement confirms and removes all nested boards and notes', as
   await openWorkspaceBoard(page, { expandTools: false });
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
-  await page.getByLabel('Shared component name').fill('Parent');
-  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await renameSelectedComponent(page, 'Parent');
+  await page.locator('.workspace-component-node.selected').press('Control+Enter');
   await page.getByRole('button', { name: 'Add component' }).click();
   await page.locator('.react-flow__node').first().click();
-  await page.getByLabel('Shared component name').fill('Child');
-  await page.getByRole('button', { name: 'Open mini-board' }).click();
+  await renameSelectedComponent(page, 'Child');
+  await page.locator('.workspace-component-node.selected').press('Control+Enter');
   await page.getByRole('button', { name: 'Add sticky note' }).click();
   await page.getByLabel('Sticky note text').fill('Nested content');
   await page.getByRole('button', { name: 'Workspace overview' }).click();
-  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
   await page.locator('.react-flow__node').filter({ hasText: 'Parent' }).click();
   page.once('dialog', dialog => dialog.dismiss());
   await page.getByRole('button', { name: 'Remove component from board' }).click();

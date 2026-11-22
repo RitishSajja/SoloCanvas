@@ -1,5 +1,5 @@
 import { test, expect } from './returning-user-fixture.mjs';
-import { openWorkspaceBoard } from './workspace-helpers.mjs';
+import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 test('workspace canvas moves, connects, labels and removes components with persistence', async ({ page }) => {
  await page.goto('/');
  await openWorkspaceBoard(page);
@@ -48,7 +48,7 @@ test('removing one placement keeps the shared component on other boards', async 
  await openWorkspaceBoard(page);
  await page.getByRole('button', { name: 'Add component' }).click();
  await page.locator('.react-flow__node').first().click();
- await page.getByLabel('Shared component name').fill('Shared');
+ await renameSelectedComponent(page, 'Shared');
  page.once('dialog', dialog => dialog.accept('Other board'));
  await page.getByRole('button', { name: 'New board' }).click();
  await page.getByLabel('Existing component').selectOption({ label: 'Shared' });

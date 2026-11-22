@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { migrateLegacyBoard, migrateWorkspaceV2, projectBoard, validateWorkspace, addBoard, addMiniBoard, getMiniBoard, getBoardBreadcrumbs, addNote, updateNote, removeNote, updatePlacementShape, removeBoard, removeBoardTree, removePlacementTree, placeCard, updateCard, renameBoard, findCards, findCardPlacements, createMermaidBoard } from '../src/workspace.mjs';
+import { migrateLegacyBoard, migrateWorkspaceV2, projectBoard, validateWorkspace, addBoard, addMiniBoard, getMiniBoard, getBoardBreadcrumbs, addNote, updateNote, removeNote, updatePlacementShape, removeBoard, removeBoardTree, removePlacementTree, placeCard, updateCard, renameBoard, findCards, findCardPlacements, createMermaidBoard, changeAttachment, MAX_FILE_BYTES } from '../src/workspace.mjs';
 
 const fixture = {
   viewport: { x: 4, y: 5, zoom: 1 },
@@ -10,6 +10,45 @@ const fixture = {
   ],
   edges: [{ id: 'e', source: 'a', target: 'b', label: 'reads' }],
 };
+
+test('attachment IDs are scoped to their owners, including during removal', () => {
+  const original = migrateLegacyBoard(JSON.stringify(fixture));
+  const file = { id: 'same', name: 'drawing.bin', size: 1, base64: '/w==' };
+  const shared = changeAttachment(original, 'workspace', '', file);
+  const board = changeAttachment(shared, 'board', 'board-1', { ...file, base64: 'AA==' });
+  const card = changeAttachment(board, 'component', 'card:a', { ...file, size: 0, base64: '' });
+  const removed = changeAttachment(card, 'board', 'board-1', file.id);
+  file.name = 'renamed-elsewhere.bin';
+  assert.equal(shared.attachments[0].name, 'drawing.bin');
+  assert.equal(validateWorkspace(removed), true);
+  assert.equal(original.attachments, undefined);
+  assert.equal(card.boards[0].attachments[0].base64, 'AA==');
+  assert.deepEqual(removed.boards[0].attachments, []);
+  assert.equal(removed.attachments[0].base64, '/w==');
+  assert.equal(removed.cards[0].attachments[0].base64, '');
+  assert.throws(() => changeAttachment(card, 'component', 'card:a', file));
+  assert.throws(() => changeAttachment(card, 'board', 'missing', file));
+  assert.throws(() => changeAttachment(card, 'unknown-scope', 'card:a', file));
+});
+
+test('attachment size and count limits apply across scopes and invalid encoded data is rejected', () => {
+  const original = migrateLegacyBoard(JSON.stringify(fixture));
+  const fullFile = { id: 'full', name: 'large.bin', size: MAX_FILE_BYTES, base64: Buffer.alloc(MAX_FILE_BYTES).toString('base64') };
+  let workspace = changeAttachment(original, 'workspace', '', fullFile);
+  workspace = changeAttachment(workspace, 'board', 'board-1', fullFile);
+  workspace = changeAttachment(workspace, 'component', 'card:a', fullFile);
+  workspace = changeAttachment(workspace, 'component', 'card:b', fullFile);
+  assert.equal(validateWorkspace(workspace), true);
+  const extra = { id: 'extra', name: 'extra.bin', size: 1, base64: 'AA==' };
+  assert.throws(() => changeAttachment(workspace, 'workspace', '', extra));
+  for (const invalid of [{ base64: 'A===' }, { base64: '!A==' }, { size: 2 }, { size: MAX_FILE_BYTES + 1 }]) {
+    assert.equal(validateWorkspace({ ...original, attachments: [{ ...extra, ...invalid }] }), false);
+  }
+  const empty = { id: 'empty', name: 'empty', size: 0, base64: '' };
+  const many = { ...original, attachments: Array.from({ length: 128 }, (_, i) => ({ ...empty, id: String(i) })) };
+  assert.equal(validateWorkspace(many), true);
+  assert.throws(() => changeAttachment(many, 'component', 'card:a', empty));
+});
 
 test('legacy board migration is reversible and does not mutate input', () => {
   const raw = JSON.stringify(fixture);
@@ -68,7 +107,10 @@ test('version 2 migration preserves valid placement ancestry and rejects broken 
 
   const dangling = structuredClone(legacy);
   dangling.boards[1].parentPlacement.nodeId = 'missing';
-  assert.throws(() => migrateWorkspaceV2(dangling), /Invalid version 2/);
+  assert.equal(migrateWorkspaceV2(dangling).boards[1].parentPlacement, null);
+  assert.equal(dangling.boards[1].parentPlacement.nodeId, 'missing');
+  dangling.boards.shift();
+  assert.equal(migrateWorkspaceV2(dangling).boards[0].title, 'Child');
 
   const duplicate = structuredClone(legacy);
   duplicate.boards.push({ id: 'second-child', title: 'Second child', extra: {},

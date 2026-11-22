@@ -41,7 +41,7 @@ test('first-run sample becomes an unsaved workspace board until explicitly saved
   await page.getByRole('button', { name: 'Explore the sample board' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Open board Example architecture' })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Board Example architecture', exact: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('Select Save workspace');
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.board.v1'))).toBeNull();
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
@@ -56,8 +56,8 @@ test('first-run sample becomes an unsaved workspace board until explicitly saved
   expect(saved.boards[0].edges).toHaveLength(7);
   await page.reload();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Open board Example architecture' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open board Example architecture' }).click();
+  await expect(page.getByRole('article', { name: 'Board Example architecture', exact: true })).toBeVisible();
+  await page.getByRole('article', { name: 'Board Example architecture', exact: true }).press('Control+Enter');
   await expect(page.locator('.react-flow__node')).toHaveCount(8);
 });
 
@@ -72,8 +72,8 @@ test('blank choice is remembered without creating or replacing a board', async (
   await page.getByRole('button', { name: 'Start with a blank canvas' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Open board My board' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await expect(page.getByRole('article', { name: 'Board My board', exact: true })).toBeVisible();
+  await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
   await expect(page.locator('.react-flow__node')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.board.v1'))).toBeNull();
   expect(await page.evaluate(() => localStorage.getItem('solocanvas.onboarding.v1'))).toBe('complete');
@@ -107,7 +107,7 @@ test('saved v1 data bypasses onboarding and remains unchanged', async ({ page })
   await page.goto('/');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Saved v1 component' })).toBeVisible();
   expect(await page.evaluate(key => localStorage.getItem(key), BOARD_KEY)).toBe(raw);
   expect(await page.evaluate(key => localStorage.getItem(key), ONBOARDING_KEY)).toBeNull();
@@ -135,10 +135,10 @@ test('default workspace offers v1 backup recovery only after explicit restore', 
 
   await page.getByRole('button', { name: 'Restore previous board backup' }).click();
   await expect.poll(() => page.evaluate(key => localStorage.getItem(key), BOARD_KEY)).toBe(backupRaw);
-  await expect(page.getByRole('button', { name: 'Open board My board' })).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Board My board', exact: true })).toBeVisible();
   expect(await page.evaluate(key => localStorage.getItem(key), BACKUP_KEY)).toBe(backupRaw);
   expect(await page.evaluate(key => localStorage.getItem(key), WORKSPACE_KEY)).toBeNull();
-  await page.getByRole('button', { name: 'Open board My board' }).click();
+  await page.getByRole('article', { name: 'Board My board', exact: true }).press('Control+Enter');
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Recovered component' })).toBeVisible();
 });
 
@@ -165,7 +165,7 @@ test('saved v2 workspace and its v1/v2 recovery records bypass onboarding unchan
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Pick up where your ideas live.' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Restore previous board backup' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Open board Saved v2 board' }).click();
+  await page.getByRole('article', { name: 'Board Saved v2 board', exact: true }).press('Control+Enter');
   await expect(page.locator('.react-flow__node').filter({ hasText: 'Saved v2 component' })).toBeVisible();
   const stored = await page.evaluate(keys => Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])), [
     BOARD_KEY, BACKUP_KEY, WORKSPACE_KEY, WORKSPACE_BACKUP_KEY, WORKSPACE_DAMAGED_KEY, ONBOARDING_KEY,
