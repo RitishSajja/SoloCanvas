@@ -5,7 +5,10 @@ export function boardAnalysisSnapshot(workspace, boardId) {
   if (!validateWorkspace(workspace)) throw new Error('Invalid workspace.');
   const board = workspace.boards.find(item => item.id === boardId);
   if (!board) throw new Error('Board not found.');
-  const cardIds = new Set(board.nodes.map(node => node.cardId));
+  // Missing is a placement flag. A shared file can still have a live placement.
+  const nodes = board.nodes.filter(node => node.fileMissing !== true);
+  const nodeIds = new Set(nodes.map(node => node.id));
+  const cardIds = new Set(nodes.map(node => node.cardId));
   const cards = workspace.cards.filter(card => cardIds.has(card.id)).map(card => {
     const data = card.data;
     return { id: card.id, data: data.kind === 'file' && typeof data.path === 'string'
@@ -16,8 +19,9 @@ export function boardAnalysisSnapshot(workspace, boardId) {
     version: 3,
     cards,
     boards: [{ id: board.id, title: board.title, extra: {}, parentPlacement: null, notes: [],
-      nodes: board.nodes.map(node => ({ id: node.id, cardId: node.cardId, shape: node.shape, position: { ...node.position } })),
-      edges: board.edges.map(edge => ({ id: edge.id, source: edge.source, target: edge.target })),
+      nodes: nodes.map(node => ({ id: node.id, cardId: node.cardId, shape: node.shape, position: { ...node.position } })),
+      edges: board.edges.filter(edge => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+        .map(edge => ({ id: edge.id, source: edge.source, target: edge.target })),
     }],
   };
 }

@@ -1,6 +1,41 @@
 import { test, expect } from './returning-user-fixture.mjs';
 import { openWorkspaceBoard, renameSelectedComponent } from './workspace-helpers.mjs';
 
+test('a saved v2 mini-board with a deleted parent reopens with its descendants intact', async ({ page }) => {
+  const key = 'solocanvas.workspace.v2';
+  const childLink = { boardId: 'survivor', nodeId: 'service' };
+  const original = JSON.stringify({
+    version: 2,
+    cards: [{ id: 'api', data: { label: 'Gateway' } }],
+    boards: [
+      { id: 'survivor', title: 'Service map', parentPlacement: { boardId: 'deleted', nodeId: 'old-parent' },
+        extra: {}, nodes: [{ id: 'service', cardId: 'api', position: { x: 15, y: 25 } }], edges: [] },
+      { id: 'child', title: 'Gateway details', parentPlacement: childLink, extra: {}, nodes: [], edges: [] },
+    ],
+  });
+  await page.addInitScript(([storageKey, snapshot]) => {
+    if (localStorage.getItem(storageKey) === null) localStorage.setItem(storageKey, snapshot);
+  }, [key, original]);
+
+  async function openSurvivingBoards() {
+    await page.getByRole('button', { name: 'Open board Service map', exact: true }).click();
+    await page.getByRole('article', { name: 'Component Gateway', exact: true }).press('Control+Enter');
+    await expect(page.getByLabel('Current board')).toHaveValue('child');
+    await expect(page.getByRole('navigation', { name: 'Workspace breadcrumbs' })).toContainText('Service map');
+  }
+  await page.goto('/');
+  await openSurvivingBoards();
+  expect(await page.evaluate(storageKey => localStorage.getItem(storageKey), key)).toBe(original);
+  await page.getByRole('button', { name: 'Save workspace' }).click();
+  await expect(page.getByRole('status')).toContainText('Workspace saved');
+  const saved = await page.evaluate(storageKey => JSON.parse(localStorage.getItem(storageKey)), key);
+  expect(saved.version).toBe(3);
+  expect(saved.boards.map(board => board.parentPlacement)).toEqual([null, childLink]);
+  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.backup.v2'))).toBe(original);
+  await page.reload();
+  await openSurvivingBoards();
+});
+
 test('returning by breadcrumb restores the parent placement, pan and zoom', async ({ page }) => {
   await page.goto('/');
   await openWorkspaceBoard(page, { expandTools: false });

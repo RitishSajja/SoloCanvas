@@ -5,9 +5,11 @@ export type WorkspaceAttachment = { id: string; name: string; size: number; base
 export type FileScope = 'workspace' | 'board' | 'component';
 export type Card = { attachments?: WorkspaceAttachment[]; id: string; data: Record<string, unknown> };
 export type ComponentShape = 'rectangle' | 'rounded' | 'pill' | 'diamond';
-export type Placement = Omit<Node, 'data'> & { cardId: string; shape: ComponentShape };
+export type FileDetails = { size: number; lastModified: number };
+export type Placement = Omit<Node, 'data'> & { cardId: string; shape: ComponentShape; fileMissing?: boolean; fileDetails?: FileDetails };
 export type StickyNote = { id: string; text: string; position: { x: number; y: number } };
 export type WorkspaceBoard = {
+  fileMapFolder?: { name: string; rootRelative: boolean };
   attachments?: WorkspaceAttachment[];
   id: string;
   title: string;

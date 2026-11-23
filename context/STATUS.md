@@ -1,5 +1,19 @@
 # Agent handoff
 
+## 2026-11-23 — Folder refresh and dependency exploration
+
+Codex resumed the shared branch `ritishsajja-nested-boards-and-notes` at `7da7cf6`. Main is at `7eb0d8c`, with project-area grouping on its own line of development. The Pages and context-review branches remain separate. No open pull requests were visible at the start of this run.
+
+On a mapped board, open **Board tools → Refresh code map** and select the project folder again. Review each file or dependency change before applying it. Changes stay in memory until **Save workspace**. Path-only refresh compares size and modification time; older maps can establish those values per file. Opt-in source comparison supports bounded text reads. Missing files retain their placements. The dependency review keeps manual links and preserves existing inferred links when analysis cannot establish that they are obsolete.
+
+Select a component and use the dependency explorer to follow incoming or outgoing connections, expand another level or visit a placement on a different board. Open **View source** on a file component to inspect its saved text directly. A newly added component opens its name field with the default text selected. Select a relationship to rename or remove it from the board toolbar with the side panel closed.
+
+Local verification passed on the feature tree: 98 unit tests, the production build, 74 development Chromium cases and all 12 production Chromium cases. The development suite skips the external Mermaid renderer test; CI runs it separately with the pinned renderer. The full development run also covered three attachment scopes, protected first-board deletion, and recovery of a v2 mini-board with a deleted parent and a surviving descendant.
+
+The nested acceptance case in `browser/map-refresh.e2e.mjs` passed. It reopens a saved project, drills down twice, renames a component, attaches and downloads a binary, reviews a changed import, saves and reloads, and follows two relationships in each direction across board boundaries. It verifies the note, original node positions, manual relationship and unchecked file are preserved. Separate tests cover metadata-only binary changes, baseline review for older maps, stale reads and a reselected folder containing only excluded files. A completely empty folder exposes no filename or folder identity through the browser picker.
+
+Next agent: check the latest verification entry and shared branch head first. Once the refresh journey is green, the next roadmap increment is a local, read-only spatial-context preview for a selected board. Define which positions, placements and relationships it includes and test that attachment bytes and source text stay out by default.
+
 ## 2026-11-22 — Board opening, naming and deletion
 
 Shared branch `ritishsajja-nested-boards-and-notes`, based on `8839fb2`. A click on a home tile opens the board. Rename on the tile or beside the open board title edits that board. On the canvas, clicking a component edits its shared name and Ctrl+Enter opens its mini-board. File components show their type. Returning by breadcrumb restores the parent viewport and selects the placement used to drill down.

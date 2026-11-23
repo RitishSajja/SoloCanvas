@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode 
 import { ReactFlow, Background, Controls, Handle, Position, type Node as FlowNode, type NodeChange, type NodeProps, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
 import { addBoard, addMiniBoard, addNote, createMermaidBoard, placeCard, projectBoard, updateCard, updateNote, removeNote, updatePlacementShape, renameBoard, removeBoardTree, removePlacementTree, getMiniBoard, getBoardBreadcrumbs, findCards, findCardPlacements, type ComponentShape, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
-import { createFileMap, validateFilePaths, readSelectedSources, partitionSelectedFiles } from './file-map.mjs';
+import { createFileMap, validateFilePaths, readSelectedSources, partitionSelectedFiles, selectedFileDetails } from './file-map.mjs';
 import { exportBoardMermaid } from './mermaid-export.mjs';
 import { MAX_MERMAID_IMPORT_BYTES, parseMermaidFlowchart, type MermaidImportDiagram } from './mermaid-import.mjs';
 import type { Suggestion, Diagnostic } from './dependency-map.mjs';
@@ -13,8 +13,11 @@ import LegacyBoardRecovery from './LegacyBoardRecovery';
 
 import EditCard from './EditCard';
 import BoardNameEditor from './BoardNameEditor';
-import { buildComponentSummaries, ComponentDetails, type ComponentSummary } from './component-summary';
+import { buildComponentSummaries, ComponentDetails, FileSource, type ComponentSummary } from './component-summary';
 import FileAttachments from './FileAttachments';
+import RefreshCodeMap from './RefreshCodeMap';
+import DependencyExplorer from './DependencyExplorer';
+import { isInferredDependency } from './refresh-dependencies.mjs';
 import DeleteControl, { deletionWarning } from './DeleteControl';
 import { getBoardTree } from './workspace.mjs';
 import { changeAttachment, type FileScope, type WorkspaceAttachment, type WorkspaceBoard } from './workspace.mjs';
@@ -25,6 +28,7 @@ type StickyNodeData = { label: string; edit: (text: string) => void; select: () 
 const componentNodeType = 'workspaceComponent';
 type ComponentNodeData = {
   label: string;
+  editOnMount: boolean;
   shape: ComponentShape;
   summary?: ComponentSummary;
   files?: ReactNode;
@@ -33,10 +37,11 @@ type ComponentNodeData = {
   rename: (label: string) => void;
   open: (label: string) => void;
 };
-function WorkspaceComponentNode({ data, selected }: NodeProps<FlowNode<ComponentNodeData, typeof componentNodeType>>) {
+function WorkspaceComponentNode({ data, selected, width, height }: NodeProps<FlowNode<ComponentNodeData, typeof componentNodeType>>) {
   return <EditCard className={`workspace-component-card shape-${data.shape}${selected ? ' is-selected' : ''}`}
     accessibleName={`Component ${data.label || 'Untitled component'}`} label={data.label}
-    fieldLabel="Shared component name" onFocus={data.select} onCommit={data.rename} onOpen={data.open}>
+    fieldLabel="Shared component name" editOnMount={data.editOnMount} readyForFocus={!!width && !!height}
+    onFocus={data.select} onCommit={data.rename} onOpen={data.open}>
     {title => <>
     <Handle type="target" position={Position.Left} />
     <span className="item-delete-wrap" data-card-control><DeleteControl label={`Delete component ${data.label || 'Untitled component'}`} onDelete={data.remove} /></span>
@@ -44,6 +49,8 @@ function WorkspaceComponentNode({ data, selected }: NodeProps<FlowNode<Component
     <div className="workspace-component-copy">
       <small>{data.summary?.filePath ? 'FILE' : 'COMPONENT'}</small><strong>{title || 'Untitled component'}</strong>
       <ComponentDetails summary={data.summary} />
+      {data.summary?.filePath && data.summary.sourceText !== undefined &&
+        <FileSource path={data.summary.filePath} text={data.summary.sourceText} />}
       {data.files && <div className="nodrag nopan" data-card-control>{data.files}</div>}
     </div>
     <Handle type="source" position={Position.Right} />
@@ -107,6 +114,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
   const viewportToRestore = useRef<string | null>(null);
   const [navigation, setNavigation] = useState<{ boardId: string; nodeId: string } | null>(null);
   const [selectedNode, setSelectedNode] = useState('');
+  const newPlacementToName = useRef<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState('');
   const [message, setMessage] = useState(initial.ok ? initialWorkspace ? initialMessage ?? 'Example board loaded. Select Save workspace to keep it on this device.' : 'Workspace opened. Changes are not saved automatically.' : initial.error);
   const [dirty, setDirty] = useState(Boolean(initialWorkspace));
@@ -140,13 +148,12 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     ? new Map(mermaidPreview.diagram.nodes.map(item => [item.id, item.label]))
     : null;
   useEffect(() => {
-    if (!navigation || !flow || !workspace || navigation.boardId !== boardId) return;
-    const target = workspace.boards.find(item => item.id === boardId)?.nodes.find(node => node.id === navigation.nodeId);
-    if (target) void flow.setCenter(target.position.x + (target.measured?.width ?? target.width ?? 150) / 2, target.position.y + (target.measured?.height ?? target.height ?? 40) / 2, { zoom: 1 });
+    if (!navigation || !flow || navigation.boardId !== boardId) return;
+    void flow.fitView({ nodes: [{ id: `component:${navigation.nodeId}` }], minZoom: 1, maxZoom: 1 });
     setNavigation(null);
-  }, [navigation, flow, workspace, boardId]);
+  }, [navigation, flow, boardId]);
   useEffect(() => {
-    if (workspaceView !== 'board' || !flow || !board) return;
+    if (workspaceView !== 'board' || !flow || !board || navigation?.boardId === boardId) return;
     const frame = window.requestAnimationFrame(() => {
       const saved = viewportToRestore.current === boardId ? parentViews.current.get(boardId) : undefined;
       viewportToRestore.current = null;
@@ -244,7 +251,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
         return;
       }
       const id = crypto.randomUUID();
-      const next = createFileMap(workspace, id, title, filePaths, () => crypto.randomUUID(), result.contents);
+      const next = createFileMap(workspace, id, title, filePaths, () => crypto.randomUUID(), result.contents, selectedFileDetails(selectedFiles));
       changed(next); setBoardId(id); setSelectedNode(''); setSelectedEdge('');
       setFilePaths([]); setSelectedFiles([]); setPickedFiles([]); setIgnoredFiles([]); setIncludeSource(false); setMapReport(result.skipped); setMapError('');
       setMessage('File map created. Select Save workspace to keep it on this device.');
@@ -295,7 +302,9 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     next.cards.push(card);
     const target = next.boards.find(item => item.id === board.id)!;
     const index = target.nodes.length;
-    target.nodes.push({ id: crypto.randomUUID(), cardId: card.id, shape: 'pill', position: { x: 60 + (index % 4) * 260, y: 60 + Math.floor(index / 4) * 130 } });
+    const placementId = crypto.randomUUID();
+    target.nodes.push({ id: placementId, cardId: card.id, shape: 'pill', position: { x: 60 + (index % 4) * 260, y: 60 + Math.floor(index / 4) * 130 } });
+    newPlacementToName.current = placementId;
     changed(next);
   };
   const reuse = () => {
@@ -404,6 +413,13 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
     const target = next.boards.find(item => item.id === board.id)!;
     target.edges = target.edges.filter(item => item.id !== selectedEdge);
     changed(next); setSelectedEdge('');
+  };
+  const renameEdge = (label: string) => {
+    if (!workspace || !board || !edge) return;
+    const next = structuredClone(workspace);
+    const target = next.boards.find(item => item.id === board.id)!.edges.find(item => item.id === edge.id)!;
+    target.label = label;
+    changed(next);
   };
   const save = async () => {
     if (!workspace || !snapshot || inFlight.current) return;
@@ -542,11 +558,15 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       className: 'workspace-component-node',
       data: {
         label: String(node.data.label ?? ''),
+        editOnMount: newPlacementToName.current === node.id,
         shape: board.nodes.find(item => item.id === node.id)?.shape ?? 'pill',
         summary: summaries.get(node.id),
         files: attachmentControls('component', cardIds.get(node.id)!, cardsById.get(cardIds.get(node.id)!)?.attachments),
         remove: () => removePlacement(node.id),
-        select: () => { setSelectedNode(`component:${node.id}`); setSelectedEdge(''); },
+        select: () => {
+          if (newPlacementToName.current === node.id) newPlacementToName.current = null;
+          setSelectedNode(`component:${node.id}`); setSelectedEdge('');
+        },
         rename: (label: string) => editOrOpenComponent(node.id, label, false),
         open: (label: string) => editOrOpenComponent(node.id, label, true),
       },
@@ -569,6 +589,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
   ] : [];
   const flowEdges = view?.edges.map(item => ({
     ...item,
+    className: [item.className, isInferredDependency(item) ? 'inferred-dependency' : 'manual-relationship'].filter(Boolean).join(' '),
     source: `component:${item.source}`,
     target: `component:${item.target}`,
     selected: item.id === selectedEdge,
@@ -627,6 +648,10 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
           </select></label>}
           <button ref={toolsToggle} aria-controls="board-tools" aria-expanded={toolsOpen}
             onClick={() => toolsOpen ? closeTools() : setToolsOpen(true)}>Board tools</button>
+          {edge && <div className="relationship-controls" role="group" aria-label="Selected relationship">
+            <label>Relationship label<input value={String(edge.label ?? '')} onChange={event => renameEdge(event.target.value)} /></label>
+            <DeleteControl label="Remove relationship" onDelete={removeEdge} />
+          </div>}
         </div>}
       </div>
       <section className="canvas workspace-canvas" aria-label="Workspace canvas">
@@ -663,6 +688,10 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
             {filePaths.length > 0 && <><p>{filePaths.length} file(s) selected:</p><ul>{filePaths.map(path => <li key={path}>{path}</li>)}</ul><button onClick={addFileMap} disabled={busy}>Create file map board</button></>}
           </section>
           </details>
+          {board && board.nodes.some(node => cardsById.get(node.cardId)?.data.kind === 'file') && <RefreshCodeMap
+            key={board.id} boardId={board.id} workspace={workspace} revision={editVersion.current}
+            isCurrent={revision => editVersion.current === revision && currentBoardId.current === board.id}
+            onApply={next => { changed(next); setMessage('Code map refreshed. Select Save workspace to keep these changes.'); }} />}
           <details className="workspace-tool">
           <summary>Mermaid import</summary>
           <section aria-label="Import Mermaid diagram">
@@ -739,6 +768,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
           <label>Existing component<select aria-label="Existing component" value={cardId} onChange={event => setCardId(event.target.value)}><option value="">Choose a component</option>{workspace.cards.map(card => <option key={card.id} value={card.id}>{String(card.data.label ?? 'Untitled')}</option>)}</select></label>
           <button onClick={reuse} disabled={!board || !cardId}>Place component</button>
           {selectedCard && selected && <>
+            <DependencyExplorer workspace={workspace} cardId={selectedCard.id} openPlacement={openPlacement} />
             <button onClick={removeNode}>Remove component from board</button>
             {typeof selectedCard.data.sourceText === 'string' && <section aria-label="Imported source text">
               <h2>Imported source text</h2><p>Removing source from this card does not erase older workspace backups or exports.</p><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{selectedCard.data.sourceText}</pre>
@@ -749,12 +779,12 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
             </li>)}</ul></section>
           </>}
           {selectedNote && <button onClick={removeNode}>Remove sticky note</button>}
-          {edge && <>{typeof edge.data?.specifier === 'string' && typeof edge.data?.sourcePath === 'string' && <section aria-label="Relationship evidence">
+          {edge && typeof edge.data?.specifier === 'string' && typeof edge.data?.sourcePath === 'string' && <section aria-label="Relationship evidence">
             <p>Suggested from {String(edge.data.sourcePath)}:{String(edge.data.line)} — {String(edge.data.specifier)} → {String(edge.data.targetPath)}</p>
             <p>Evidence reflects the source at analysis time.</p>
             <button onClick={() => openPlacement(boardId, edge.source)}>Open source component</button>
             <button onClick={() => openPlacement(boardId, edge.target)}>Open target component</button>
-          </section>}<label>Relationship label<input value={String(edge.label ?? '')} onChange={event => { const next = structuredClone(workspace); const current = next.boards.find(item => item.id === boardId)?.edges.find(item => item.id === edge.id); if (current) { current.label = event.target.value; changed(next); } }} /></label><button onClick={removeEdge}>Remove relationship</button></>}
+          </section>}
         </>}
       </aside>
       <p className="board-status" role="status">{message}</p>

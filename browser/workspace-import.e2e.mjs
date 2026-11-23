@@ -8,7 +8,7 @@ test('imports an exported workspace only after confirmation and saves explicitly
  await page.getByRole('button', { name: 'Add component' }).click();
  page.once('dialog', dialog => dialog.dismiss());
  await page.getByLabel('Import workspace').setInputFiles(file(v2('Imported')));
- await expect(page.locator('.react-flow__node').filter({ hasText: 'New component' })).toBeVisible();
+ await expect(page.getByRole('article', { name: 'Component New component', exact: true })).toBeVisible();
  expect(await page.evaluate(() => localStorage.getItem('solocanvas.workspace.v2'))).toBeNull();
  page.once('dialog', dialog => dialog.accept());
  await page.getByLabel('Import workspace').setInputFiles(file(v2('Imported')));
@@ -28,7 +28,7 @@ test('invalid workspace and stale snapshots never overwrite stored data', async 
  const bad = v2('Bad'); bad.boards[0].nodes[0].cardId = 'missing';
  await page.getByLabel('Import workspace').setInputFiles(file(bad));
  await expect(page.getByRole('status')).toContainText('not a valid SoloCanvas workspace');
- await expect(page.locator('.react-flow__node').filter({ hasText: 'New component' })).toBeVisible();
+ await expect(page.getByRole('article', { name: 'Component New component', exact: true })).toBeVisible();
  page.once('dialog', dialog => dialog.accept());
  await page.getByLabel('Import workspace').setInputFiles(file(v2('Imported')));
  await page.evaluate(() => localStorage.setItem('solocanvas.board.v1', '{"nodes":[],"edges":[]}'));

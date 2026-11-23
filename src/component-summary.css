@@ -65,3 +65,13 @@
 .workspace-component-node .shape-diamond .workspace-component-copy strong {
   max-width: none;
 }
+.component-source { min-width: 0; font-size: .78rem; }
+.component-source summary { cursor: pointer; }
+.component-source pre {
+  max-height: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: start;
+  user-select: text;
+}

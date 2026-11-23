@@ -1,5 +1,9 @@
 import { validateWorkspace } from './workspace.mjs';
 
+export function dependencyLabel(kind) {
+  return { dynamic: 'dynamic import', require: 'require import', type: 'type import' }[kind] ?? 'imports';
+}
+
 export function addSuggestedDependencies(workspace, boardId, suggestions, makeId) {
   if (!validateWorkspace(workspace) || !Array.isArray(suggestions) || typeof makeId !== 'function') throw new Error('Invalid suggestions.');
   const next = structuredClone(workspace);
@@ -16,7 +20,7 @@ export function addSuggestedDependencies(workspace, boardId, suggestions, makeId
     const pair = JSON.stringify([item.sourceNodeId, item.targetNodeId]);
     if (pairs.has(pair)) continue;
     pairs.add(pair);
-    board.edges.push({ id: makeId(), source: item.sourceNodeId, target: item.targetNodeId, label: item.importKind === 'dynamic' ? 'dynamic import' : item.importKind === 'require' ? 'require import' : item.importKind === 'type' ? 'type import' : 'imports',
+    board.edges.push({ id: makeId(), source: item.sourceNodeId, target: item.targetNodeId, label: dependencyLabel(item.importKind),
       data: { sourcePath: item.sourcePath, targetPath: item.targetPath, specifier: item.specifier, line: item.line, importKind: item.importKind ?? 'static' } });
   }
   if (!validateWorkspace(next)) throw new Error('Could not create unique relationships.');

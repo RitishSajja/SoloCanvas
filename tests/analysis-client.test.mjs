@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { boardAnalysisSnapshot, startDependencyAnalysis } from '../src/analysis-client.mjs';
-import { migrateWorkspaceV2 } from '../src/workspace.mjs';
+import { migrateWorkspaceV2, validateWorkspace } from '../src/workspace.mjs';
 
 const workspace = migrateWorkspaceV2({
  version: 2,
@@ -21,6 +21,26 @@ test('analysis receives only an independent copy of the selected board and its c
  result.cards[0].data.path = 'changed';
  assert.equal(workspace.cards[0].data.path, 'src/main.ts');
  assert.throws(() => boardAnalysisSnapshot(workspace, 'missing'));
+});
+
+test('analysis omits missing file placements and their edges but keeps shared files in active placements', () => {
+ const model = structuredClone(workspace);
+ const board = model.boards[0];
+ model.cards.push({ id: 'removed', data: { kind: 'file', path: 'removed.ts', sourceText: 'export {}' } });
+ const node = board.nodes[0];
+ board.nodes.push({ ...node, id: 'other', cardId: 'orphan' },
+   { ...node, id: 'missing-copy', fileMissing: true },
+   { ...node, id: 'missing-file', cardId: 'removed', fileMissing: true });
+ board.edges.push({ id: 'kept', source: 'n', target: 'other' },
+   { id: 'to-missing', source: 'n', target: 'missing-file' },
+   { id: 'from-missing', source: 'missing-copy', target: 'n' });
+ const before = structuredClone(model);
+ const snapshot = boardAnalysisSnapshot(model, 'one');
+ assert.ok(validateWorkspace(snapshot));
+ assert.deepEqual(snapshot.cards.map(card => card.id), ['shown', 'orphan']);
+ assert.deepEqual(snapshot.boards[0].nodes.map(node => node.id), ['n', 'other']);
+ assert.deepEqual(snapshot.boards[0].edges, [board.edges[0]]);
+ assert.deepEqual(model, before);
 });
 
 test('analysis cancellation terminates the worker and rejects once', async () => {

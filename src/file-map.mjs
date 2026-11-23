@@ -7,14 +7,16 @@ const generatedDirectories = new Set(['.git', '.hg', '.svn', 'node_modules', '.v
 
 // Only directory-picker paths are filtered. The chosen root itself is never
 // excluded, and explicitly selected individual files are always retained.
+export function isGeneratedFolderPath(relative) {
+  return typeof relative === 'string' && relative.split('/').slice(1, -1).some(part => generatedDirectories.has(part));
+}
+
 export function partitionSelectedFiles(files, excludeGenerated = true) {
   if (!Array.isArray(files)) throw new Error('Invalid file selection.');
   const retained = [];
   const ignored = [];
   for (const file of files) {
-    const relative = typeof file.webkitRelativePath === 'string' ? file.webkitRelativePath : '';
-    const directories = relative ? relative.split('/').slice(1, -1) : [];
-    (excludeGenerated && directories.some(part => generatedDirectories.has(part)) ? ignored : retained).push(file);
+    (excludeGenerated && isGeneratedFolderPath(file.webkitRelativePath) ? ignored : retained).push(file);
   }
   return { retained, ignored };
 }
@@ -31,17 +33,35 @@ export function validateFilePaths(paths) {
   return [...paths].sort((a, b) => a.localeCompare(b));
 }
 
-export function createFileMap(workspace, boardId, title, paths, makeId, contents = new Map()) {
+export function getFileDetails(file) {
+  if (!Number.isSafeInteger(file?.size) || file.size < 0 || !Number.isSafeInteger(file.lastModified)) return undefined;
+  return { size: file.size, lastModified: file.lastModified };
+}
+
+export function selectedFileDetails(files) {
+  const details = new Map();
+  for (const file of files) {
+    const entry = getFileDetails(file);
+    if (entry) details.set(file.webkitRelativePath || file.name, entry);
+  }
+  return details;
+}
+
+export function createFileMap(workspace, boardId, title, paths, makeId, contents = new Map(), details = new Map()) {
   const names = validateFilePaths(paths);
   if (typeof title !== 'string' || !title.trim() || typeof makeId !== 'function') throw new Error('Invalid map details.');
   if (!(contents instanceof Map) || [...contents].some(([path, text]) => !names.includes(path) || typeof text !== 'string')) throw new Error('Invalid source contents.');
   const next = addBoard(workspace, boardId, title.trim());
   const board = next.boards.find(item => item.id === boardId);
+  const root = names[0].split('/')[0];
+  if (names.every(path => path.startsWith(root + '/'))) board.fileMapFolder = { name: root, rootRelative: false };
   names.forEach((path, index) => {
     const cardId = makeId();
     const nodeId = makeId();
     next.cards.push({ id: cardId, data: { label: path, kind: 'file', path, ...(contents.has(path) ? { sourceText: contents.get(path) } : {}) } });
-    board.nodes.push({ id: nodeId, cardId, shape: 'pill', position: { x: (index % 4) * 260, y: Math.floor(index / 4) * 100 } });
+    const fileDetails = getFileDetails(details.get(path));
+    board.nodes.push({ id: nodeId, cardId, shape: 'pill', position: { x: (index % 4) * 260, y: Math.floor(index / 4) * 100 },
+      ...(fileDetails ? { fileDetails } : {}) });
   });
   if (!validateWorkspace(next)) throw new Error('Could not create unique file map IDs.');
   return next;

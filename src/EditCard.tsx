@@ -6,25 +6,28 @@ type EditCardProps = {
   fieldLabel: string;
   className: string;
   accessibleName: string;
+  editOnMount?: boolean;
+  readyForFocus: boolean;
   onFocus?: () => void;
   onCommit: (value: string) => void;
   onOpen: (value: string) => void;
   children: (title: ReactNode) => ReactNode;
 };
 
-export default function EditCard({ label, fieldLabel, className, accessibleName, onFocus, onCommit, onOpen, children }: EditCardProps) {
-  const [draft, setDraft] = useState<string | null>(null);
+export default function EditCard({ label, fieldLabel, className, accessibleName, editOnMount, readyForFocus, onFocus, onCommit, onOpen, children }: EditCardProps) {
+  const [draft, setDraft] = useState<string | null>(() => editOnMount ? label : null);
   const editing = draft !== null;
   const card = useRef<HTMLElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const finished = useRef(false);
 
   useLayoutEffect(() => {
-    if (editing) {
+    // A new React Flow node is hidden until its first measurement.
+    if (editing && readyForFocus) {
       input.current?.focus({ preventScroll: true });
       input.current?.select();
     }
-  }, [editing]);
+  }, [editing, readyForFocus]);
 
   // React Flow makes the outer node keyboard-focusable for movement and selection.
   // Forward its Enter gesture to the same editor as a pointer click.

@@ -20,3 +20,10 @@ System Architecture & Code Map: a local-first spatial workspace for developers t
 
 Each milestone requires observable acceptance criteria, relevant checks and an updated handoff. The README's timeline is an estimate, not a guarantee. Clarify product decisions that materially change scope before treating the overall product as complete.
 
+## Current code-map priorities
+
+1. Verify folder refresh against the shared branch head. Create a path-only map, reselect the folder after a file's size or modification time changes, and review that file individually. On an older map, establish the first metadata baseline. Mark a file missing, save and reload, then restore the same path and check its placement, nested board and connections.
+2. Exercise the opt-in source workflow with a file component reused on another board. Confirm an accepted source edit appears in both placements. Review the specifier, line, import kind and target for each inferred relationship change. Accept one change, leave another unchecked, and verify a manual relationship survives. Include an unreadable or over-limit file in the selection.
+3. Follow both **Depends on** and **Used by** in the dependency explorer. Use the next level to follow a shared component onto a different board and verify that its link selects the expected placement after navigation. Record the branch head, checks and outstanding gaps in the agent handoff.
+4. After these flows are verified, start milestone 6 with a local spatial-context serializer. Specify how it represents boards, placements, shared components and relationship evidence, and which data the user chooses to include. Define and inspect the output before connecting an AI workflow or MCP client.
+

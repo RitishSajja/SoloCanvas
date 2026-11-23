@@ -19,6 +19,28 @@ const seed = {
   ],
 };
 
+test('a new component is ready to name from the canvas', async ({ page }) => {
+  await page.addInitScript(({ key, data }) => {
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data));
+  }, { key: storageKey, data: seed });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open board Project', exact: true }).click();
+  await page.getByRole('button', { name: 'Add component', exact: true }).click();
+  const name = page.getByRole('textbox', { name: 'Shared component name', exact: true });
+  await expect(name).toBeFocused();
+  expect(await name.evaluate(input => input.value.slice(input.selectionStart, input.selectionEnd))).toBe('New component');
+  await page.keyboard.type('Billing queue');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('article', { name: 'Component Billing queue', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Board tools', exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('button', { name: 'Save workspace' }).click();
+  await expect(page.getByRole('status')).toContainText('Workspace saved');
+  await page.reload();
+  await page.getByRole('button', { name: 'Open board Project', exact: true }).click();
+  await expect(page.getByRole('article', { name: 'Component Billing queue', exact: true })).toBeVisible();
+  await expect(name).toHaveCount(0);
+});
+
 test('a board opens by mouse, renames in place, and its components open with Ctrl+Enter', async ({ page }) => {
   await page.addInitScript(({ key, data }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data));

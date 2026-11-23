@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import type { Workspace, WorkspaceBoard } from './workspace.mjs';
 import './component-summary.css';
 
 export type ComponentSummary = {
   filePath?: string;
+  fileMissing?: boolean;
   sourceLines?: number;
+  sourceText?: string;
   attachments?: string;
   board?: {
     title: string;
@@ -41,8 +44,10 @@ export function buildComponentSummaries(workspace: Workspace | null, boardId: st
     const summary: ComponentSummary = {};
     if (card.data.kind === 'file' && typeof card.data.path === 'string') {
       summary.filePath = card.data.path;
+      summary.fileMissing = node.fileMissing === true;
       if (typeof card.data.sourceText === 'string') {
         const source = card.data.sourceText;
+        summary.sourceText = source;
         const breaks = source.match(/\r\n|\r|\n/g)?.length ?? 0;
         summary.sourceLines = breaks + Number(source.length > 0 && !/[\r\n]$/.test(source));
       }
@@ -73,11 +78,20 @@ export function buildComponentSummaries(workspace: Workspace | null, boardId: st
   return summaries;
 }
 
+export function FileSource({ path, text }: { path: string; text: string }) {
+  const [opened, setOpened] = useState(false);
+  return <details className="component-source nodrag nopan nowheel" data-card-control
+    onToggle={event => setOpened(event.currentTarget.open)}>
+    <summary>View source</summary>
+    {opened && <pre aria-label={`Source for ${path}`} tabIndex={0}>{text || 'Empty file'}</pre>}
+  </details>;
+}
+
 export function ComponentDetails({ summary }: { summary?: ComponentSummary }) {
   if (!summary) return null;
   const { filePath, sourceLines, attachments, board } = summary;
   return <span className="component-details">
-    {filePath && <span>File: {filePath}{sourceLines !== undefined && ` · ${count(sourceLines, 'line')}`}</span>}
+    {filePath && <span>File: {filePath}{summary.fileMissing && ' · Missing from folder'}{sourceLines !== undefined && ` · ${count(sourceLines, 'line')}`}</span>}
     {attachments && <span>Attachments: {attachments}</span>}
     {board && <>
       <span>Board: {board.title}</span>

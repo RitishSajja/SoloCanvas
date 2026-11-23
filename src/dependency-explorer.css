@@ -1,0 +1,9 @@
+.dependency-explorer { margin-block: .75rem; }
+.dependency-explorer summary { cursor: pointer; font-weight: 650; }
+.dependency-explorer ul { list-style: none; padding-inline-start: .7rem; border-inline-start: 2px solid #d9dfea; }
+.dependency-explorer li { margin-block: .65rem; }
+.dependency-explorer li > small { display: block; margin-block: .25rem; overflow-wrap: anywhere; }
+.dependency-explorer li > button { white-space: normal; overflow-wrap: anywhere; text-align: start; }
+.workspace-canvas .react-flow__edge.inferred-dependency .react-flow__edge-path { stroke-dasharray: 6 4; }
+.relationship-controls { display: flex; align-items: center; gap: .5rem; max-width: 100%; }
+.relationship-controls input { max-width: 100%; }
