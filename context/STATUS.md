@@ -2,6 +2,8 @@
 
 ## 2026-11-23 — Folder refresh and dependency exploration
 
+Verified feature commit `09b798aded54d2429152b706374c78b8ab9ee310` on the shared branch. GitHub Actions passed the build, unit tests, development and production browser suites, and the separate Mermaid 11.4.1 rendering check. The local Copilot preview was fast-forwarded to the feature commit. [GitHub Actions verification](https://github.com/RitishSajja/SoloCanvas/actions/runs/45212920784)
+
 Codex resumed the shared branch `ritishsajja-nested-boards-and-notes` at `7da7cf6`. Main is at `7eb0d8c`, with project-area grouping on its own line of development. The Pages and context-review branches remain separate. No open pull requests were visible at the start of this run.
 
 On a mapped board, open **Board tools → Refresh code map** and select the project folder again. Review each file or dependency change before applying it. Changes stay in memory until **Save workspace**. Path-only refresh compares size and modification time; older maps can establish those values per file. Opt-in source comparison supports bounded text reads. Missing files retain their placements. The dependency review keeps manual links and preserves existing inferred links when analysis cannot establish that they are obsolete.
@@ -12,7 +14,7 @@ Local verification passed on the feature tree: 98 unit tests, the production bui
 
 The nested acceptance case in `browser/map-refresh.e2e.mjs` passed. It reopens a saved project, drills down twice, renames a component, attaches and downloads a binary, reviews a changed import, saves and reloads, and follows two relationships in each direction across board boundaries. It verifies the note, original node positions, manual relationship and unchecked file are preserved. Separate tests cover metadata-only binary changes, baseline review for older maps, stale reads and a reselected folder containing only excluded files. A completely empty folder exposes no filename or folder identity through the browser picker.
 
-Next agent: check the latest verification entry and shared branch head first. Once the refresh journey is green, the next roadmap increment is a local, read-only spatial-context preview for a selected board. Define which positions, placements and relationships it includes and test that attachment bytes and source text stay out by default.
+Next agent: verify ownership and the shared branch head, then implement a local, read-only spatial-context preview for a selected board. Define which positions, placements and relationships it includes and test that attachment bytes and source text stay out by default. Both Codex automations now point to this milestone. The commit watcher should recognize this feature and its documentation handoff as Codex work and wait for a new external commit.
 
 ## 2026-11-22 — Board opening, naming and deletion
 

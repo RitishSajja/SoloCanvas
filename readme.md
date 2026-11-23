@@ -278,7 +278,9 @@ In the multi-board workspace, **Import workspace** opens an exported SoloCanvas 
 
 Codex and Copilot take turns on `ritishsajja-nested-boards-and-notes`. At the start of each turn, check the branch head, recent commits, active peer work and the newest entry in [the agent handoff](context/STATUS.md). At the end, record the changes, checks and next step there.
 
-For the code-map pass, exercise a path-only refresh, an older map with no file metadata, and an opt-in source refresh. Review individual file and dependency changes, keep a missing file's placement and later restore it, and follow an incoming or outgoing connection two levels across boards. Save and reload before checking the result. Run `npm test`, `npm run build` and `npm run test:browser`, then record the results against the commit tested. See the [development plan](context/PLAN.md) for the next milestone.
+The shared branch includes folder refresh and dependency exploration. The browser journey in `browser/map-refresh.e2e.mjs` checks nested navigation, a binary attachment, a changed import, preserved manual links and two-hop navigation in both directions after save and reload.
+
+The next milestone starts with a local preview of the selected board as structured JSON. Show placements, geometry, shared components and relationship evidence so the user can inspect what an AI tool would receive. Leave source text and attachment bytes out by default. Verify the preview with an existing workspace before connecting it to an AI service or MCP client. See the [development plan](context/PLAN.md).
 
 ## 9. License, Release, and Verification
 
