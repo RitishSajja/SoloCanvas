@@ -1,5 +1,15 @@
 # Agent handoff
 
+## 2026-11-23 — Board context preview
+
+Starting point: shared branch `ritishsajja-nested-boards-and-notes` at `e3472d1`. Main remains at `7eb0d8c`. The context-review and Pages branches have separate handoffs. No new branch head or open pull request was visible at the start of the run.
+
+This increment adds a local JSON preview and download for the current board and an optional view of connected placements. It carries placement geometry, shared component IDs and relationship evidence. Source text, arbitrary metadata and attachment contents are excluded. Whole-board note text is opt-in. Connected scope excludes notes and stays inside the current board.
+
+Local checks passed: 105 unit tests, a production build, 76 development Chromium cases and 14 production Chromium cases. The optional pinned Mermaid renderer test runs separately in CI. The new browser cases checked the download byte-for-byte against the visible UTF-8 JSON, selective note disclosure, incoming and outgoing connections, an unlinked appearance of a shared component, live renaming and the unchanged legacy workspace and backup before explicit save.
+
+Next agent: after confirming the shared branch and its Actions result, build a local architecture-question draft using the inspected context. Let users review the exact question and board scope and copy them together. Cover cancellation, scope changes and clipboard failure before introducing an external provider. Follow the newest handoff if another agent has advanced the milestone.
+
 ## 2026-11-23 — Folder refresh and dependency exploration
 
 Verified feature commit `09b798aded54d2429152b706374c78b8ab9ee310` on the shared branch. GitHub Actions passed the build, unit tests, development and production browser suites, and the separate Mermaid 11.4.1 rendering check. The local Copilot preview was fast-forwarded to the feature commit. [GitHub Actions verification](https://github.com/RitishSajja/SoloCanvas/actions/runs/45212920784)

@@ -1,0 +1,15 @@
+.board-context-preview .board-context-option {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.board-context-option input {
+  width: 1rem;
+  min-height: 1rem;
+  margin: 0;
+}
+
+.board-context-preview textarea {
+  font: .8rem/1.5 ui-monospace, Consolas, monospace;
+}

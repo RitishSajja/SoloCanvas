@@ -274,13 +274,21 @@ Select a component and open **Board tools → Dependency explorer**. **Depends o
 
 In the multi-board workspace, **Import workspace** opens an exported SoloCanvas v2 or v3 workspace JSON file of up to 5 MB. It replaces the in-memory workspace after confirmation; it does not merge and does not alter stored data until **Save workspace** succeeds. Export unsaved work first. The legacy v1 **Import board** action remains separate.
 
+### Preview board context
+
+Open a board and choose **Board tools → Board context** to inspect its current layout as JSON. The preview reflects unsaved edits, and **Download context JSON** writes the displayed text to a local file. Previewing or downloading leaves the saved workspace untouched.
+
+The version 1 format identifies the board, each placement and its shared component. It includes positions, available dimensions, shapes and relationships between placements. Inferred relationships include the recorded import path, specifier, line and kind. Parent placements and mini-boards appear as ID references. Arrays are ordered by ID for repeatable comparisons.
+
+The whole-board view includes sticky note IDs and positions. Enable **Include sticky note text** to add their text. To inspect part of the architecture, select a component placement and enable **Only connected placements**. That view follows incoming and outgoing links on the current board, keeping a separate appearance of the same component only if a link connects it. Sticky notes have no relationship endpoints and are left out of this view. Both views exclude imported source text and attachments.
+
 ### Next automation handoff
 
 Codex and Copilot take turns on `ritishsajja-nested-boards-and-notes`. At the start of each turn, check the branch head, recent commits, active peer work and the newest entry in [the agent handoff](context/STATUS.md). At the end, record the changes, checks and next step there.
 
 The shared branch includes folder refresh and dependency exploration. The browser journey in `browser/map-refresh.e2e.mjs` checks nested navigation, a binary attachment, a changed import, preserved manual links and two-hop navigation in both directions after save and reload.
 
-The next milestone starts with a local preview of the selected board as structured JSON. Show placements, geometry, shared components and relationship evidence so the user can inspect what an AI tool would receive. Leave source text and attachment bytes out by default. Verify the preview with an existing workspace before connecting it to an AI service or MCP client. See the [development plan](context/PLAN.md).
+For the next spatial AI increment, use the reviewed JSON to prepare one architecture question. Show the complete question and its context locally so the user can inspect and copy them together. Provider requests and workspace edits are separate later steps. See the [development plan](context/PLAN.md).
 
 ## 9. License, Release, and Verification
 

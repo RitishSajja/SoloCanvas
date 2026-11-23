@@ -16,6 +16,7 @@ import BoardNameEditor from './BoardNameEditor';
 import { buildComponentSummaries, ComponentDetails, FileSource, type ComponentSummary } from './component-summary';
 import FileAttachments from './FileAttachments';
 import RefreshCodeMap from './RefreshCodeMap';
+import BoardContextPreview from './BoardContextPreview';
 import DependencyExplorer from './DependencyExplorer';
 import { isInferredDependency } from './refresh-dependencies.mjs';
 import DeleteControl, { deletionWarning } from './DeleteControl';
@@ -667,6 +668,8 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
         <div className="board-tools-heading"><h2>Board tools</h2><button ref={toolsClose} aria-label="Close board tools" onClick={closeTools}>Close</button></div>
         <p>Click a component to edit its name. Enter applies, Escape cancels, and Ctrl+Enter opens its mini-board. Drag a component to move it.</p>
         {workspace && <>
+          {board && <BoardContextPreview workspace={workspace} boardId={board.id}
+            selectedPlacementId={selected?.id ?? null} visible={toolsOpen} />}
           <details className="workspace-tool">
           <summary>File map</summary>
           <section aria-label="Create file map">
