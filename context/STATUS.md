@@ -8,7 +8,9 @@ Board tools starts closed. Breadcrumbs, board switching and naming, creation, co
 
 Local checks on this change passed: 86 unit tests, production build, 68 development Chromium cases and 12 production Chromium cases. The development suite skips the standalone pinned Mermaid renderer check, which runs separately in the GitHub workflow. Coverage includes mouse opening, in-place rename, cancellation before deleting content, protected first board with a second board present, save/reload, desktop canvas width and narrow-screen tools. A separate regression verifies the parent placement, pan and zoom on return.
 
-Next agent: check this commit’s Actions result and branch ownership. The next code-map increment is a folder refresh preview showing added, changed and missing files before applying selected changes. Preserve layout, notes, shared attachments and manual edges. The end-to-end refreshed import and dependency exploration journey remains open.
+GitHub Actions verified feature commit `599938c5d617faf49b5f1e0fa5546f7a6b91ff11`, including the separate pinned Mermaid renderer test. [Build and browser results](https://github.com/RitishSajja/SoloCanvas/actions/runs/45086147006)
+
+Next agent: confirm the current shared branch and active agent before editing. The next code-map increment is a folder refresh preview showing added, changed and missing files before applying selected changes. Preserve layout, notes, shared attachments and manual edges. The end-to-end refreshed import and dependency exploration journey remains open.
 
 ## 2026-11-22 — Codex, inline editing and component summaries
 
