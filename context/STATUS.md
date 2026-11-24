@@ -1,5 +1,13 @@
 # Agent handoff
 
+## 2026-11-24 UTC — Local architecture question
+
+Codex started from `8f66d57` on `ritishsajja-nested-boards-and-notes`. The prior board-context feature passed GitHub Actions, including the pinned Mermaid rendering check. Main was at `7eb0d8c` and the context-review and Pages branch heads were unchanged. No open pull requests were visible. [Previous verification](https://github.com/RitishSajja/SoloCanvas/actions/runs/45267464683)
+
+This increment lets a user draft a question beside the current board-context preview, review the combined text, and explicitly copy it. Whole-board and connected-placement previews use the existing source and attachment exclusions. The question is local UI state. Preview, copy and discard do not write to the workspace.
+
+Verification on the feature tree passed 105 unit tests, the production build, the development Chromium suite (79 passed, with the pinned Mermaid check reserved for CI), and 17 production Chromium cases. Coverage includes exact reviewed clipboard text, local draft cancellation, scope changes, clipboard denial and storage preservation. The next increment is rectangular selection in board coordinates for preview, download and question. Verify both endpoint placements for links, note-text opt-in, pan and zoom, and keyboard entry.
+
 ## 2026-11-23 — Board context preview
 
 Starting point: shared branch `ritishsajja-nested-boards-and-notes` at `e3472d1`. Main remains at `7eb0d8c`. The context-review and Pages branches have separate handoffs. No new branch head or open pull request was visible at the start of the run.

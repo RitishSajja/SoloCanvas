@@ -13,3 +13,6 @@
 .board-context-preview textarea {
   font: .8rem/1.5 ui-monospace, Consolas, monospace;
 }
+
+.architecture-question textarea:not([readonly]) { font: inherit; }
+.architecture-question .draft-actions { display: flex; flex-wrap: wrap; gap: .5rem; }

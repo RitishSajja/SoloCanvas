@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { buildBoardContext } from './spatial-context.mjs';
 import { connectedPlacementContext } from './connected-context.mjs';
+import ArchitectureQuestion from './ArchitectureQuestion';
 import type { Workspace } from './workspace.mjs';
 import './board-context.css';
 
@@ -35,8 +36,8 @@ function ContextContents({ workspace, boardId, selectedPlacementId, visible }: P
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  if (!visible) return null;
-  return <section aria-label="Board context preview" className="board-context-preview">
+  return <section hidden={!visible} aria-label="Board context preview" className="board-context-preview">
+    {visible && <>
     <p>Preview this board’s current layout and relationships, including unsaved edits.</p>
     <label className="board-context-option">
       <input type="checkbox" checked={onlyConnected} disabled={selectedPlacementId === null && !onlyConnected}
@@ -52,6 +53,8 @@ function ContextContents({ workspace, boardId, selectedPlacementId, visible }: P
       ? <p aria-live="polite">Select a component on this board or clear Only connected placements.</p>
       : <label>Board context JSON<textarea readOnly rows={12} spellCheck={false} value={json} /></label>}
     <button type="button" onClick={download} disabled={json === null}>Download context JSON</button>
+    </>}
+    <ArchitectureQuestion json={json} visible={visible} />
   </section>;
 }
 

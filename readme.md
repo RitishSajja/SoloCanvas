@@ -282,13 +282,19 @@ The version 1 format identifies the board, each placement and its shared compone
 
 The whole-board view includes sticky note IDs and positions. Enable **Include sticky note text** to add their text. To inspect part of the architecture, select a component placement and enable **Only connected placements**. That view follows incoming and outgoing links on the current board, keeping a separate appearance of the same component only if a link connects it. Sticky notes have no relationship endpoints and are left out of this view. Both views exclude imported source text and attachments.
 
+#### Draft an architecture question
+
+Under **Board tools → Board context**, choose **Draft architecture question**. Enter a question and review **Question and context**. The second field shows the exact text for the clipboard, including the JSON from the current preview. For example, select a service on the canvas, enable **Only connected placements**, and ask “Which dependencies would this service change affect?”
+
+Choose **Copy question and context** to copy the reviewed text. If the browser blocks clipboard access, select the text in the preview and use the system copy command. Changing the selected scope updates the preview. Losing the selected component in connected mode disables copying. The draft stays local, and **Discard draft** clears it without changing the board.
+
 ### Next automation handoff
 
 Codex and Copilot take turns on `ritishsajja-nested-boards-and-notes`. At the start of each turn, check the branch head, recent commits, active peer work and the newest entry in [the agent handoff](context/STATUS.md). At the end, record the changes, checks and next step there.
 
 The shared branch includes folder refresh and dependency exploration. The browser journey in `browser/map-refresh.e2e.mjs` checks nested navigation, a binary attachment, a changed import, preserved manual links and two-hop navigation in both directions after save and reload.
 
-For the next spatial AI increment, use the reviewed JSON to prepare one architecture question. Show the complete question and its context locally so the user can inspect and copy them together. Provider requests and workspace edits are separate later steps. See the [development plan](context/PLAN.md).
+For the next spatial-context increment, let the user select a rectangular region on one board. Feed that selection into the same JSON preview, download and question draft. Include a relationship only when both endpoint placements are in the selection. See the [development plan](context/PLAN.md).
 
 ## 9. License, Release, and Verification
 
