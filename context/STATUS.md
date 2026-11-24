@@ -2,6 +2,8 @@
 
 ## 2026-11-24 UTC — Rectangular board context
 
+Feature commit [01d523e](https://github.com/RitishSajja/SoloCanvas/commit/01d523e6b8ee1fb3ad9740374f6ac35d062c781f) passed [GitHub Actions](https://github.com/RitishSajja/SoloCanvas/actions/runs/45350404844), including the unit tests, build, both Chromium suites and the separate Mermaid 11.4.1 check. The local Copilot preview was fast-forwarded and verified clean at the same commit. Codex authored both feature commits and this verification handoff.
+
 The local architecture-question feature was published on the shared branch in [89d936e](https://github.com/RitishSajja/SoloCanvas/commit/89d936ee7087336d76d2cbd09e08461c634eabdd) and pulled into the clean local preview. [GitHub Actions](https://github.com/RitishSajja/SoloCanvas/actions/runs/45345433863) passed the build, unit and browser suites and the pinned Mermaid rendering check. Main was at 7eb0d8c. The two other remote branches and the list of open pull requests showed no new work.
 
 The region feature on the same branch supports pointer drawing under pan and zoom and numeric entry in board coordinates. It includes overlapping visible placement bounds and notes, and only visible links joining two included placements. Imported custom origins are respected. A cancelled draw restores the previous rectangle. Switching scopes clears note-text disclosure. The displayed JSON, local download and copied architecture question use the same snapshot.
