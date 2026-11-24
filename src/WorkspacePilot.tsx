@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { ReactFlow, Background, Controls, Handle, Position, type Node as FlowNode, type NodeChange, type NodeProps, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
+import { ReactFlow, ReactFlowProvider, Background, Controls, Handle, Position, type Node as FlowNode, type NodeChange, type NodeProps, type EdgeChange, type Connection, type ReactFlowInstance } from '@xyflow/react';
 import { addBoard, addMiniBoard, addNote, createMermaidBoard, placeCard, projectBoard, updateCard, updateNote, removeNote, updatePlacementShape, renameBoard, removeBoardTree, removePlacementTree, getMiniBoard, getBoardBreadcrumbs, findCards, findCardPlacements, type ComponentShape, type Workspace } from './workspace.mjs';
 import { openWorkspace, parseWorkspace, writeWorkspaceLocked, type WorkspaceSnapshot } from './workspace-storage.mjs';
 import { createFileMap, validateFilePaths, readSelectedSources, partitionSelectedFiles, selectedFileDetails } from './file-map.mjs';
@@ -17,6 +17,7 @@ import { buildComponentSummaries, ComponentDetails, FileSource, type ComponentSu
 import FileAttachments from './FileAttachments';
 import RefreshCodeMap from './RefreshCodeMap';
 import BoardContextPreview from './BoardContextPreview';
+import { STICKY_NOTE_SIZE } from './spatial-context.mjs';
 import DependencyExplorer from './DependencyExplorer';
 import { isInferredDependency } from './refresh-dependencies.mjs';
 import DeleteControl, { deletionWarning } from './DeleteControl';
@@ -577,8 +578,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       id: `sticky:${note.id}`,
       type: stickyNodeType,
       position: note.position,
-      width: 184,
-      height: 148,
+      ...STICKY_NOTE_SIZE,
       data: { label: note.text,
         remove: () => deleteNote(note.id),
         edit: (text: string) => changed(updateNote(workspace, board.id, note.id, text)),
@@ -630,7 +630,8 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
       <LegacyBoardRecovery />
       <WorkspaceRecovery />
       <p role="status">{message}</p>
-    </section> : <div className={'workspace board-workspace' + (toolsOpen ? ' tools-open' : '')}>
+    </section> : <ReactFlowProvider initialNodes={flowNodes} initialEdges={flowEdges} fitView>
+    <div className={'workspace board-workspace' + (toolsOpen ? ' tools-open' : '')}>
       <div className="board-toolbar" role="group" aria-label="Board actions">
         <nav className="workspace-breadcrumbs" aria-label="Workspace breadcrumbs">
           <button onClick={openOverview}>Workspace overview</button>
@@ -791,7 +792,7 @@ export default function WorkspacePilot({ onClose, initialWorkspace, initialMessa
         </>}
       </aside>
       <p className="board-status" role="status">{message}</p>
-    </div>}
+    </div></ReactFlowProvider>}
   </main>;
 }
 

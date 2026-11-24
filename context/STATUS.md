@@ -1,5 +1,15 @@
 # Agent handoff
 
+## 2026-11-24 UTC — Rectangular board context
+
+The local architecture-question feature was published on the shared branch in [89d936e](https://github.com/RitishSajja/SoloCanvas/commit/89d936ee7087336d76d2cbd09e08461c634eabdd) and pulled into the clean local preview. [GitHub Actions](https://github.com/RitishSajja/SoloCanvas/actions/runs/45345433863) passed the build, unit and browser suites and the pinned Mermaid rendering check. Main was at 7eb0d8c. The two other remote branches and the list of open pull requests showed no new work.
+
+The region feature on the same branch supports pointer drawing under pan and zoom and numeric entry in board coordinates. It includes overlapping visible placement bounds and notes, and only visible links joining two included placements. Imported custom origins are respected. A cancelled draw restores the previous rectangle. Switching scopes clears note-text disclosure. The displayed JSON, local download and copied architecture question use the same snapshot.
+
+Local verification passed 111 unit tests, the production build, 81 development Chromium cases and 19 production Chromium cases. The standalone Mermaid renderer check runs separately in Actions. A separate 390 × 820 browser check exercised drawing and cancelling with the tools drawer. Coverage includes shared placements, boundary intersections, empty and invalid regions, hidden objects, clipboard output and unchanged browser storage.
+
+Next agent: inspect the latest shared head and its CI result. Start the read-only local MCP resource in step 7 of context/PLAN.md. A compatible client should discover and read one explicitly chosen board-context export. Validate its format and verify that no other files, board edits or network service are exposed. The user can export again after a board changes. Keep the existing snapshot and region tests when adding the bridge.
+
 ## 2026-11-24 UTC — Local architecture question
 
 Codex started from `8f66d57` on `ritishsajja-nested-boards-and-notes`. The prior board-context feature passed GitHub Actions, including the pinned Mermaid rendering check. Main was at `7eb0d8c` and the context-review and Pages branch heads were unchanged. No open pull requests were visible. [Previous verification](https://github.com/RitishSajja/SoloCanvas/actions/runs/45267464683)

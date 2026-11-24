@@ -16,3 +16,38 @@
 
 .architecture-question textarea:not([readonly]) { font: inherit; }
 .architecture-question .draft-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+.context-region-picker { min-width: 0; margin: .7rem 0; padding: .65rem; border: 1px solid #c6d1e2; border-radius: .5rem; }
+.context-region-picker legend { padding: 0 .25rem; font-weight: 600; }
+.context-region-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem .6rem; margin-bottom: .6rem; }
+.context-region-fields input { width: 100%; min-width: 0; }
+.context-region-outline {
+  position: absolute;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 2px dashed #275ab1;
+  background: rgb(65 120 218 / 12%);
+}
+.context-region-draw { position: absolute; inset: 0; z-index: 10; cursor: crosshair; touch-action: none; user-select: none; }
+.context-region-draw:focus-visible { outline: 2px solid #275ab1; outline-offset: -2px; }
+.context-region-hint {
+  position: absolute;
+  bottom: .75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  width: max-content;
+  max-width: calc(100% - 1rem);
+  padding: .3rem .5rem;
+  border: 1px solid #c6d1e2;
+  border-radius: .5rem;
+  background: white;
+  font-size: .82rem;
+  pointer-events: none;
+}
+.context-region-hint button { flex-shrink: 0; pointer-events: auto; }
+@media (max-width: 760px) {
+  .board-workspace:has(.context-region-draw) > aside { visibility: hidden; }
+}

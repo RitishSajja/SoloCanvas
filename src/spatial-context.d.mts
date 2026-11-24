@@ -2,6 +2,9 @@ import type { ComponentShape, Workspace } from './workspace.mjs';
 import type { Suggestion } from './dependency-map.mjs';
 
 type Position = { x: number; y: number };
+export type ContextRegion = Position & { width: number; height: number };
+export function isContextRegion(value: unknown): value is ContextRegion;
+export const STICKY_NOTE_SIZE: Readonly<{ width: number; height: number }>;
 type PlacementContext = {
   id: string;
   componentId: string;
@@ -22,11 +25,11 @@ type RelationshipContext = {
 export type BoardContext = {
   format: 'solocanvas.board-context';
   version: 1;
-  scope: { kind: 'board' } | { kind: 'connected-placements'; placementId: string };
+  scope: { kind: 'board' } | { kind: 'connected-placements'; placementId: string } | ({ kind: 'region' } & ContextRegion);
   board: { id: string; title: string; parentPlacement: { boardId: string; placementId: string } | null };
   components: { id: string; label: string; kind: 'component' | 'file'; path?: string }[];
   placements: PlacementContext[];
   relationships: RelationshipContext[];
   notes: { id: string; position: Position; text?: string }[];
 };
-export function buildBoardContext(workspace: Workspace, boardId: string, options?: { includeNoteText?: boolean }): BoardContext;
+export function buildBoardContext(workspace: Workspace, boardId: string, options?: { includeNoteText?: boolean; region?: ContextRegion }): BoardContext;

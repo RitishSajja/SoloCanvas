@@ -20,10 +20,45 @@ function positive(value) {
   return Number.isFinite(value) && value > 0;
 }
 
-function placementContext(node, miniBoardId) {
-  const placement = { id: node.id, componentId: node.cardId, position: position(node.position), shape: node.shape };
+export function isContextRegion(region) {
+  return region != null && Number.isFinite(region.x) && Number.isFinite(region.y) &&
+    positive(region.width) && positive(region.height) &&
+    Number.isFinite(region.x + region.width) && Number.isFinite(region.y + region.height) &&
+    region.x + region.width > region.x && region.y + region.height > region.y;
+}
+
+// Sticky nodes have a fixed size on the canvas. Components are measured after rendering.
+export const STICKY_NOTE_SIZE = Object.freeze({ width: 184, height: 148 });
+
+function intersects(region, position, width, height) {
+  return position.x < region.x + region.width && position.x + width > region.x &&
+    position.y < region.y + region.height && position.y + height > region.y;
+}
+
+function placementSize(node) {
   const width = positive(node.measured?.width) ? node.measured.width : node.width;
   const height = positive(node.measured?.height) ? node.measured.height : node.height;
+  return { width, height };
+}
+
+function placementInRegion(node, region) {
+  const size = placementSize(node);
+  // Before React Flow measures a card, use its minimum rendered size from component-summary.css.
+  const minWidth = node.shape === 'diamond' ? 230 : 204;
+  const width = positive(size.width) ? size.width : minWidth;
+  const height = positive(size.height) ? size.height : 92;
+  // Imported React Flow nodes may anchor their position at the center or another origin.
+  const [originX, originY] = Array.isArray(node.origin) ? node.origin : [];
+  const topLeft = {
+    x: node.position.x - (Number.isFinite(originX) ? originX * width : 0),
+    y: node.position.y - (Number.isFinite(originY) ? originY * height : 0),
+  };
+  return intersects(region, topLeft, width, height);
+}
+
+function placementContext(node, miniBoardId) {
+  const placement = { id: node.id, componentId: node.cardId, position: position(node.position), shape: node.shape };
+  const { width, height } = placementSize(node);
   if (positive(width) && positive(height)) placement.size = { width, height };
   if (miniBoardId !== undefined) placement.miniBoardId = miniBoardId;
   if (node.fileMissing === true) placement.fileMissing = true;
@@ -46,12 +81,24 @@ function relationshipContext(edge) {
   return relationship;
 }
 
-export function buildBoardContext(workspace, boardId, { includeNoteText = false } = {}) {
+export function buildBoardContext(workspace, boardId, { includeNoteText = false, region } = {}) {
   // Storage/import validate and normalize the workspace. Revalidating here would
   // scan attachment bytes on every canvas edit while the preview is open.
   const board = workspace.boards.find(item => item.id === boardId);
   if (!board) throw new Error('Board not found.');
-  const componentIds = new Set(board.nodes.map(node => node.cardId));
+  let { nodes, notes, edges } = board;
+  let scope = { kind: 'board' };
+  if (region !== undefined) {
+    if (!isContextRegion(region)) throw new Error('Enter a valid rectangular region.');
+    const { x, y, width, height } = region;
+    scope = { kind: 'region', x, y, width, height };
+    // Legacy diagrams can retain hidden React Flow elements that cannot be picked on the canvas.
+    nodes = nodes.filter(node => node.hidden !== true && placementInRegion(node, region));
+    const included = new Set(nodes.map(node => node.id));
+    edges = edges.filter(edge => edge.hidden !== true && included.has(edge.source) && included.has(edge.target));
+    notes = notes.filter(note => intersects(region, note.position, STICKY_NOTE_SIZE.width, STICKY_NOTE_SIZE.height));
+  }
+  const componentIds = new Set(nodes.map(node => node.cardId));
   const components = workspace.cards.filter(card => componentIds.has(card.id)).map(({ id, data }) => {
     const kind = data.kind === 'file' ? 'file' : 'component';
     const component = { id, label: label(data.label, 'Untitled component'), kind };
@@ -66,16 +113,16 @@ export function buildBoardContext(workspace, boardId, { includeNoteText = false 
   return {
     format: 'solocanvas.board-context',
     version: 1,
-    scope: { kind: 'board' },
+    scope,
     board: {
       id: board.id,
       title: board.title,
       parentPlacement: parent ? { boardId: parent.boardId, placementId: parent.nodeId } : null,
     },
     components: components.sort(byId),
-    placements: board.nodes.map(node => placementContext(node, miniBoards.get(node.id))).sort(byId),
-    relationships: board.edges.map(relationshipContext).sort(byId),
-    notes: board.notes.map(note => {
+    placements: nodes.map(node => placementContext(node, miniBoards.get(node.id))).sort(byId),
+    relationships: edges.map(relationshipContext).sort(byId),
+    notes: notes.map(note => {
       const entry = { id: note.id, position: position(note.position) };
       if (includeNoteText === true) entry.text = note.text;
       return entry;

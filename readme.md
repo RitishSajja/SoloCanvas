@@ -210,7 +210,7 @@ The initial single-board milestone covered creating and editing component cards,
 
 ### Future directions not implemented
 
-Spatial AI context, an MCP bridge, desktop packaging, cloud sync, and publishing are future directions and are not part of the current application.
+The application can prepare spatial context and an architecture question locally. AI-generated answers, an MCP bridge, desktop packaging, cloud sync and publishing are future milestones.
 
 The detailed development plan and agent handoff live in [context/PLAN.md](context/PLAN.md) and [context/STATUS.md](context/STATUS.md). Agents work in turns on the shared branch, inspect the latest state before editing, and update the handoff with changes, actual checks, blockers, and next steps. The handoff is not a locking mechanism.
 
@@ -280,7 +280,9 @@ Open a board and choose **Board tools → Board context** to inspect its current
 
 The version 1 format identifies the board, each placement and its shared component. It includes positions, available dimensions, shapes and relationships between placements. Inferred relationships include the recorded import path, specifier, line and kind. Parent placements and mini-boards appear as ID references. Arrays are ordered by ID for repeatable comparisons.
 
-The whole-board view includes sticky note IDs and positions. Enable **Include sticky note text** to add their text. To inspect part of the architecture, select a component placement and enable **Only connected placements**. That view follows incoming and outgoing links on the current board, keeping a separate appearance of the same component only if a link connects it. Sticky notes have no relationship endpoints and are left out of this view. Both views exclude imported source text and attachments.
+The whole-board view includes sticky note IDs and positions. Enable **Include sticky note text** to add their text. To inspect part of the architecture, select a component placement and enable **Only connected placements**. That view follows incoming and outgoing links on the current board, keeping a separate appearance of the same component only if a link connects it. Sticky notes have no relationship endpoints and are left out of this view. All scopes exclude imported source text and attachments.
+
+To focus on an area, enable **Rectangular region**. Choose **Draw region on canvas** and drag between opposite corners, or enter the top-left X and Y, width and height in board coordinates. A dashed outline marks the area. Components and sticky notes appear when their bounds overlap the region. A relationship appears only when both placements are included. The region omits explicitly hidden components and relationships. To share note text, enable **Include sticky note text** for the current scope. Switching scopes clears this choice. Press Escape to cancel drawing and keep your previous bounds. The JSON download and the question draft use the region shown in the preview.
 
 #### Draft an architecture question
 
@@ -294,7 +296,7 @@ Codex and Copilot take turns on `ritishsajja-nested-boards-and-notes`. At the st
 
 The shared branch includes folder refresh and dependency exploration. The browser journey in `browser/map-refresh.e2e.mjs` checks nested navigation, a binary attachment, a changed import, preserved manual links and two-hop navigation in both directions after save and reload.
 
-For the next spatial-context increment, let the user select a rectangular region on one board. Feed that selection into the same JSON preview, download and question draft. Include a relationship only when both endpoint placements are in the selection. See the [development plan](context/PLAN.md).
+The next milestone is a read-only local MCP resource for one explicitly exported board-context JSON file. Verify that a compatible client can read the chosen snapshot and that requests for other files fail. See the [development plan](context/PLAN.md).
 
 ## 9. License, Release, and Verification
 
