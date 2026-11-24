@@ -1,4 +1,7 @@
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { test, expect } from './returning-user-fixture.mjs';
 
 const key = 'solocanvas.workspace.v2';
@@ -58,6 +61,35 @@ async function expectDownloadedPreview(page, preview) {
   expect(file.suggestedFilename()).toMatch(/\.json$/);
   expect(await readFile(await file.path())).toEqual(Buffer.from(displayed, 'utf8'));
 }
+
+test('a local MCP client reads exactly the connected board export downloaded in Chromium', async ({ page }) => {
+  await openServices(page);
+  const preview = await openContext(page);
+  const api = page.locator('.react-flow__node[data-id="component:api"]');
+  await api.press('Enter');
+  await api.getByRole('textbox', { name: 'Shared component name' }).press('Escape');
+  await page.getByRole('checkbox', { name: 'Only connected placements' }).check();
+  const displayed = await preview.inputValue();
+  expect(JSON.parse(displayed).scope).toEqual({ kind: 'connected-placements', placementId: 'api' });
+  expect(displayed).not.toContain(source);
+  expect(displayed).not.toContain(attachment.name);
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download context JSON' }).click();
+  const file = await download;
+  const server = fileURLToPath(new URL('../mcp/board-context-server.mjs', import.meta.url));
+  const transport = new StdioClientTransport({ command: process.execPath, args: [server, await file.path()] });
+  const client = new Client({ name: 'solocanvas-browser-check', version: '1.0.0' });
+  try {
+    await client.connect(transport);
+    const { resources } = await client.listResources();
+    expect(resources.map(item => item.uri)).toEqual(['solocanvas://board/context']);
+    const { contents } = await client.readResource({ uri: resources[0].uri });
+    expect(contents).toEqual([{ uri: resources[0].uri, mimeType: 'application/json', text: displayed }]);
+  } finally {
+    await client.close();
+  }
+});
 
 test('preview and download one nested board from a legacy workspace before explicit save', async ({ page }) => {
   await openServices(page);

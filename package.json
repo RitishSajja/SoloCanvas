@@ -12,6 +12,7 @@
     "test:browser": "playwright test"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@xyflow/react": "^12.8.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

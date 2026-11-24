@@ -210,7 +210,7 @@ The initial single-board milestone covered creating and editing component cards,
 
 ### Future directions not implemented
 
-The application can prepare spatial context and an architecture question locally. AI-generated answers, an MCP bridge, desktop packaging, cloud sync and publishing are future milestones.
+The application can prepare spatial context and an architecture question locally. A standalone MCP server lets a client read an exported snapshot. Built-in AI answers, desktop packaging, cloud sync and publishing are future milestones.
 
 The detailed development plan and agent handoff live in [context/PLAN.md](context/PLAN.md) and [context/STATUS.md](context/STATUS.md). Agents work in turns on the shared branch, inspect the latest state before editing, and update the handoff with changes, actual checks, blockers, and next steps. The handoff is not a locking mechanism.
 
@@ -290,13 +290,36 @@ Under **Board tools → Board context**, choose **Draft architecture question**.
 
 Choose **Copy question and context** to copy the reviewed text. If the browser blocks clipboard access, select the text in the preview and use the system copy command. Changing the selected scope updates the preview. Losing the selected component in connected mode disables copying. The draft stays local, and **Discard draft** clears it without changing the board.
 
+#### Read a snapshot from an MCP client
+
+1. On the board, open **Board tools → Board context**, choose the scope and review the JSON. Choose **Download context JSON** and keep track of where the file was saved. The server accepts a UTF-8 SoloCanvas version 1 board-context export up to 5 MiB. A whole-workspace backup uses a different format.
+2. In the SoloCanvas checkout, install the locked dependencies with `npm ci` using Node.js 22. In a client that supports local MCP resources over stdio, set the command to `node`. Supply the absolute paths to `mcp/board-context-server.mjs` and your downloaded file as two separate arguments. For clients with a JSON server configuration, replace both example paths below.
+
+```json
+{
+  "mcpServers": {
+    "solocanvas": {
+      "command": "node",
+      "args": [
+        "C:/projects/SoloCanvas/mcp/board-context-server.mjs",
+        "C:/exports/solocanvas-board-context.json"
+      ]
+    }
+  }
+}
+```
+
+3. Connect and select **SoloCanvas board context** from the client's resources. Its URI is `solocanvas://board/context`. The server serves the reviewed text from memory. Board edits or replacing the file on disk take effect after you export again and restart the connection. A client receiving this resource can read included labels, paths and any note text you opted to share. The server runs locally over standard input and output. [MCP resources](https://modelcontextprotocol.io/specification/2025-11-25/server/resources)
+
+For a local connection check, run `node --test tests/mcp-board-context.test.mjs` from the checkout. It launches the server with a disposable board export and reads it with the official SDK client.
+
 ### Next automation handoff
 
 Codex and Copilot take turns on `ritishsajja-nested-boards-and-notes`. At the start of each turn, check the branch head, recent commits, active peer work and the newest entry in [the agent handoff](context/STATUS.md). At the end, record the changes, checks and next step there.
 
 The shared branch includes folder refresh and dependency exploration. The browser journey in `browser/map-refresh.e2e.mjs` checks nested navigation, a binary attachment, a changed import, preserved manual links and two-hop navigation in both directions after save and reload.
 
-The next milestone is a read-only local MCP resource for one explicitly exported board-context JSON file. Verify that a compatible client can read the chosen snapshot and that requests for other files fail. See the [development plan](context/PLAN.md).
+Next, let a user ask an architecture question from a compatible MCP client using the reviewed snapshot. Keep the question explicit and the board read-only. See the [development plan](context/PLAN.md).
 
 ## 9. License, Release, and Verification
 
@@ -304,7 +327,7 @@ The next milestone is a read-only local MCP resource for one explicitly exported
 
 SoloCanvas is licensed under the Apache License, Version 2.0 (SPDX: `Apache-2.0`); see [LICENSE](LICENSE). The copyright notice identifies Ritish-Sajja, matching the repository's recorded maintainer name.
 
-The direct dependencies' license identifiers, as recorded in `package-lock.json`, are MIT for `@xyflow/react`, `react`, `react-dom`, `@types/react`, `@types/react-dom`, and Vite; and Apache-2.0 for TypeScript and `@playwright/test`. This is a summary of direct package metadata, not a complete audit of transitive dependencies or a legal compliance review.
+The lockfile records MIT for `@modelcontextprotocol/sdk`, `@xyflow/react`, `react`, `react-dom`, `@types/react`, `@types/react-dom` and Vite. It records Apache-2.0 for TypeScript and `@playwright/test`.
 
 ### Release and certification status
 

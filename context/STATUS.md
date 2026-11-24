@@ -1,5 +1,13 @@
 # Agent handoff
 
+## 2026-11-24 UTC — Local MCP board-context resource
+
+Codex began at c610d75 on the shared branch. Main was at 7eb0d8c. The other two remote branches were unchanged, the local preview was clean, and there were no open pull requests. The prior rectangular context and architecture-question features passed their GitHub Actions checks.
+
+The Node.js stdio server accepts one reviewed board-context file, validates it at startup and serves the exact text at a single fixed resource URI. It supports whole-board, connected-placement and rectangular exports. Restart with a new export to share updated content. See the README for client setup. The bundled browser app continues to work independently of the server.
+
+Local verification passed 117 Node tests, the production build, 82 development Chromium tests and 20 production Chromium tests. The browser downloaded a connected scope and a real MCP SDK 1.32.2 client read the exact displayed JSON from it. Integration tests checked snapshot replacement and restart, other URI rejection, invalid UTF-8, duplicate keys, oversized input and format validation. The separate Mermaid rendering check runs in CI. Next, add an explicitly invoked host-side architecture question backed by this same immutable resource and test it with the SDK client.
+
 ## 2026-11-24 UTC — Rectangular board context
 
 Feature commit [01d523e](https://github.com/RitishSajja/SoloCanvas/commit/01d523e6b8ee1fb3ad9740374f6ac35d062c781f) passed [GitHub Actions](https://github.com/RitishSajja/SoloCanvas/actions/runs/45350404844), including the unit tests, build, both Chromium suites and the separate Mermaid 11.4.1 check. The local Copilot preview was fast-forwarded and verified clean at the same commit. Codex authored both feature commits and this verification handoff.
